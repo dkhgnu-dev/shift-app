@@ -104,25 +104,51 @@ export default function App() {
 
     const generateShift = async () => {
         setIsGenerating(true);
-        // In real app, this calls FastAPI backend: 
-        // const res = await fetch('/api/generate_shift', { method: 'POST', body: JSON.stringify({...}) });
+        setGeneratedResult(null);
         
-        // Mocking API delay
-        setTimeout(() => {
-            const mockMatrix = employees.map((emp, i) => {
-                let monthShifts = [];
-                for(let d=1; d<=31; d++) {
-                    let s = '休';
-                    if (Math.random() > 0.4 && emp.shifts.length > 0) {
-                        s = emp.shifts[Math.floor(Math.random() * emp.shifts.length)];
-                    }
-                    monthShifts.push({ shift: s, isError: i === 0 && d === 3 });
-                }
-                return monthShifts;
+        try {
+            const shiftTypes = Object.entries(SHIFT_MASTER).map(([id, timeStr]) => {
+                const [start, end] = timeStr.split('～');
+                return { id, start_time: start, end_time: end };
             });
-            setGeneratedResult({ matrix: mockMatrix, hasError: true });
+
+            const payload = {
+                year: 2024,
+                month: 8,
+                employees: employees.map((e, idx) => ({
+                    id: `emp_${idx}`,
+                    name: e.name,
+                    contract_days: e.days,
+                    is_registered_seller: e.isRS,
+                    allowed_shifts: e.shifts
+                })),
+                shift_types: shiftTypes,
+                requests_off: [], // UI未実装のため空配列
+                thick_staffing_days: thickDays
+            };
+
+            const res = await fetch('https://shift-app-rw01.onrender.com/api/generate_shift', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            
+            if (res.ok && data.status === "SUCCESS") {
+                const newMatrix = employees.map((emp, idx) => {
+                    const empShifts = data.shifts[`emp_${idx}`] || [];
+                    return empShifts.map(s => ({ shift: s, isError: false }));
+                });
+                setGeneratedResult({ matrix: newMatrix, hasError: false });
+            } else {
+                alert("シフト生成に失敗しました: \n" + (data.detail || data.message || "制約が厳しすぎるため解が見つかりませんでした。希望休や登録販売者の数を見直してください。"));
+            }
+        } catch (e) {
+            alert("通信エラーが発生しました: " + e.message);
+        } finally {
             setIsGenerating(false);
-        }, 1500);
+        }
     };
 
     const daysInMonth = 31;
