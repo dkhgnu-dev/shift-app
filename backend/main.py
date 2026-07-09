@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from .models import ShiftInput
-from .shift_solver import solve_shift
+from models import ShiftInput
+from shift_solver import solve_shift
 
 app = FastAPI(title="Shift Optimization API")
 

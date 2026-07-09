@@ -1,5 +1,5 @@
 from ortools.sat.python import cp_model
-from .models import ShiftInput
+from models import ShiftInput
 import calendar
 import datetime
 def solve_shift(input_data: ShiftInput):
