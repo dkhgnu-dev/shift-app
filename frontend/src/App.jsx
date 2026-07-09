@@ -25,14 +25,40 @@ const INITIAL_DATA = [
 
 export default function App() {
     const [activeTab, setActiveTab] = useState('dashboard');
-    const [employees, setEmployees] = useState(INITIAL_DATA);
+    const [employees, setEmployees] = useState(() => {
+        const saved = localStorage.getItem('shift_employees');
+        if (saved) return JSON.parse(saved);
+        return INITIAL_DATA;
+    });
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedResult, setGeneratedResult] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [editingIndex, setEditingIndex] = useState(null);
     
     // Settings State
-    const [thickDays, setThickDays] = useState([]);
+    const [thickDays, setThickDays] = useState(() => {
+        const saved = localStorage.getItem('shift_thickDays');
+        if (saved) return JSON.parse(saved);
+        return [];
+    });
+    
+    // Mobile View State
+    const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
+    const [selectedDateIndex, setSelectedDateIndex] = useState(0);
+
+    useEffect(() => {
+        localStorage.setItem('shift_employees', JSON.stringify(employees));
+    }, [employees]);
+
+    useEffect(() => {
+        localStorage.setItem('shift_thickDays', JSON.stringify(thickDays));
+    }, [thickDays]);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobileView(window.innerWidth <= 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
     
     // Modal Form State
     const [empName, setEmpName] = useState('');
@@ -205,9 +231,58 @@ export default function App() {
                                         </div>
                                     </div>
                                 )}
+                                
+                                <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '16px'}}>
+                                    <button className="btn outline" onClick={() => setIsMobileView(!isMobileView)}>
+                                        {isMobileView ? '💻 PCビューで表示' : '📱 スマホビューで表示'}
+                                    </button>
+                                </div>
 
-                                <div className="glass-card" style={{padding: '16px'}}>
-                                    <div className="table-container">
+                                {isMobileView ? (
+                                    <div className="glass-card" style={{padding: '16px'}}>
+                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', background: '#F8FAFC', padding: '12px', borderRadius: '8px'}}>
+                                            <button className="btn outline" style={{padding: '6px 12px'}} onClick={() => setSelectedDateIndex(Math.max(0, selectedDateIndex - 1))}>&lt;</button>
+                                            <h3 style={{margin: 0, fontSize: '1.2rem', color: 'var(--primary)'}}>8月{selectedDateIndex + 1}日 ({dayNames[(4 + selectedDateIndex) % 7]})</h3>
+                                            <button className="btn outline" style={{padding: '6px 12px'}} onClick={() => setSelectedDateIndex(Math.min(30, selectedDateIndex + 1))}>&gt;</button>
+                                        </div>
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                                            {employees.map((emp, i) => {
+                                                const cell = generatedResult.matrix[i][selectedDateIndex];
+                                                let cssClass = 'shift-cell ';
+                                                if (cell.shift === '休') cssClass += 'off';
+                                                else if (emp.isRS) cssClass += 'rs';
+                                                else cssClass += 'normal';
+                                                if (cell.isError) cssClass += ' error';
+                                                
+                                                return (
+                                                    <div key={i} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB'}}>
+                                                        <div>
+                                                            <div style={{fontWeight: 600, fontSize: '1rem', color: 'var(--text-main)'}}>{emp.name}</div>
+                                                            <div style={{fontSize: '0.75rem', color: '#6B7280', marginTop: '4px'}}>{emp.isRS ? <span style={{background:'#D1FAE5', color:'#065F46', padding:'2px 4px', borderRadius:'4px', marginRight:'4px'}}>登販</span> : ''} {emp.type}</div>
+                                                        </div>
+                                                        <div style={{width: '90px'}}>
+                                                            <select 
+                                                                className={cssClass} 
+                                                                value={cell.shift}
+                                                                style={{border: '1px solid #D1D5DB', appearance: 'none', cursor: 'pointer', outline: 'none', padding: '8px', fontSize: '1rem'}}
+                                                                onChange={(e) => {
+                                                                    const newMatrix = [...generatedResult.matrix];
+                                                                    newMatrix[i][selectedDateIndex].shift = e.target.value;
+                                                                    setGeneratedResult({...generatedResult, matrix: newMatrix});
+                                                                }}
+                                                            >
+                                                                <option value="休">休</option>
+                                                                {emp.shifts.map(s => <option key={s} value={s}>{s}</option>)}
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="glass-card" style={{padding: '16px'}}>
+                                        <div className="table-container">
                                         <table>
                                             <thead>
                                                 <tr>
@@ -263,6 +338,7 @@ export default function App() {
                                         </table>
                                     </div>
                                 </div>
+                                )}
                             </>
                         )}
                     </div>
