@@ -296,7 +296,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only"><Calendar style={{color:'var(--primary)'}}/> Shift AI</div>
+                <div className="logo pc-only"><Calendar style={{color:'var(--primary)'}}/> Shift-Ag</div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
