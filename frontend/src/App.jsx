@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2, Menu, GripVertical } from 'lucide-react';
+import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2, Menu, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
 
 const SHIFT_MASTER = {
     '①': '8:15～12:15', '②': '8:15～14:15', '③': '8:15～16:15',
@@ -31,7 +31,11 @@ export default function App() {
         return INITIAL_DATA;
     });
     const [isGenerating, setIsGenerating] = useState(false);
-    const [generatedResult, setGeneratedResult] = useState(null);
+    const [generatedResult, setGeneratedResult] = useState(() => {
+        const saved = localStorage.getItem('shift_generatedResult');
+        if (saved) return JSON.parse(saved);
+        return null;
+    });
     const [showModal, setShowModal] = useState(false);
     const [editingIndex, setEditingIndex] = useState(null);
     
@@ -57,15 +61,48 @@ export default function App() {
             const draggedItemContent = _employees.splice(dragItem.current, 1)[0];
             _employees.splice(dragOverItem.current, 0, draggedItemContent);
             setEmployees(_employees);
-            setGeneratedResult(null);
+            
+            if (generatedResult) {
+                let _matrix = [...generatedResult.matrix];
+                const draggedMatrixContent = _matrix.splice(dragItem.current, 1)[0];
+                _matrix.splice(dragOverItem.current, 0, draggedMatrixContent);
+                setGeneratedResult({...generatedResult, matrix: _matrix});
+            }
         }
         dragItem.current = null;
         dragOverItem.current = null;
     };
 
+    const moveEmployee = (index, direction) => {
+        if (direction === -1 && index === 0) return;
+        if (direction === 1 && index === employees.length - 1) return;
+        
+        const newIndex = index + direction;
+        
+        let _employees = [...employees];
+        const item = _employees.splice(index, 1)[0];
+        _employees.splice(newIndex, 0, item);
+        setEmployees(_employees);
+        
+        if (generatedResult) {
+            let _matrix = [...generatedResult.matrix];
+            const matrixItem = _matrix.splice(index, 1)[0];
+            _matrix.splice(newIndex, 0, matrixItem);
+            setGeneratedResult({...generatedResult, matrix: _matrix});
+        }
+    };
+
     useEffect(() => {
         localStorage.setItem('shift_employees', JSON.stringify(employees));
     }, [employees]);
+
+    useEffect(() => {
+        if (generatedResult) {
+            localStorage.setItem('shift_generatedResult', JSON.stringify(generatedResult));
+        } else {
+            localStorage.removeItem('shift_generatedResult');
+        }
+    }, [generatedResult]);
 
     useEffect(() => {
         localStorage.setItem('shift_thickDays', JSON.stringify(thickDays));
@@ -222,7 +259,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo"><Calendar size={20} style={{marginRight: '8px'}}/> Shift AI</div>
+                    <div className="logo"><Calendar size={20} /></div>
                 </div>
             )}
             
@@ -309,11 +346,17 @@ export default function App() {
                                                             <div style={{fontWeight: 600, fontSize: '1rem', color: 'var(--text-main)'}}>{emp.name}</div>
                                                             <div style={{fontSize: '0.75rem', color: '#6B7280', marginTop: '4px'}}>{emp.isRS ? <span style={{background:'#D1FAE5', color:'#065F46', padding:'2px 4px', borderRadius:'4px', marginRight:'4px'}}>登販</span> : ''} {emp.type}</div>
                                                         </div>
-                                                        <div style={{width: '90px'}}>
+                                                        <div style={{width: '60px', position: 'relative'}}>
+                                                            <div className={cssClass} style={{ pointerEvents: 'none', textAlign: 'center', fontSize: '0.8rem', padding: '6px', borderRadius: '4px', lineHeight: '1.2' }}>
+                                                                {(() => {
+                                                                    const shiftText = cell.shift === '休' ? '休' : (SHIFT_MASTER[cell.shift] || cell.shift);
+                                                                    const lines = shiftText.includes('～') ? shiftText.split('～') : [shiftText];
+                                                                    return lines.length === 2 ? <>{lines[0]}<br/>~{lines[1]}</> : <>{cell.shift}</>;
+                                                                })()}
+                                                            </div>
                                                             <select 
-                                                                className={cssClass} 
                                                                 value={cell.shift}
-                                                                style={{border: '1px solid #D1D5DB', appearance: 'none', cursor: 'pointer', outline: 'none', padding: '8px', fontSize: '1rem', minWidth: '100px'}}
+                                                                style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', appearance: 'none'}}
                                                                 onChange={(e) => {
                                                                     const newMatrix = [...generatedResult.matrix];
                                                                     newMatrix[i][selectedDateIndex].shift = e.target.value;
@@ -373,12 +416,21 @@ export default function App() {
                                                                 
                                                                 if (cell.isError) cssClass += ' error';
                                                                 
+                                                                const shiftText = cell.shift === '休' ? '休' : (SHIFT_MASTER[cell.shift] || cell.shift);
+                                                                const lines = shiftText.includes('～') ? shiftText.split('～') : [shiftText];
+                                                                
                                                                 return (
-                                                                    <td key={d}>
+                                                                    <td key={d} style={{position: 'relative', width: '50px'}}>
+                                                                        <div className={cssClass} style={{ pointerEvents: 'none', textAlign: 'center', fontSize: '0.75rem', padding: '4px', borderRadius: '4px', lineHeight: '1.2', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                                                            {lines.length === 2 ? (
+                                                                                <>{lines[0]}<br/>~{lines[1]}</>
+                                                                            ) : (
+                                                                                <>{cell.shift}</>
+                                                                            )}
+                                                                        </div>
                                                                         <select 
-                                                                            className={cssClass} 
                                                                             value={cell.shift}
-                                                                            style={{border: 'none', appearance: 'none', cursor: 'pointer', outline: 'none', minWidth: '95px'}}
+                                                                            style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', appearance: 'none'}}
                                                                             onChange={(e) => {
                                                                                 const newMatrix = [...generatedResult.matrix];
                                                                                 newMatrix[i][d].shift = e.target.value;
@@ -469,7 +521,13 @@ export default function App() {
                                     {employees.map((emp, i) => (
                                         <div key={i} style={{background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 2px 8px rgba(0,0,0,0.05)'}}>
                                             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
-                                                <div style={{fontWeight: 700, fontSize: '1.1rem'}}>{emp.name}</div>
+                                                <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                                                    <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                                                        <button className="btn outline" style={{padding: '2px 4px'}} onClick={() => moveEmployee(i, -1)} disabled={i === 0}><ArrowUp size={16}/></button>
+                                                        <button className="btn outline" style={{padding: '2px 4px'}} onClick={() => moveEmployee(i, 1)} disabled={i === employees.length - 1}><ArrowDown size={16}/></button>
+                                                    </div>
+                                                    <div style={{fontWeight: 700, fontSize: '1.1rem'}}>{emp.name}</div>
+                                                </div>
                                                 <div>{emp.isRS && <span style={{background: '#D1FAE5', color: '#065F46', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600}}>登販</span>}</div>
                                             </div>
                                             <div style={{display: 'flex', gap: '8px', marginBottom: '12px'}}>
