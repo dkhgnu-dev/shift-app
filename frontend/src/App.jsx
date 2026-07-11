@@ -14,13 +14,13 @@ const DEFAULT_DAYS = {
 };
 
 const INITIAL_DATA = [
-    { name: '田中 太郎', type: '正社員', isRS: true, days: 23, shifts: ['④', '⑦'] },
-    { name: '鈴木 花子', type: '時間限定社員', isRS: true, days: 23, shifts: ['⑦'] },
-    { name: '佐藤 次郎', type: '準社員', isRS: false, days: 23, shifts: ['④'] },
-    { name: '高橋 三郎', type: '早パート', isRS: false, days: 16, shifts: ['①'] },
-    { name: '伊藤 四郎', type: '遅パート', isRS: false, days: 16, shifts: ['⑨'] },
-    { name: '渡辺 五郎', type: '遅ロングパート', isRS: false, days: 20, shifts: ['⑧'] },
-    { name: '山本 六郎', type: '早ロングパート', isRS: false, days: 20, shifts: ['③'] },
+    { name: '田中 太郎', type: '正社員', isRS: true, days: 23, shifts: ['④', '⑦'], requests: '' },
+    { name: '鈴木 花子', type: '時間限定社員', isRS: true, days: 23, shifts: ['⑦'], requests: '10, 11' },
+    { name: '佐藤 次郎', type: '準社員', isRS: false, days: 23, shifts: ['④'], requests: '' },
+    { name: '高橋 三郎', type: '早パート', isRS: false, days: 16, shifts: ['①'], requests: '' },
+    { name: '伊藤 四郎', type: '遅パート', isRS: false, days: 16, shifts: ['⑨'], requests: '' },
+    { name: '渡辺 五郎', type: '遅ロングパート', isRS: false, days: 20, shifts: ['⑧'], requests: '' },
+    { name: '山本 六郎', type: '早ロングパート', isRS: false, days: 20, shifts: ['③'], requests: '' },
 ];
 
 export default function App() {
@@ -65,6 +65,7 @@ export default function App() {
     const [empType, setEmpType] = useState('正社員');
     const [empRS, setEmpRS] = useState(false);
     const [empDays, setEmpDays] = useState(23);
+    const [empRequests, setEmpRequests] = useState('');
     const [selectedShifts, setSelectedShifts] = useState(['④', '⑦']);
 
     const handleTypeChange = (type, updateDays = true) => {
@@ -92,11 +93,13 @@ export default function App() {
             setEmpType(emp.type);
             setEmpRS(emp.isRS);
             setEmpDays(emp.days);
+            setEmpRequests(emp.requests || '');
             setSelectedShifts([...emp.shifts]);
         } else {
             setEditingIndex(null);
             setEmpName('');
             setEmpRS(false);
+            setEmpRequests('');
             handleTypeChange('正社員', true);
         }
         setShowModal(true);
@@ -108,7 +111,8 @@ export default function App() {
             type: empType,
             isRS: empRS,
             days: parseInt(empDays, 10),
-            shifts: [...selectedShifts]
+            shifts: [...selectedShifts],
+            requests: empRequests
         };
         const newData = [...employees];
         if (editingIndex !== null) newData[editingIndex] = emp;
@@ -138,6 +142,19 @@ export default function App() {
                 return { id, start_time: start, end_time: end };
             });
 
+            let allRequestsOff = [];
+            employees.forEach((e, idx) => {
+                if (e.requests) {
+                    const days = e.requests.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+                    days.forEach(day => {
+                        allRequestsOff.push({
+                            employee_id: `emp_${idx}`,
+                            date: `2024-08-${String(day).padStart(2, '0')}`
+                        });
+                    });
+                }
+            });
+
             const payload = {
                 year: 2024,
                 month: 8,
@@ -149,7 +166,7 @@ export default function App() {
                     allowed_shifts: e.shifts
                 })),
                 shift_types: shiftTypes,
-                requests_off: [], // UI未実装のため空配列
+                requests_off: allRequestsOff,
                 thick_staffing_days: thickDays
             };
 
@@ -403,40 +420,69 @@ export default function App() {
                             </div>
                             <button className="btn" onClick={() => openModal()}><Plus size={16}/> 新規追加</button>
                         </div>
-                        <div className="glass-card" style={{padding: 0, overflow: 'hidden'}}>
-                            <table style={{width: '100%', minWidth: 'unset'}}>
-                                <thead style={{background: '#F8FAFC'}}>
-                                    <tr>
-                                        <th style={{position: 'static', textAlign: 'left', padding: '16px'}}>氏名</th>
-                                        <th style={{position: 'static', textAlign: 'left'}}>雇用区分</th>
-                                        <th style={{position: 'static', textAlign: 'center'}}>登録販売者</th>
-                                        <th style={{position: 'static', textAlign: 'center'}}>契約日数</th>
-                                        <th style={{position: 'static', textAlign: 'left'}}>可能シフト (時間帯)</th>
-                                        <th style={{position: 'static', textAlign: 'center', width: '140px'}}>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+                        <div className="glass-card" style={{padding: isMobileView ? '0' : '0', overflow: 'hidden', background: isMobileView ? 'transparent' : 'var(--glass-bg)', border: isMobileView ? 'none' : '', boxShadow: isMobileView ? 'none' : ''}}>
+                            {isMobileView ? (
+                                <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
                                     {employees.map((emp, i) => (
-                                        <tr key={i}>
-                                            <td style={{position: 'static', textAlign: 'left', padding: '16px', fontWeight: 600}}>{emp.name}</td>
-                                            <td style={{position: 'static', textAlign: 'left'}}>{emp.type}</td>
-                                            <td style={{position: 'static', textAlign: 'center'}}>
-                                                {emp.isRS ? <span style={{background: '#D1FAE5', color: '#065F46', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600}}>あり</span> : <span style={{color: 'var(--text-sub)'}}>なし</span>}
-                                            </td>
-                                            <td style={{position: 'static', textAlign: 'center'}}>{emp.days}日</td>
-                                            <td style={{position: 'static', textAlign: 'left', lineHeight: 1.6}}>
-                                                {emp.shifts.map(s => <span key={s} style={{display:'inline-block', background:'#F3F4F6', padding:'2px 6px', borderRadius:'4px', fontSize:'0.8rem', margin:'2px'}}>{s} {SHIFT_MASTER[s]}</span>)}
-                                            </td>
-                                            <td style={{position: 'static', textAlign: 'center'}}>
-                                                <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
-                                                    <button className="btn outline" style={{padding: '6px'}} onClick={() => openModal(i)}><Edit size={16}/></button>
-                                                    <button className="btn danger" style={{padding: '6px'}} onClick={() => deleteEmployee(i)}><Trash2 size={16}/></button>
+                                        <div key={i} style={{background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 2px 8px rgba(0,0,0,0.05)'}}>
+                                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
+                                                <div style={{fontWeight: 700, fontSize: '1.1rem'}}>{emp.name}</div>
+                                                <div>{emp.isRS && <span style={{background: '#D1FAE5', color: '#065F46', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600}}>登販</span>}</div>
+                                            </div>
+                                            <div style={{display: 'flex', gap: '8px', marginBottom: '12px'}}>
+                                                <span style={{background: '#F3F4F6', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem'}}>{emp.type}</span>
+                                                <span style={{background: '#F3F4F6', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem'}}>契約: {emp.days}日</span>
+                                            </div>
+                                            <div style={{marginBottom: '16px'}}>
+                                                <div style={{fontSize: '0.8rem', color: 'var(--text-sub)', marginBottom: '4px'}}>可能シフト / 希望休:</div>
+                                                <div style={{display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center'}}>
+                                                    {emp.shifts.map(s => <span key={s} style={{background:'#DBEAFE', color:'#1E40AF', padding:'4px 6px', borderRadius:'4px', fontSize:'0.8rem'}}>{s}</span>)}
+                                                    {emp.requests && <span style={{fontSize: '0.8rem', color: '#DC2626', background: '#FEE2E2', padding: '4px 6px', borderRadius: '4px', marginLeft: '4px'}}>休: {emp.requests}</span>}
                                                 </div>
-                                            </td>
-                                        </tr>
+                                            </div>
+                                            <div style={{display: 'flex', gap: '8px', borderTop: '1px solid #E5E7EB', paddingTop: '12px'}}>
+                                                <button className="btn outline" style={{flex: 1, padding: '8px', justifyContent: 'center'}} onClick={() => openModal(i)}><Edit size={16}/> 編集</button>
+                                                <button className="btn danger" style={{flex: 1, padding: '8px', justifyContent: 'center'}} onClick={() => deleteEmployee(i)}><Trash2 size={16}/> 削除</button>
+                                            </div>
+                                        </div>
                                     ))}
-                                </tbody>
-                            </table>
+                                </div>
+                            ) : (
+                                <table style={{width: '100%', minWidth: 'unset'}}>
+                                    <thead style={{background: '#F8FAFC'}}>
+                                        <tr>
+                                            <th style={{position: 'static', textAlign: 'left', padding: '16px'}}>氏名</th>
+                                            <th style={{position: 'static', textAlign: 'left'}}>雇用区分</th>
+                                            <th style={{position: 'static', textAlign: 'center'}}>登録販売者</th>
+                                            <th style={{position: 'static', textAlign: 'center'}}>契約日数</th>
+                                            <th style={{position: 'static', textAlign: 'left'}}>可能シフト (時間帯)</th>
+                                            <th style={{position: 'static', textAlign: 'center', width: '140px'}}>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {employees.map((emp, i) => (
+                                            <tr key={i}>
+                                                <td style={{position: 'static', textAlign: 'left', padding: '16px', fontWeight: 600}}>{emp.name}</td>
+                                                <td style={{position: 'static', textAlign: 'left'}}>{emp.type}</td>
+                                                <td style={{position: 'static', textAlign: 'center'}}>
+                                                    {emp.isRS ? <span style={{background: '#D1FAE5', color: '#065F46', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600}}>あり</span> : <span style={{color: 'var(--text-sub)'}}>なし</span>}
+                                                </td>
+                                                <td style={{position: 'static', textAlign: 'center'}}>{emp.days}日</td>
+                                                <td style={{position: 'static', textAlign: 'left', lineHeight: 1.6}}>
+                                                    {emp.shifts.map(s => <span key={s} style={{display:'inline-block', background:'#F3F4F6', padding:'2px 6px', borderRadius:'4px', fontSize:'0.8rem', margin:'2px'}}>{s} {SHIFT_MASTER[s]}</span>)}
+                                                    {emp.requests && <div style={{color: '#DC2626', fontSize: '0.85rem', marginTop: '4px', fontWeight: 500}}>希望休: {emp.requests}</div>}
+                                                </td>
+                                                <td style={{position: 'static', textAlign: 'center'}}>
+                                                    <div style={{display: 'flex', gap: '8px', justifyContent: 'center'}}>
+                                                        <button className="btn outline" style={{padding: '6px'}} onClick={() => openModal(i)}><Edit size={16}/></button>
+                                                        <button className="btn danger" style={{padding: '6px'}} onClick={() => deleteEmployee(i)}><Trash2 size={16}/></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
                     </div>
                 )}
@@ -471,6 +517,12 @@ export default function App() {
                         </div>
 
                         <div className="form-group">
+                            <label>希望休 (日付のみをカンマ区切りで入力)</label>
+                            <input type="text" className="form-control" value={empRequests} onChange={e => setEmpRequests(e.target.value)} placeholder="例: 1, 15, 20"/>
+                            <div style={{fontSize: '0.8rem', color: 'var(--text-sub)', marginTop: '4px'}}>※数字のみで入力してください</div>
+                        </div>
+
+                        <div className="form-group" style={{marginTop: '24px'}}>
                             <label>契約日数 (月間)</label>
                             <input type="number" className="form-control" value={empDays} onChange={e => setEmpDays(e.target.value)}/>
                         </div>
