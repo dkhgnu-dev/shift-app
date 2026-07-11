@@ -116,7 +116,10 @@ def solve_shift(input_data: ShiftInput):
         model.Maximize(sum(objective_terms))
 
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 15.0
+    # 探索のマルチスレッド化（Portfolio Search）を有効にして、複雑なパズルでも即座に実現可能な解を見つけやすくする
+    solver.parameters.num_search_workers = 8
+    # サーバーのタイムアウト上限ギリギリまで計算時間を延長
+    solver.parameters.max_time_in_seconds = 25.0
     status = solver.Solve(model)
     
     if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
