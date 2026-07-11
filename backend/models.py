@@ -3,7 +3,7 @@ from typing import List, Optional
 
 class ShiftType(BaseModel):
     id: str
-    name: str # '①', '②', '④', '⑦', '⑧', '⑨', '⑩', '⑪'
+    name: Optional[str] = None # '①', '②', '④', '⑦', '⑧', '⑨', '⑩', '⑪'
     start_time: str # "8:15"
     end_time: str # "12:15"
     is_off: bool = False
@@ -11,7 +11,7 @@ class ShiftType(BaseModel):
 class Employee(BaseModel):
     id: str
     name: str
-    employment_type: str # '正社員', '時間限定社員', '準社員', '早パート', '早ロングパート', '遅パート', '遅ロングパート'
+    employment_type: Optional[str] = None # '正社員', '時間限定社員', '準社員', '早パート', '早ロングパート', '遅パート', '遅ロングパート'
     is_registered_seller: bool
     contract_days: int
     allowed_shifts: List[str] # List of ShiftType IDs
