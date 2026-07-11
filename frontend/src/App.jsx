@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2, Menu, GripVertical } from 'lucide-react';
 
 const SHIFT_MASTER = {
     '①': '8:15～12:15', '②': '8:15～14:15', '③': '8:15～16:15',
@@ -44,7 +44,24 @@ export default function App() {
     
     // Mobile View State
     const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [selectedDateIndex, setSelectedDateIndex] = useState(0);
+
+    // Drag and Drop
+    const dragItem = useRef(null);
+    const dragOverItem = useRef(null);
+    
+    const handleSort = () => {
+        if (dragItem.current !== null && dragOverItem.current !== null && dragItem.current !== dragOverItem.current) {
+            let _employees = [...employees];
+            const draggedItemContent = _employees.splice(dragItem.current, 1)[0];
+            _employees.splice(dragOverItem.current, 0, draggedItemContent);
+            setEmployees(_employees);
+            setGeneratedResult(null);
+        }
+        dragItem.current = null;
+        dragOverItem.current = null;
+    };
 
     useEffect(() => {
         localStorage.setItem('shift_employees', JSON.stringify(employees));
@@ -199,16 +216,31 @@ export default function App() {
 
     return (
         <div style={{display: 'flex', width: '100%', minHeight: '100vh'}}>
+            {/* Mobile Header */}
+            {isMobileView && (
+                <div className="mobile-header">
+                    <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
+                        <Menu size={24} />
+                    </button>
+                    <div className="logo"><Calendar size={20} style={{marginRight: '8px'}}/> Shift AI</div>
+                </div>
+            )}
+            
+            {/* Sidebar Overlay (Mobile) */}
+            {isMobileView && isMobileMenuOpen && (
+                <div className="sidebar-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
+            )}
+
             {/* Sidebar */}
-            <div className="sidebar">
-                <div className="logo"><Calendar style={{color:'var(--primary)'}}/> Shift AI</div>
-                <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
+            <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
+                <div className="logo pc-only"><Calendar style={{color:'var(--primary)'}}/> Shift AI</div>
+                <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
-                <div className={`nav-item ${activeTab === 'employees' ? 'active' : ''}`} onClick={() => setActiveTab('employees')}>
+                <div className={`nav-item ${activeTab === 'employees' ? 'active' : ''}`} onClick={() => {setActiveTab('employees'); setIsMobileMenuOpen(false);}}>
                     <Users size={18} /> 従業員管理
                 </div>
-                <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+                <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}}>
                     <Settings size={18} /> ルール設定
                 </div>
             </div>
@@ -281,7 +313,7 @@ export default function App() {
                                                             <select 
                                                                 className={cssClass} 
                                                                 value={cell.shift}
-                                                                style={{border: '1px solid #D1D5DB', appearance: 'none', cursor: 'pointer', outline: 'none', padding: '8px', fontSize: '1rem'}}
+                                                                style={{border: '1px solid #D1D5DB', appearance: 'none', cursor: 'pointer', outline: 'none', padding: '8px', fontSize: '1rem', minWidth: '100px'}}
                                                                 onChange={(e) => {
                                                                     const newMatrix = [...generatedResult.matrix];
                                                                     newMatrix[i][selectedDateIndex].shift = e.target.value;
@@ -289,7 +321,7 @@ export default function App() {
                                                                 }}
                                                             >
                                                                 <option value="休">休</option>
-                                                                {emp.shifts.map(s => <option key={s} value={s}>{s}</option>)}
+                                                                {emp.shifts.map(s => <option key={s} value={s}>{SHIFT_MASTER[s] || s}</option>)}
                                                             </select>
                                                         </div>
                                                     </div>
@@ -303,6 +335,7 @@ export default function App() {
                                         <table>
                                             <thead>
                                                 <tr>
+                                                    <th style={{width: '40px'}}></th>
                                                     <th>従業員</th>
                                                     {[...Array(daysInMonth)].map((_, i) => {
                                                         const dow = (4 + i) % 7;
@@ -317,7 +350,17 @@ export default function App() {
                                                 {employees.map((emp, i) => {
                                                     const shortType = emp.type.replace('パート', 'パ').replace('ロング', 'L').substring(0,4);
                                                     return (
-                                                        <tr key={i}>
+                                                        <tr 
+                                                            key={i}
+                                                            draggable 
+                                                            onDragStart={() => dragItem.current = i} 
+                                                            onDragEnter={() => dragOverItem.current = i} 
+                                                            onDragEnd={handleSort} 
+                                                            onDragOver={(e) => e.preventDefault()}
+                                                        >
+                                                            <td style={{width: '40px', textAlign: 'center', color: '#9CA3AF'}}>
+                                                                <GripVertical size={16} className="drag-handle" />
+                                                            </td>
                                                             <td>
                                                                 <div style={{fontWeight:600}}>{emp.name}</div>
                                                                 <div style={{fontSize:'0.7rem', color:'#9CA3AF'}}>{emp.isRS ? '登販/' : ''}{shortType}</div>
@@ -335,7 +378,7 @@ export default function App() {
                                                                         <select 
                                                                             className={cssClass} 
                                                                             value={cell.shift}
-                                                                            style={{border: 'none', appearance: 'none', cursor: 'pointer', outline: 'none'}}
+                                                                            style={{border: 'none', appearance: 'none', cursor: 'pointer', outline: 'none', minWidth: '95px'}}
                                                                             onChange={(e) => {
                                                                                 const newMatrix = [...generatedResult.matrix];
                                                                                 newMatrix[i][d].shift = e.target.value;
@@ -343,7 +386,7 @@ export default function App() {
                                                                             }}
                                                                         >
                                                                             <option value="休">休</option>
-                                                                            {emp.shifts.map(s => <option key={s} value={s}>{s}</option>)}
+                                                                            {emp.shifts.map(s => <option key={s} value={s}>{SHIFT_MASTER[s] || s}</option>)}
                                                                         </select>
                                                                     </td>
                                                                 )
@@ -451,6 +494,7 @@ export default function App() {
                                 <table style={{width: '100%', minWidth: 'unset'}}>
                                     <thead style={{background: '#F8FAFC'}}>
                                         <tr>
+                                            <th style={{width: '40px'}}></th>
                                             <th style={{position: 'static', textAlign: 'left', padding: '16px'}}>氏名</th>
                                             <th style={{position: 'static', textAlign: 'left'}}>雇用区分</th>
                                             <th style={{position: 'static', textAlign: 'center'}}>登録販売者</th>
@@ -461,7 +505,17 @@ export default function App() {
                                     </thead>
                                     <tbody>
                                         {employees.map((emp, i) => (
-                                            <tr key={i}>
+                                            <tr 
+                                                key={i}
+                                                draggable 
+                                                onDragStart={() => dragItem.current = i} 
+                                                onDragEnter={() => dragOverItem.current = i} 
+                                                onDragEnd={handleSort} 
+                                                onDragOver={(e) => e.preventDefault()}
+                                            >
+                                                <td style={{width: '40px', textAlign: 'center', color: '#9CA3AF', cursor: 'grab'}}>
+                                                    <GripVertical size={16} className="drag-handle" />
+                                                </td>
                                                 <td style={{position: 'static', textAlign: 'left', padding: '16px', fontWeight: 600}}>{emp.name}</td>
                                                 <td style={{position: 'static', textAlign: 'left'}}>{emp.type}</td>
                                                 <td style={{position: 'static', textAlign: 'center'}}>
