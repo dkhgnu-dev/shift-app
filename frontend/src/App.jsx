@@ -46,6 +46,31 @@ export default function App() {
         return [];
     });
     
+    // Date State
+    const [currentYear, setCurrentYear] = useState(() => {
+        const saved = localStorage.getItem('shift_year');
+        return saved ? parseInt(saved, 10) : new Date().getFullYear();
+    });
+    const [currentMonth, setCurrentMonth] = useState(() => {
+        const saved = localStorage.getItem('shift_month');
+        return saved ? parseInt(saved, 10) : new Date().getMonth() + 1;
+    });
+
+    useEffect(() => {
+        localStorage.setItem('shift_year', currentYear);
+        localStorage.setItem('shift_month', currentMonth);
+    }, [currentYear, currentMonth]);
+
+    const changeMonth = (offset) => {
+        let newMonth = currentMonth + offset;
+        let newYear = currentYear;
+        if (newMonth > 12) { newMonth = 1; newYear++; }
+        if (newMonth < 1) { newMonth = 12; newYear--; }
+        setCurrentYear(newYear);
+        setCurrentMonth(newMonth);
+        setGeneratedResult(null);
+    };
+    
     // Mobile View State
     const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -203,15 +228,15 @@ export default function App() {
                     days.forEach(day => {
                         allRequestsOff.push({
                             employee_id: `emp_${idx}`,
-                            date: `2024-08-${String(day).padStart(2, '0')}`
+                            date: `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
                         });
                     });
                 }
             });
 
             const payload = {
-                year: 2024,
-                month: 8,
+                year: currentYear,
+                month: currentMonth,
                 employees: employees.map((e, idx) => ({
                     id: `emp_${idx}`,
                     name: e.name,
@@ -248,7 +273,8 @@ export default function App() {
         }
     };
 
-    const daysInMonth = 31;
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+    const firstDayOfWeek = new Date(currentYear, currentMonth - 1, 1).getDay();
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
 
     return (
@@ -287,9 +313,12 @@ export default function App() {
                 {activeTab === 'dashboard' && (
                     <div className="tab-content active">
                         <div className="header">
-                            <div>
-                                <h1>全体シフト表 (2024年8月)</h1>
-                                <p style={{color: 'var(--text-sub)', marginTop: '4px'}}>従業員ごとの1ヶ月のスケジュール</p>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '16px'}}>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                    <button className="btn outline" style={{padding: '4px 8px'}} onClick={() => changeMonth(-1)}>&lt;</button>
+                                    <h1 style={{margin: 0}}>{currentYear}年{currentMonth}月</h1>
+                                    <button className="btn outline" style={{padding: '4px 8px'}} onClick={() => changeMonth(1)}>&gt;</button>
+                                </div>
                             </div>
                             <button className="btn" onClick={generateShift} disabled={isGenerating}>
                                 <Wand2 size={16}/> 最適化シフトを生成
@@ -328,8 +357,8 @@ export default function App() {
                                     <div className="glass-card" style={{padding: '16px'}}>
                                         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', background: '#F8FAFC', padding: '12px', borderRadius: '8px'}}>
                                             <button className="btn outline" style={{padding: '6px 12px'}} onClick={() => setSelectedDateIndex(Math.max(0, selectedDateIndex - 1))}>&lt;</button>
-                                            <h3 style={{margin: 0, fontSize: '1.2rem', color: 'var(--primary)'}}>8月{selectedDateIndex + 1}日 ({dayNames[(4 + selectedDateIndex) % 7]})</h3>
-                                            <button className="btn outline" style={{padding: '6px 12px'}} onClick={() => setSelectedDateIndex(Math.min(30, selectedDateIndex + 1))}>&gt;</button>
+                                            <h3 style={{margin: 0, fontSize: '1.2rem', color: 'var(--primary)'}}>{currentMonth}月{selectedDateIndex + 1}日 ({dayNames[(firstDayOfWeek + selectedDateIndex) % 7]})</h3>
+                                            <button className="btn outline" style={{padding: '6px 12px'}} onClick={() => setSelectedDateIndex(Math.min(daysInMonth - 1, selectedDateIndex + 1))}>&gt;</button>
                                         </div>
                                         <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
                                             {employees.map((emp, i) => {
@@ -381,7 +410,7 @@ export default function App() {
                                                     <th style={{width: '40px'}}></th>
                                                     <th>従業員</th>
                                                     {[...Array(daysInMonth)].map((_, i) => {
-                                                        const dow = (4 + i) % 7;
+                                                        const dow = (firstDayOfWeek + i) % 7;
                                                         const cls = dow === 0 ? 'sun' : dow === 6 ? 'sat' : '';
                                                         return (
                                                             <th key={i}>{i+1}<span className={`day-label ${cls}`}>({dayNames[dow]})</span></th>
@@ -478,7 +507,7 @@ export default function App() {
                             <h3 style={{marginBottom: '16px', color: 'var(--text-main)'}}>人員を厚くしたい日（追加の個別指定）</h3>
                             <p style={{fontSize: '0.85rem', color: 'var(--text-sub)', marginBottom: '12px'}}>※特売日などで通常よりシフトを手厚くしたい日付を選択してください。（複数選択可）</p>
                             <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-                                {[...Array(31)].map((_, i) => {
+                                {[...Array(daysInMonth)].map((_, i) => {
                                     const day = i + 1;
                                     const isSelected = thickDays.includes(day);
                                     return (
