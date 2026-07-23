@@ -249,6 +249,7 @@ export default function App() {
                 employees: employees.map((e, idx) => ({
                     id: `emp_${idx}`,
                     name: e.name,
+                    employment_type: e.type,
                     contract_days: e.days,
                     is_registered_seller: e.isRS,
                     allowed_shifts: e.shifts
@@ -299,7 +300,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.7</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.8</span></div>
                 </div>
             )}
             
@@ -310,7 +311,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.7</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.8</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -565,10 +566,10 @@ export default function App() {
                                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
                                     <div><strong style={{color: 'var(--text-main)'}}>【絶対禁止・絶対遵守ルール（ハード制約）】</strong></div>
                                     <div style={{paddingLeft: '12px'}}>
-                                        ・<strong>6連勤以上の絶対禁止：</strong> 最大5連勤までとし、6連勤以上は絶対に組みません。<br/>
+                                        ・<strong>希望休の絶対厳守：</strong> 申請された希望休は100%絶対に休みに設定します（出勤させません）。<br/>
+                                        ・<strong>連勤上限（社員5連勤/パート等4連勤）：</strong> 正社員・準社員は最大5連勤まで、パート・アルバイト等は最大4連勤までに厳しく制限します。<br/>
                                         ・<strong>登録販売者の絶対配置：</strong> 営業時間（8:15～24:00）の全時間帯で登録販売者を1名以上確実に配置します。<br/>
                                         ・<strong>契約日数の厳守：</strong> 従業員ごとの契約日数に合わせてぴったり割り当てます。<br/>
-                                        ・<strong>希望休の尊重：</strong> 事前に提出された希望休は最優先で休みに設定します。<br/>
                                         ・<strong>1日の出勤上限：</strong> どんな日でも総従業員数の70%以下（例: 10人なら最大7人）に自動制限します。<br/>
                                         ・<strong>出勤人数の平準化：</strong> 曜日ごとの人数の極端な偏りを防ぎ、全体でバランス（平均±1名以内）を取ります。
                                     </div>

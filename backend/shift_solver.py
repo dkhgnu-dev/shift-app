@@ -35,7 +35,6 @@ def solve_shift(input_data: ShiftInput):
                 
     # --- スラック変数 (診断用ソフト制約) ---
     slack_contract = {}   # 契約日数のズレ
-    slack_off_req = {}    # 希望休の違反
     slack_rs = {}         # 登販不足
     slack_daily_staff = {}# 出勤人数偏り
     
@@ -57,19 +56,29 @@ def solve_shift(input_data: ShiftInput):
                 if s_idx != off_idx and s_idx not in allowed_s_indices:
                     model.Add(x[(e_idx, d, s_idx)] == 0)
                     
-            # 希望休 (スラック付き)
+            # 【絶対ルール】希望休は絶対厳守 (ハード制約)
             if (emp.id, d + 1) in requested_off:
-                s_viol = model.NewBoolVar(f'slack_off_{emp.id}_{d}')
-                slack_off_req[(emp.id, d + 1)] = s_viol
-                model.Add(x[(e_idx, d, off_idx)] == 1).OnlyEnforceIf(s_viol.Not())
+                model.Add(x[(e_idx, d, off_idx)] == 1)
                 
-        # 【絶対ルール】6連勤以上禁止 (ハード制約: ユーザー指示により厳守)
-        for start_d in range(num_days - 5):
-            model.Add(sum(
-                x[(e_idx, d, s_idx)] 
-                for d in range(start_d, start_d + 6) 
-                for s_idx in range(num_shifts) if s_idx != off_idx
-            ) <= 5)
+        # 【絶対ルール】連勤上限 (社員・準社員は最大5連勤、その他は最大4連勤)
+        is_full_time = emp.employment_type in ['正社員', '時間限定社員', '準社員']
+        
+        if is_full_time:
+            # 社員・準社員：最大5連勤 (6連勤以上禁止)
+            for start_d in range(num_days - 5):
+                model.Add(sum(
+                    x[(e_idx, d, s_idx)] 
+                    for d in range(start_d, start_d + 6) 
+                    for s_idx in range(num_shifts) if s_idx != off_idx
+                ) <= 5)
+        else:
+            # パート・アルバイト等：最大4連勤 (5連勤以上禁止)
+            for start_d in range(num_days - 4):
+                model.Add(sum(
+                    x[(e_idx, d, s_idx)] 
+                    for d in range(start_d, start_d + 5) 
+                    for s_idx in range(num_shifts) if s_idx != off_idx
+                ) <= 4)
             
         # 契約日数遵守 (スラック付き)
         working_days = sum(x[(e_idx, d, s_idx)] for d in range(num_days) for s_idx in range(num_shifts) if s_idx != off_idx)
@@ -88,7 +97,6 @@ def solve_shift(input_data: ShiftInput):
     total_contract_days = sum(emp.contract_days for emp in employees)
     target_daily_staff = total_contract_days // num_days if num_days > 0 else 1
     
-    # 70%上限の計算 (切り上げて少数人数時での必要契約日数の破綻を防ぐ)
     max_by_percentage = math.ceil(len(employees) * 0.7)
     required_daily_avg = math.ceil(total_contract_days / num_days) if num_days > 0 else 1
     
@@ -135,8 +143,6 @@ def solve_shift(input_data: ShiftInput):
     total_slack = []
     for (emp_id, (su, so)) in slack_contract.items():
         total_slack.append(100 * su + 100 * so)
-    for req_key, s_viol in slack_off_req.items():
-        total_slack.append(1000 * s_viol)
     for rs_key, s_rs in slack_rs.items():
         total_slack.append(2000 * s_rs)
     for d, (s_min, s_max) in slack_daily_staff.items():
@@ -196,9 +202,9 @@ def solve_shift(input_data: ShiftInput):
 
     warnings = []
 
-    # 絶対失敗しない安全フォールバック（極端な制約時）
+    # 絶対失敗しない安全フォールバック
     if status not in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
-        warnings.append("⚠️ 条件の自動計算が困難だったため、基本仮シフトを構築しました。従業員の契約日数や希望休をご確認ください。")
+        warnings.append("⚠️ 条件の自動計算が困難だったため基本仮シフトを構築しました。従業員の契約日数や希望休の重複をご確認ください。")
         fallback_shifts = {}
         for emp in employees:
             allowed = emp.allowed_shifts if emp.allowed_shifts else [s.id for s in shifts if s.id != 'OFF']
@@ -227,11 +233,6 @@ def solve_shift(input_data: ShiftInput):
             warnings.append(f"{emp.name}さん: 契約日数({emp.days}日)に対して割り当てが{u_val}日不足しています。")
         elif o_val > 0:
             warnings.append(f"{emp.name}さん: 契約日数({emp.days}日)に対して割り当てが{o_val}日超過しています。")
-
-    for (emp_id, day), s_viol in slack_off_req.items():
-        if solver.Value(s_viol) == 1:
-            emp_name = next((e.name for e in employees if e.id == emp_id), emp_id)
-            warnings.append(f"{emp_name}さん: {day}日の希望休が出勤となっています。")
 
     for (day, block), s_rs in slack_rs.items():
         if solver.Value(s_rs) == 1:
