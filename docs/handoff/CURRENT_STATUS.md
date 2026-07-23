@@ -10,8 +10,8 @@
 ## Current State
 
 - Cycle: 1
-- Status: v4.10リリース完了・main push済み。CC担当分（Cycle 1実装＋main統合作業）についてP4レビューをDexに依頼中。
-- Next: Dexが `docs/handoff/P4_CC_to_Dex/cycle_1_review_request.md` をレビューし、指摘があればCCへ差し戻す。既知の未修正バグ（下記参照）と「曜日別目標人数の設計課題」の対応方針もあわせて判断してもらう。
+- Status: Dex(P4)レビューでTake2差し戻し。`backend/shift_solver.py` のフェーズ1スラック最小化がFEASIBLE暫定解を固定する問題を確認。
+- Next: CC/Aguが `docs/handoff/P4_Rollback/cycle_1_main_integration_take2_request.md` と `docs/handoff/P4_Dex_Review/cycle_1_main_integration_review.md` を読み、Take2修正を行う。
 
 ## 実装済み機能（統合後）
 
@@ -47,6 +47,8 @@
 - `docs/handoff/CURRENT_STATUS.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
+- P4レビュー: `docs/handoff/P4_Dex_Review/cycle_1_main_integration_review.md`
+- 差し戻し: `docs/handoff/P4_Rollback/cycle_1_main_integration_take2_request.md`
 - バックログ: `docs/BACKLOG.md`
 
 ## Stop Conditions
