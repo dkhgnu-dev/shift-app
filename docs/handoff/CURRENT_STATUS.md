@@ -4,14 +4,15 @@
 
 - Name: 友達シフト
 - Repository: dkhgnu-dev/shift-app
+- Working Branch: `air-cc-dev` （※mainへの衝突防止のため専用ブランチで運用中）
 - Main agent: Air / CC / エアクルー（Air Crew）
 - External reviewer: エアクルー (Air Crew) ※Dex制限中の代用
 
 ## Current State
 
 - Cycle: 1
-- Status: CCがP2指示書に従いCycle 1実装(P3)完了。シフト自動生成ロジックに変更が入ったためDexレビュー推奨。
-- Next: `docs/handoff/P3_CC_to_Air/cycle_1_implementation_report.md` をAir/Dexが確認し、レビューまたは本番デプロイの判断を行う
+- Status: `air-cc-dev` ブランチを作成し、`docs/BACKLOG.md` およびCycle 1 P1/P2仕様をpush完了。CC向けの実装指示待ち
+- Next: CCが `air-cc-dev` ブランチ上で `docs/handoff/P2_AirCrew_to_CC/cycle_1_mobile_and_flexible_shifts_instructions.md` に従って実装(P3)・プッシュを行う
 
 ## Read First
 
@@ -20,6 +21,7 @@
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
 - 今回の指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_1_mobile_and_flexible_shifts_instructions.md`
+- バックログ: `docs/BACKLOG.md`
 
 ## Stop Conditions
 
