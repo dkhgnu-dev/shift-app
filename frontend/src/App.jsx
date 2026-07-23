@@ -85,10 +85,15 @@ export default function App() {
     // Settings State
     const [thickDays, setThickDays] = useState(() => safeParse(localStorage.getItem('shift_thickDays'), []));
     const [weekdayRanks, setWeekdayRanks] = useState(() => safeParse(localStorage.getItem('shift_weekdayRanks'), { 6: 1, 5: 2, 1: 3, 2: 4, 4: 5, 3: 6, 0: 7 }));
+    const [weekdayMinStaff, setWeekdayMinStaff] = useState(() => safeParse(localStorage.getItem('shift_weekdayMinStaff'), { 6: 0, 5: 0, 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 }));
 
     useEffect(() => {
         localStorage.setItem('shift_weekdayRanks', JSON.stringify(weekdayRanks));
     }, [weekdayRanks]);
+
+    useEffect(() => {
+        localStorage.setItem('shift_weekdayMinStaff', JSON.stringify(weekdayMinStaff));
+    }, [weekdayMinStaff]);
 
     // Date State
     const [currentYear, setCurrentYear] = useState(() => {
@@ -332,7 +337,8 @@ export default function App() {
                 shift_types: shiftTypes,
                 requests_off: allRequestsOff,
                 thick_staffing_days: thickDays,
-                weekday_ranks: weekdayRanks
+                weekday_ranks: weekdayRanks,
+                weekday_min_staff: weekdayMinStaff
             };
 
             const res = await fetch('https://shift-app-rw01.onrender.com/api/generate_shift', {
@@ -374,7 +380,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.8</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.9</span></div>
                 </div>
             )}
 
@@ -385,7 +391,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.8</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.9</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -612,6 +618,35 @@ export default function App() {
                                                 </option>
                                             ))}
                                         </select>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <h3 style={{marginBottom: '16px', color: 'var(--text-main)'}}>曜日ごとの最低出勤人数（個別設定）</h3>
+                            <p style={{fontSize: '0.85rem', color: 'var(--text-sub)', marginBottom: '16px'}}>
+                                ※各曜日で「必ず〇名以上出勤させる」最低人数を設定できます。0 は制限なし。上限（平均+1名）を超えた場合は自動調整されます。
+                            </p>
+                            <div style={{display: 'grid', gridTemplateColumns: isMobileView ? 'repeat(2, 1fr)' : 'repeat(7, 1fr)', gap: '10px', marginBottom: '24px'}}>
+                                {[
+                                    { key: 6, name: '日曜日' },
+                                    { key: 0, name: '月曜日' },
+                                    { key: 1, name: '火曜日' },
+                                    { key: 2, name: '水曜日' },
+                                    { key: 3, name: '木曜日' },
+                                    { key: 4, name: '金曜日' },
+                                    { key: 5, name: '土曜日' },
+                                ].map(d => (
+                                    <div key={d.key} style={{background: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', textAlign: 'center'}}>
+                                        <div style={{fontWeight: 600, fontSize: '0.9rem', marginBottom: '8px'}}>{d.name}</div>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max="30"
+                                            value={weekdayMinStaff[d.key] ?? 0}
+                                            style={{width: '100%', padding: '6px', fontSize: '0.9rem', borderRadius: '6px', border: '1px solid #CBD5E1', textAlign: 'center'}}
+                                            onChange={(e) => setWeekdayMinStaff({...weekdayMinStaff, [d.key]: parseInt(e.target.value, 10) || 0})}
+                                        />
+                                        <div style={{fontSize: '0.75rem', color: 'var(--text-sub)', marginTop: '4px'}}>{(weekdayMinStaff[d.key] ?? 0) === 0 ? '制限なし' : `最低 ${weekdayMinStaff[d.key]}名`}</div>
                                     </div>
                                 ))}
                             </div>

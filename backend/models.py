@@ -29,3 +29,4 @@ class ShiftInput(BaseModel):
     requests_off: List[RequestOff]
     thick_staffing_days: List[int] = []
     weekday_ranks: Optional[dict] = None  # 例: {"6": 1, "5": 2, "0": 7} (1位が最優先、7位が最低)
+    weekday_min_staff: Optional[dict] = None   # 例: {"6": 5, "5": 4, "0": 3} (曜日別の最低出勤人数。0または未設定=制限なし)
