@@ -77,6 +77,7 @@ def solve_shift(input_data: ShiftInput):
     slack_contract = {}    # 契約日数のズレ
     slack_rs = {}          # 登販不足
     # ※ slack_daily_staff は廃止。±1名制限はハード制約に昇格済み。
+    consec_penalty_vars = []  # 連勤ソフト制約ペナルティ変数
 
     # 1. 各従業員の基本制約
     for e_idx, emp in enumerate(employees):
@@ -104,21 +105,44 @@ def solve_shift(input_data: ShiftInput):
         is_full_time = emp.employment_type in ['正社員', '時間限定社員', '準社員']
 
         if is_full_time:
-            # 社員・準社員：最大5連勤 (6連勤以上禁止)
+            # 社員・準社員：最大5連勤 (6連勤以上禁止) ← ハード制約
             for start_d in range(num_days - 5):
                 model.Add(sum(
                     x[(e_idx, d, s_idx)]
                     for d in range(start_d, start_d + 6)
                     for s_idx in range(num_shifts) if s_idx != off_idx
                 ) <= 5)
+            # 社員・準社員：5連勤を極力避ける ← ソフト制約
+            for start_d in range(num_days - 4):
+                five_consec = model.NewBoolVar(f'five_consec_{emp.id}_{start_d}')
+                work_5 = sum(
+                    x[(e_idx, d, s_idx)]
+                    for d in range(start_d, start_d + 5)
+                    for s_idx in range(num_shifts) if s_idx != off_idx
+                )
+                # work_5 == 5 のとき five_consec=1 にしてペナルティを加算
+                model.Add(work_5 >= 5).OnlyEnforceIf(five_consec)
+                model.Add(work_5 <= 4).OnlyEnforceIf(five_consec.Not())
+                consec_penalty_vars.append(five_consec)
         else:
-            # パート・アルバイト等：最大4連勤 (5連勤以上禁止)
+            # パート・アルバイト等：最大4連勤 (5連勤以上禁止) ← ハード制約
             for start_d in range(num_days - 4):
                 model.Add(sum(
                     x[(e_idx, d, s_idx)]
                     for d in range(start_d, start_d + 5)
                     for s_idx in range(num_shifts) if s_idx != off_idx
                 ) <= 4)
+            # パート・アルバイト等：4連勤を極力避ける ← ソフト制約
+            for start_d in range(num_days - 3):
+                four_consec = model.NewBoolVar(f'four_consec_{emp.id}_{start_d}')
+                work_4 = sum(
+                    x[(e_idx, d, s_idx)]
+                    for d in range(start_d, start_d + 4)
+                    for s_idx in range(num_shifts) if s_idx != off_idx
+                )
+                model.Add(work_4 >= 4).OnlyEnforceIf(four_consec)
+                model.Add(work_4 <= 3).OnlyEnforceIf(four_consec.Not())
+                consec_penalty_vars.append(four_consec)
 
         # 契約日数遵守 (スラック付き)
         working_days = sum(x[(e_idx, d, s_idx)] for d in range(num_days) for s_idx in range(num_shifts) if s_idx != off_idx)
@@ -180,11 +204,24 @@ def solve_shift(input_data: ShiftInput):
 
     target_diff_vars = []
     for d in range(num_days):
+        current_date = start_date + datetime.timedelta(days=d)
+        weekday = current_date.weekday()
         daily_workers = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in range(num_shifts) if s_idx != off_idx)
+
+        # 曜日別最低出勤人数の適用（ハード制約）
+        # weekday_min_staff が設定されていれば、base_avg-1 と比較して大きい方を採用
+        day_min = min_allowed  # デフォルトは base_avg - 1
+        if input_data.weekday_min_staff:
+            w_min_key = str(weekday)
+            if w_min_key in input_data.weekday_min_staff:
+                user_min = int(input_data.weekday_min_staff[w_min_key])
+                if user_min > 0:
+                    # 上限 (max_allowed) を超えないようにクランプ
+                    day_min = max(day_min, min(user_min, max_allowed))
 
         # 出勤人数上限・下限は「ハード制約」として直接固定（スラックなし）
         # → フェーズ1で均等配分に固定されることなく、フェーズ2の順位配分が機能する
-        model.Add(daily_workers >= min_allowed)
+        model.Add(daily_workers >= day_min)
         model.Add(daily_workers <= max_allowed)
 
         # 目標人数からの差分変数をモデル定義時に一括作成
@@ -229,9 +266,11 @@ def solve_shift(input_data: ShiftInput):
         best_slack = solver.Value(sum(total_slack))
         model.Add(sum(total_slack) <= best_slack)
 
-        # 【フェーズ 2】各曜日の目標人数の達成最適化
-        model.Minimize(sum(target_diff_vars))
-        solver.parameters.max_time_in_seconds = 8.0
+        # 【フェーズ 2】曜日目標人数の達成 ＋ 連勤抑制の統合最適化
+        # 連勤ペナルティ係数: 15（1連勤発生 = 目標人数ズレ15人分のコスト）
+        consec_penalty_sum = sum(15 * v for v in consec_penalty_vars) if consec_penalty_vars else 0
+        model.Minimize(sum(target_diff_vars) + consec_penalty_sum)
+        solver.parameters.max_time_in_seconds = 12.0
         solver.Solve(model)
 
     warnings = []
