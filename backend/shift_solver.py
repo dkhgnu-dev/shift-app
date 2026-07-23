@@ -33,6 +33,7 @@ def solve_shift(input_data: ShiftInput):
     slack_contract = {}  # 契約日数のズレ
     slack_off_req = {}   # 希望休の違反
     slack_rs = {}        # 登販不足
+    slack_daily_staff = {} # 1日出勤人数の上限下限の超過不足
     
     # 1. 各従業員の基本制約
     for e_idx, emp in enumerate(employees):
@@ -52,7 +53,6 @@ def solve_shift(input_data: ShiftInput):
             if (emp.id, d + 1) in requested_off:
                 s_viol = model.NewBoolVar(f'slack_off_{emp.id}_{d}')
                 slack_off_req[(emp.id, d + 1)] = s_viol
-                # s_viol == 0 なら OFF にする。s_viol == 1 なら出勤を許容する
                 model.Add(x[(e_idx, d, off_idx)] == 1).OnlyEnforceIf(s_viol.Not())
                 
         # 6連勤以上禁止 (絶対ルール)
@@ -88,8 +88,13 @@ def solve_shift(input_data: ShiftInput):
     diff_vars = []
     for d in range(num_days):
         daily_workers = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in range(num_shifts) if s_idx != off_idx)
-        model.Add(daily_workers >= min_allowed)
-        model.Add(daily_workers <= max_allowed)
+        
+        # 出勤人数上限・下限をスラック化して「絶対エラーにならない」ように緩和
+        s_min = model.NewIntVar(0, len(employees), f'slack_min_{d}')
+        s_max = model.NewIntVar(0, len(employees), f'slack_max_{d}')
+        model.Add(daily_workers + s_min >= min_allowed)
+        model.Add(daily_workers - s_max <= max_allowed)
+        slack_daily_staff[d + 1] = (s_min, s_max)
 
         # 平準化差分
         diff = model.NewIntVar(0, len(employees), f'diff_{d}')
@@ -108,7 +113,6 @@ def solve_shift(input_data: ShiftInput):
             s_rs = model.NewBoolVar(f'slack_rs_{d}_{block}')
             slack_rs[(d + 1, block)] = s_rs
             if covering_vars:
-                # s_rs == 0 なら少なくとも1名RSが必要。s_rs == 1 ならRS不足を認める
                 model.Add(sum(covering_vars) >= 1).OnlyEnforceIf(s_rs.Not())
             else:
                 model.Add(s_rs == 1)
@@ -123,61 +127,69 @@ def solve_shift(input_data: ShiftInput):
         total_slack.append(1000 * s_viol)
     for rs_key, s_rs in slack_rs.items():
         total_slack.append(2000 * s_rs)
+    for d, (s_min, s_max) in slack_daily_staff.items():
+        total_slack.append(500 * s_min + 500 * s_max)
 
     model.Minimize(sum(total_slack))
 
     solver = cp_model.CpSolver()
     solver.parameters.num_search_workers = 8
     solver.parameters.max_time_in_seconds = 8.0
-    status1 = solver.Solve(model)
+    status = solver.Solve(model)
 
-    if status1 in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
+    if status in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
         best_slack = solver.Value(sum(total_slack))
-        # フェーズ1の違反量を固定 (これ以上悪化させない)
         model.Add(sum(total_slack) <= best_slack)
 
-    # 【フェーズ 2】次優先: 人数平準化 (平均人数からの偏り最小化)
-    model.Minimize(sum(diff_vars))
-    solver.parameters.max_time_in_seconds = 8.0
-    status2 = solver.Solve(model)
+        # 【フェーズ 2】次優先: 人数平準化
+        model.Minimize(sum(diff_vars))
+        solver.parameters.max_time_in_seconds = 8.0
+        status2 = solver.Solve(model)
+        if status2 in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
+            best_diff = solver.Value(sum(diff_vars))
+            model.Add(sum(diff_vars) <= best_diff)
 
-    if status2 in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
-        best_diff = solver.Value(sum(diff_vars))
-        model.Add(sum(diff_vars) <= best_diff)
+        # 【フェーズ 3】嗜好優先: 曜日順位(1〜7位)・抽選会等の最大化
+        pref_terms = []
+        lottery_days_count = 5 if input_data.month in [7, 12] else 4
+        for d in range(num_days):
+            current_date = datetime.date(input_data.year, input_data.month, d + 1)
+            weekday = current_date.weekday()
+            day_weight = 0
+            if input_data.weekday_ranks:
+                w_key = str(weekday)
+                if w_key in input_data.weekday_ranks:
+                    rank = int(input_data.weekday_ranks[w_key])
+                    if rank > 0:
+                        day_weight += (8 - rank) - 4
+            else:
+                if weekday == 6: day_weight += 2
+                elif weekday == 0: day_weight -= 1
 
-    # 【フェーズ 3】嗜好優先: 曜日順位(1〜7位)・抽選会等の最大化
-    pref_terms = []
-    lottery_days_count = 5 if input_data.month in [7, 12] else 4
-    for d in range(num_days):
-        current_date = datetime.date(input_data.year, input_data.month, d + 1)
-        weekday = current_date.weekday()
-        day_weight = 0
-        if input_data.weekday_ranks:
-            w_key = str(weekday)
-            if w_key in input_data.weekday_ranks:
-                rank = int(input_data.weekday_ranks[w_key])
-                if rank > 0:
-                    day_weight += (8 - rank) - 4
-        else:
-            if weekday == 6: day_weight += 2
-            elif weekday == 0: day_weight -= 1
+            if d >= (num_days - lottery_days_count):
+                day_weight += 4
+            if (d + 1) in input_data.thick_staffing_days:
+                day_weight += 5
 
-        if d >= (num_days - lottery_days_count):
-            day_weight += 4
-        if (d + 1) in input_data.thick_staffing_days:
-            day_weight += 5
+            if day_weight != 0:
+                for e_idx in range(len(employees)):
+                    for s_idx in range(num_shifts):
+                        if s_idx != off_idx:
+                            pref_terms.append(day_weight * x[(e_idx, d, s_idx)])
 
-        if day_weight != 0:
-            for e_idx in range(len(employees)):
-                for s_idx in range(num_shifts):
-                    if s_idx != off_idx:
-                        pref_terms.append(day_weight * x[(e_idx, d, s_idx)])
+        if pref_terms:
+            model.Maximize(sum(pref_terms))
+            solver.parameters.max_time_in_seconds = 8.0
+            solver.Solve(model)
 
-    if pref_terms:
-        model.Maximize(sum(pref_terms))
-    
-    solver.parameters.max_time_in_seconds = 8.0
-    status3 = solver.Solve(model)
+    # 万が一解が得られなかった場合のフォールバック安全処理
+    if status not in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
+        return {
+            "status": "FAILED",
+            "shifts": {},
+            "score": 0,
+            "message": "制約の競合によりシフトを作成できませんでした。条件（希望休や不可シフト）を見直してください。"
+        }
 
     # 結果の構築と診断アドバイス (Warnings) の生成
     warnings = []
@@ -200,6 +212,14 @@ def solve_shift(input_data: ShiftInput):
     for (day, block), s_rs in slack_rs.items():
         if solver.Value(s_rs) == 1:
             warnings.append(f"{day}日: 時間帯ブロック{block}で登録販売者が不足しています。")
+
+    for day, (s_min, s_max) in slack_daily_staff.items():
+        min_v = solver.Value(s_min)
+        max_v = solver.Value(s_max)
+        if min_v > 0:
+            warnings.append(f"{day}日: 希望休等の都合により出勤人数が下限より{min_v}名少なくなっています。")
+        elif max_v > 0:
+            warnings.append(f"{day}日: 出勤人数が上限(70%)より{max_v}名多くなっています。")
 
     result_shifts = {}
     for e_idx, emp in enumerate(employees):
