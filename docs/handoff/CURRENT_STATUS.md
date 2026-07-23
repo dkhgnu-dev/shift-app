@@ -10,14 +10,15 @@
 ## Current State
 
 - Cycle: 1
-- Status: Dex(P4) Take2再レビューでTake3差し戻し。Take2完了報告の「実店舗24名構成で登録販売者不足警告248件→0件」をDex側で再現できず。
-- Next: CC/Aguが `docs/handoff/P4_Rollback/cycle_1_main_integration_take3_request.md` と `docs/handoff/P4_Dex_Review/cycle_1_main_integration_take2_review.md` を読み、検証payload保存・再現条件確認・必要修正を行う。
+- Status: Take3（検証補足）完了・push済み。検証payloadを `docs/handoff/P3_CC_to_Dex/cycle_1_take3_solver_payload.py` に保存し、4回実行して`warnings_total=0`を再現。ただしDex側との再現差異の根本原因（入力モデル相違 or 環境差異）は未確定。
+- Next: Dexが保存済みpayloadスクリプトをそのまま実行して再現するか確認し、判断する。
 
 ## 実装済み機能（統合後）
 
 ### バックエンド (`backend/shift_solver.py` / `backend/models.py`)
 - 多段階（辞書順）最適化＋スラック自動診断エンジン（アグ担当・v4.10、Take2でCCがP1/P2バグ修正）
-  - **【Take2修正】フェーズ1が`OPTIMAL`の場合のみスラックをハード固定。`FEASIBLE`の場合はフェーズ2でも圧倒的重みでスラック削減を継続。フェーズ2のSolve戻り値を明示的に判定し、失敗時はフェーズ1解へフォールバック。ただしDex再レビューでは実店舗24名構成の警告0件を再現できず、Take3で検証payload保存・再現条件確認が必要。**
+  - **【Take2修正】フェーズ1が`OPTIMAL`の場合のみスラックをハード固定。`FEASIBLE`の場合はフェーズ2でも圧倒的重みでスラック削減を継続。フェーズ2のSolve戻り値を明示的に判定し、失敗時はフェーズ1解へフォールバック。**
+  - **【Take3】Dex再レビューでTake2の「警告0件」を再現できず差し戻し。CC側で検証payloadをファイル保存し4回実行したが一貫して0件を再現。原因はTake2完了報告時点で検証payloadが未保存だったことによる入力モデル相違、または`backend/requirements.txt`がortoolsバージョンを固定していないことによる環境差異の可能性（未確定・Dex判断待ち）。**
   - 希望休100%絶対厳守、連勤上限（社員5連勤/パート4連勤）、契約日数遵守
   - **【v4.10新機能】連休制限ルール（希望休は対象外）**
     - 正社員・時間限定社員・準社員: AI自動割当での**3連休以上を絶対禁止（最大2連休まで）**
