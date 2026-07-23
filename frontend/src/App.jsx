@@ -558,10 +558,11 @@ export default function App() {
                                 })}
                             </div>
 
-                            <div style={{marginTop: '24px', fontSize: '0.85rem', color: 'var(--text-sub)', background: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px dashed #CBD5E1'}}>
-                                <strong style={{color: 'var(--text-main)'}}>💡 その他の設定について</strong><br/>
-                                ・<strong>従業員数・登録販売者数</strong>：従業員管理タブで登録したデータからAIが自動的に読み取ります。<br/>
-                                ・<strong>営業時間</strong>：8:15～24:00 でシステムに固定されています。
+                            <div style={{marginTop: '24px', fontSize: '0.85rem', color: 'var(--text-sub)', background: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px dashed #CBD5E1', lineHeight: 1.6}}>
+                                <strong style={{color: 'var(--text-main)'}}>💡 AIの自動最適化ルール（店舗共通）</strong><br/>
+                                ・<strong>1日の出勤上限</strong>：どんな日でも総従業員数の70%以下（例: 10人なら最大7人）に自動制限されます。<br/>
+                                ・<strong>月末の抽選会・大抽選会</strong>：通常月は月末4日間、7月・12月は「大抽選会」として月末5日間の人員優先度が自動的に上がります。<br/>
+                                ・<strong>営業時間</strong>：8:15～24:00 で固定されています。
                             </div>
                         </div>
                     </div>
