@@ -76,7 +76,7 @@ def solve_shift(input_data: ShiftInput):
     # --- スラック変数 (診断用ソフト制約) ---
     slack_contract = {}    # 契約日数のズレ
     slack_rs = {}          # 登販不足
-    slack_daily_staff = {} # 出勤人数偏り
+    # ※ slack_daily_staff は廃止。±1名制限はハード制約に昇格済み。
 
     # 1. 各従業員の基本制約
     for e_idx, emp in enumerate(employees):
@@ -182,12 +182,10 @@ def solve_shift(input_data: ShiftInput):
     for d in range(num_days):
         daily_workers = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in range(num_shifts) if s_idx != off_idx)
 
-        # 出勤人数上限・下限をスラック化 (平均 ± 1名以内)
-        s_min = model.NewIntVar(0, len(employees), f'slack_min_{d}')
-        s_max = model.NewIntVar(0, len(employees), f'slack_max_{d}')
-        model.Add(daily_workers + s_min >= min_allowed)
-        model.Add(daily_workers - s_max <= max_allowed)
-        slack_daily_staff[d] = (s_min, s_max)
+        # 出勤人数上限・下限は「ハード制約」として直接固定（スラックなし）
+        # → フェーズ1で均等配分に固定されることなく、フェーズ2の順位配分が機能する
+        model.Add(daily_workers >= min_allowed)
+        model.Add(daily_workers <= max_allowed)
 
         # 目標人数からの差分変数をモデル定義時に一括作成
         target_diff = model.NewIntVar(0, len(employees), f'target_diff_{d}')
@@ -212,14 +210,13 @@ def solve_shift(input_data: ShiftInput):
 
     # === 辞書順最適化 (Lexicographic Optimization) ===
 
-    # 【フェーズ 1】最優先: スラック（違反量）の最小化
+    # 【フェーズ 1】最優先: スラック（契約日数・登販不足）の最小化
+    # ※ 均等化ペナルティは除外。±1名制限はハード制約のため不要。
     total_slack = []
     for (emp_id, (su, so)) in slack_contract.items():
         total_slack.append(100 * su + 100 * so)
     for rs_key, s_rs in slack_rs.items():
         total_slack.append(2000 * s_rs)
-    for d, (s_min, s_max) in slack_daily_staff.items():
-        total_slack.append(500 * s_min + 500 * s_max)
 
     model.Minimize(sum(total_slack))
 
@@ -276,14 +273,7 @@ def solve_shift(input_data: ShiftInput):
             warn_date = start_date + datetime.timedelta(days=d)
             warnings.append(f"{warn_date.month}/{warn_date.day}: 時間帯ブロック{block}で登録販売者が不足しています。")
 
-    for d, (s_min, s_max) in slack_daily_staff.items():
-        min_v = solver.Value(s_min)
-        max_v = solver.Value(s_max)
-        warn_date = start_date + datetime.timedelta(days=d)
-        if min_v > 0:
-            warnings.append(f"{warn_date.month}/{warn_date.day}: 希望休等の都合により出勤人数が下限より{min_v}名少なくなっています。")
-        elif max_v > 0:
-            warnings.append(f"{warn_date.month}/{warn_date.day}: 出勤人数が上限(70%)より{max_v}名多くなっています。")
+    # ※ slack_daily_staff の警告は廃止（ハード制約化により違反は発生しない）
 
     result_shifts = {}
     for e_idx, emp in enumerate(employees):
