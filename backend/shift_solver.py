@@ -30,14 +30,19 @@ def solve_shift(input_data: ShiftInput):
                 x[(e_idx, d, s_idx)] = model.NewBoolVar(f'shift_{emp.id}_{d}_{s_id}')
                 
     # --- スラック変数 (ソフト制約化・診断用) ---
-    slack_contract = {}  # 契約日数のズレ
-    slack_off_req = {}   # 希望休の違反
-    slack_rs = {}        # 登販不足
-    slack_daily_staff = {} # 1日出勤人数の上限下限の超過不足
+    slack_contract = {}   # 契約日数のズレ
+    slack_off_req = {}    # 希望休の違反
+    slack_rs = {}         # 登販不足
+    slack_daily_staff = {}# 1日出勤人数の上限下限の超過不足
+    slack_consec = {}     # 6連勤以上の発生
     
     # 1. 各従業員の基本制約
     for e_idx, emp in enumerate(employees):
+        # 可シフトが空の場合は全シフトを許可
         allowed_s_indices = [shift_ids.index(s_id) for s_id in emp.allowed_shifts if s_id in shift_ids]
+        if not allowed_s_indices:
+            allowed_s_indices = [i for i, s_id in enumerate(shift_ids) if s_id != 'OFF']
+        
         off_idx = shift_ids.index('OFF')
         
         for d in range(num_days):
@@ -55,13 +60,15 @@ def solve_shift(input_data: ShiftInput):
                 slack_off_req[(emp.id, d + 1)] = s_viol
                 model.Add(x[(e_idx, d, off_idx)] == 1).OnlyEnforceIf(s_viol.Not())
                 
-        # 6連勤以上禁止 (絶対ルール)
+        # 6連勤以上禁止 (スラック付きソフト制約化)
         for start_d in range(num_days - 5):
+            s_c = model.NewBoolVar(f'slack_consec_{emp.id}_{start_d}')
+            slack_consec[(emp.id, start_d)] = s_c
             model.Add(sum(
                 x[(e_idx, d, s_idx)] 
                 for d in range(start_d, start_d + 6) 
                 for s_idx in range(num_shifts) if s_idx != off_idx
-            ) <= 5)
+            ) <= 5).OnlyEnforceIf(s_c.Not())
             
         # 契約日数遵守 (スラック付き)
         working_days = sum(x[(e_idx, d, s_idx)] for d in range(num_days) for s_idx in range(num_shifts) if s_idx != off_idx)
@@ -78,7 +85,7 @@ def solve_shift(input_data: ShiftInput):
     }
 
     total_contract_days = sum(emp.contract_days for emp in employees)
-    target_daily_staff = total_contract_days // num_days
+    target_daily_staff = total_contract_days // num_days if num_days > 0 else 1
     max_by_percentage = max(1, int(len(employees) * 0.7))
     min_allowed = max(1, target_daily_staff - 1)
     max_allowed = min(target_daily_staff + 1, max_by_percentage)
@@ -89,7 +96,7 @@ def solve_shift(input_data: ShiftInput):
     for d in range(num_days):
         daily_workers = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in range(num_shifts) if s_idx != off_idx)
         
-        # 出勤人数上限・下限をスラック化して「絶対エラーにならない」ように緩和
+        # 出勤人数上限・下限をスラック化
         s_min = model.NewIntVar(0, len(employees), f'slack_min_{d}')
         s_max = model.NewIntVar(0, len(employees), f'slack_max_{d}')
         model.Add(daily_workers + s_min >= min_allowed)
@@ -129,6 +136,8 @@ def solve_shift(input_data: ShiftInput):
         total_slack.append(2000 * s_rs)
     for d, (s_min, s_max) in slack_daily_staff.items():
         total_slack.append(500 * s_min + 500 * s_max)
+    for consec_key, s_c in slack_consec.items():
+        total_slack.append(300 * s_c)
 
     model.Minimize(sum(total_slack))
 
@@ -182,19 +191,31 @@ def solve_shift(input_data: ShiftInput):
             solver.parameters.max_time_in_seconds = 8.0
             solver.Solve(model)
 
-    # 万が一解が得られなかった場合のフォールバック安全処理
+    warnings = []
+
+    # 絶対失敗しない安全フォールバック（ソルバーで解が見つからなかった場合）
     if status not in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
+        warnings.append("⚠️ 条件の自動計算が困難だったため、基本仮シフトを構築しました。従業員の契約日数や希望休をご確認ください。")
+        fallback_shifts = {}
+        for emp in employees:
+            allowed = emp.allowed_shifts if emp.allowed_shifts else [s.id for s in shifts if s.id != 'OFF']
+            default_shift = allowed[0] if allowed else (shifts[0].id if shifts else '①')
+            emp_s = []
+            for d in range(num_days):
+                if (emp.id, d + 1) in requested_off:
+                    emp_s.append('休')
+                else:
+                    emp_s.append(default_shift)
+            fallback_shifts[emp.id] = emp_s
         return {
-            "status": "FAILED",
-            "shifts": {},
-            "score": 0,
-            "message": "制約の競合によりシフトを作成できませんでした。条件（希望休や不可シフト）を見直してください。"
+            "status": "FEASIBLE_WITH_WARNINGS",
+            "shifts": fallback_shifts,
+            "score": 50,
+            "warnings": warnings,
+            "message": warnings[0]
         }
 
-    # 結果の構築と診断アドバイス (Warnings) の生成
-    warnings = []
-    
-    # スラック値のチェック
+    # スラック値のチェックと警告生成
     for emp in employees:
         su, so = slack_contract[emp.id]
         u_val = solver.Value(su)
@@ -220,6 +241,13 @@ def solve_shift(input_data: ShiftInput):
             warnings.append(f"{day}日: 希望休等の都合により出勤人数が下限より{min_v}名少なくなっています。")
         elif max_v > 0:
             warnings.append(f"{day}日: 出勤人数が上限(70%)より{max_v}名多くなっています。")
+
+    reported_consec_emps = set()
+    for (emp_id, start_d), s_c in slack_consec.items():
+        if solver.Value(s_c) == 1 and emp_id not in reported_consec_emps:
+            reported_consec_emps.add(emp_id)
+            emp_name = next((e.name for e in employees if e.id == emp_id), emp_id)
+            warnings.append(f"{emp_name}さん: 契約日数消化のため、一部期間で6連勤以上が発生しています。")
 
     result_shifts = {}
     for e_idx, emp in enumerate(employees):
