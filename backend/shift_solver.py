@@ -159,27 +159,21 @@ def solve_shift(input_data: ShiftInput):
         best_slack = solver.Value(sum(total_slack))
         model.Add(sum(total_slack) <= best_slack)
 
-        # 【フェーズ 2】次優先: 人数平準化
-        model.Minimize(sum(diff_vars))
-        solver.parameters.max_time_in_seconds = 8.0
-        status2 = solver.Solve(model)
-        if status2 in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
-            best_diff = solver.Value(sum(diff_vars))
-            model.Add(sum(diff_vars) <= best_diff)
-
-        # 【フェーズ 3】嗜好優先: 曜日順位(1〜7位)・抽選会等の最大化
-        pref_terms = []
+        # 【フェーズ 2】人数平準化 ＋ 曜日順位(1位〜7位)・特売日・抽選会の統合最適化
+        rank_terms = []
         lottery_days_count = 5 if input_data.month in [7, 12] else 4
         for d in range(num_days):
             current_date = datetime.date(input_data.year, input_data.month, d + 1)
             weekday = current_date.weekday()
+            daily_workers = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in range(num_shifts) if s_idx != off_idx)
+            
             day_weight = 0
             if input_data.weekday_ranks:
                 w_key = str(weekday)
                 if w_key in input_data.weekday_ranks:
                     rank = int(input_data.weekday_ranks[w_key])
                     if rank > 0:
-                        day_weight += (8 - rank) - 4
+                        day_weight += (8 - rank) - 4 # 1位: +3, 7位: -3
             else:
                 if weekday == 6: day_weight += 2
                 elif weekday == 0: day_weight -= 1
@@ -189,16 +183,12 @@ def solve_shift(input_data: ShiftInput):
             if (d + 1) in input_data.thick_staffing_days:
                 day_weight += 5
 
-            if day_weight != 0:
-                for e_idx in range(len(employees)):
-                    for s_idx in range(num_shifts):
-                        if s_idx != off_idx:
-                            pref_terms.append(day_weight * x[(e_idx, d, s_idx)])
+            # 差分の極端な偏りを防ぎつつ(10 * diff)、曜日順位が高い日に人数を多く配分(-5 * day_weight * daily_workers)
+            rank_terms.append(10 * diff_vars[d] - 5 * day_weight * daily_workers)
 
-        if pref_terms:
-            model.Maximize(sum(pref_terms))
-            solver.parameters.max_time_in_seconds = 8.0
-            solver.Solve(model)
+        model.Minimize(sum(rank_terms))
+        solver.parameters.max_time_in_seconds = 8.0
+        solver.Solve(model)
 
     warnings = []
 
