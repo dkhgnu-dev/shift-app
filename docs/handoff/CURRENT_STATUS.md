@@ -10,8 +10,8 @@
 ## Current State
 
 - Cycle: 1
-- Status: 初期共有設定中
-- Next: アイが現状棚卸を行い、作りたいシフト作成ツールと現在の実装差分を整理する
+- Status: アグ向け途中棚卸依頼をGitHubへ共有済み
+- Next: アグが `docs/handoff/kazumax_to_agu_cycle1_inventory_request.md` を読み、現状棚卸を行う
 
 ## Read First
 
@@ -19,6 +19,7 @@
 - `docs/handoff/CURRENT_STATUS.md`
 - `docs/PROJECT_RULES.md`
 - 必要に応じて `docs/handoff/WORKFLOW_RULES.md`
+- 今回の依頼: `docs/handoff/kazumax_to_agu_cycle1_inventory_request.md`
 
 ## Stop Conditions
 
