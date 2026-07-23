@@ -164,3 +164,104 @@ Dexレビューが必要なときは、こう頼めます。
 5. 必要なときだけKazumax側Dexにレビューしてもらう。
 
 この流れにすると、友達のPC、GitHub、Kazumax側Dexが同じ情報を見ながら進められます。
+
+## 11. branch作業の考え方
+
+共同作業が増えたら、mainへ直接作業せず、branchを使うと楽になります。
+
+イメージはこうです。
+
+- `main`: みんなが見る完成版の棚
+- `branch`: それぞれの作業机
+
+アグが作業するときは、たとえば `agu/cycle1-inventory` のようなbranchで作業します。
+Kazumax側Dexがレビューするときは、必要に応じて `dex/review-cycle1` のようなbranchを使います。
+
+作業の流れはこうです。
+
+```text
+mainを最新版にする
+↓
+作業用branchを作る
+↓
+作業する
+↓
+commit/pushする
+↓
+レビューOKならmainへmergeする
+↓
+mainをpushする
+```
+
+大事なのは、merge前にもmainを最新版にすることです。
+自分が作業している間に、相手がmainへ更新を入れているかもしれないからです。
+
+```text
+merge前:
+mainへ移動
+↓
+git pull --ff-only
+↓
+作業branchをmerge
+↓
+git push
+```
+
+mergeは「時間」だけで決めるより、「小さく完成したタイミング」で行うのがおすすめです。
+
+- 棚卸レポートが完成した
+- 小さいバグを直した
+- 画面1つを直した
+- レビューOKになった
+- 文書やhandoffを追加した
+
+逆に、まだ壊れている、途中で動かない、保存形式や自動生成ロジックが未確認、という場合はmainへ入れない方が安全です。
+
+## 12. conflictが出たとき
+
+branchを分けても、同じファイルの同じ場所を別々に変えるとconflictが出ます。
+conflictは「どっちの変更を採用するか相談して」というGitからの合図です。
+
+たとえば同じ文を別々に変えた場合、ファイルにはこう出ます。
+
+```text
+<<<<<<< HEAD
+main側の内容
+=======
+branch側の内容
+>>>>>>> agu/cycle1
+```
+
+この場合、アグは勝手に無理やり直さず、こう報告してください。
+
+```text
+conflictが出ました。
+衝突ファイル:
+- frontend/src/App.jsx
+
+main側の内容:
+...
+
+branch側の内容:
+...
+
+案:
+- main側を採用
+- branch側を採用
+- 両方を統合
+
+おすすめ:
+...
+```
+
+特に注意するファイルはこれです。
+
+- `frontend/src/App.jsx`
+- `backend/main.py`
+- `backend/models.py`
+- `docs/handoff/CURRENT_STATUS.md`
+- `README.md`
+- `package.json`
+- `requirements.txt`
+
+作業前に「今回触る予定ファイル」を出しておくと、衝突はかなり減らせます。
