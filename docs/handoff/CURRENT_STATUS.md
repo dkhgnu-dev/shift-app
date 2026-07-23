@@ -10,15 +10,15 @@
 ## Current State
 
 - Cycle: 1
-- Status: Take3（検証補足）完了・push済み。検証payloadを `docs/handoff/P3_CC_to_Dex/cycle_1_take3_solver_payload.py` に保存し、4回実行して`warnings_total=0`を再現。ただしDex側との再現差異の根本原因（入力モデル相違 or 環境差異）は未確定。
-- Next: Dexが保存済みpayloadスクリプトをそのまま実行して再現するか確認し、判断する。
+- Status: Dex(P4) Take3再レビューOK。保存payloadをDex側でもそのまま実行し、warnings_total=0を再現。
+- Next: Kazumax軽い確認、または次サイクル検討へ進む。
 
 ## 実装済み機能（統合後）
 
 ### バックエンド (`backend/shift_solver.py` / `backend/models.py`)
 - 多段階（辞書順）最適化＋スラック自動診断エンジン（アグ担当・v4.10、Take2でCCがP1/P2バグ修正）
   - **【Take2修正】フェーズ1が`OPTIMAL`の場合のみスラックをハード固定。`FEASIBLE`の場合はフェーズ2でも圧倒的重みでスラック削減を継続。フェーズ2のSolve戻り値を明示的に判定し、失敗時はフェーズ1解へフォールバック。**
-  - **【Take3】Dex再レビューでTake2の「警告0件」を再現できず差し戻し。CC側で検証payloadをファイル保存し4回実行したが一貫して0件を再現。原因はTake2完了報告時点で検証payloadが未保存だったことによる入力モデル相違、または`backend/requirements.txt`がortoolsバージョンを固定していないことによる環境差異の可能性（未確定・Dex判断待ち）。**
+  - **【Take3】CC側が保存した検証payloadをDex側でもそのまま実行し、warnings_total=0を再現。Take2再レビュー時の248件警告は、Dex側の手組みpayloadが実アプリ入力と一致していなかった可能性が高い。再現性向上のため、次サイクル候補として`ortools==9.15.6755`固定を推奨。**
   - 希望休100%絶対厳守、連勤上限（社員5連勤/パート4連勤）、契約日数遵守
   - **【v4.10新機能】連休制限ルール（希望休は対象外）**
     - 正社員・時間限定社員・準社員: AI自動割当での**3連休以上を絶対禁止（最大2連休まで）**
@@ -53,6 +53,7 @@
 - 差し戻し: `docs/handoff/P4_Rollback/cycle_1_main_integration_take2_request.md`
 - P4再レビュー: `docs/handoff/P4_Dex_Review/cycle_1_main_integration_take2_review.md`
 - Take3差し戻し: `docs/handoff/P4_Rollback/cycle_1_main_integration_take3_request.md`
+- P4 Take3レビューOK: `docs/handoff/P4_Dex_Review/cycle_1_main_integration_take3_review.md`
 - バックログ: `docs/BACKLOG.md`
 
 ## Stop Conditions
