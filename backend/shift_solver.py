@@ -1,26 +1,66 @@
 from ortools.sat.python import cp_model
 from models import ShiftInput
-import calendar
 import datetime
+
+# 時間帯ブロック定義: (block_id, 開始分, 終了分)
+BLOCK_DEFS = [
+    (1, 495, 735), (2, 735, 855), (3, 855, 930), (4, 930, 975), (5, 975, 1020),
+    (6, 1020, 1050), (7, 1050, 1140), (8, 1140, 1260), (9, 1260, 1320), (10, 1320, 1440),
+]
+
+
+def time_to_minutes(time_str: str) -> int:
+    h, m = time_str.split(':')
+    return int(h) * 60 + int(m)
+
+
+def build_shift_coverage(shift_types):
+    coverage = {}
+    for s in shift_types:
+        start_min = time_to_minutes(s.start_time)
+        end_min = time_to_minutes(s.end_time)
+        coverage[s.id] = [
+            block_id for block_id, b_start, b_end in BLOCK_DEFS
+            if start_min <= b_start and end_min >= b_end
+        ]
+    return coverage
+
+
+def get_period_start(year: int, month: int) -> datetime.date:
+    """前月16日〜当月15日締めの開始日を返す"""
+    prev_month = month - 1
+    prev_year = year
+    if prev_month < 1:
+        prev_month = 12
+        prev_year -= 1
+    return datetime.date(prev_year, prev_month, 16)
+
+
+def get_period_end(year: int, month: int) -> datetime.date:
+    return datetime.date(year, month, 15)
+
 
 def solve_shift(input_data: ShiftInput):
     model = cp_model.CpModel()
-    
-    num_days = calendar.monthrange(input_data.year, input_data.month)[1]
+
+    start_date = get_period_start(input_data.year, input_data.month)
+    end_date = get_period_end(input_data.year, input_data.month)
+    num_days = (end_date - start_date).days + 1
     employees = input_data.employees
     shifts = input_data.shift_types
-    
+
     shift_ids = [s.id for s in shifts] + ['OFF']
     num_shifts = len(shift_ids)
-    
+
     # 登録販売者 (RS)
     rs_indices = [i for i, e in enumerate(employees) if e.is_registered_seller]
-    
-    # 希望休の処理
+
+    # 希望休の処理（日付文字列を期間内の通算インデックス(0始まり)に変換）
     requested_off = set()
     for req in input_data.requests_off:
-        day = int(req.date.split('-')[2])
-        requested_off.add((req.employee_id, day))
+        req_date = datetime.date.fromisoformat(req.date)
+        day_index = (req_date - start_date).days
+        requested_off.add((req.employee_id, day_index))
     
     # Variables
     x = {}
@@ -44,7 +84,7 @@ def solve_shift(input_data: ShiftInput):
                     model.Add(x[(e_idx, d, s_idx)] == 0)
                     
             # 優先1: 希望休厳守
-            if (emp.id, d + 1) in requested_off:
+            if (emp.id, d) in requested_off:
                 model.Add(x[(e_idx, d, off_idx)] == 1)
                 
         # 優先3&4: 契約日数遵守（ユーザー要望により絶対条件に戻す）
@@ -61,14 +101,10 @@ def solve_shift(input_data: ShiftInput):
                 for s_idx in range(num_shifts) if s_idx != off_idx
             ) <= 5)
 
-    shift_coverage = {
-        '①': [1], '②': [1, 2], '③': [1, 2, 3, 4], '④': [1, 2, 3, 4, 5, 6],
-        '⑤': [2, 3, 4, 5, 6, 7], '⑥': [3, 4, 5, 6, 7], '⑦': [4, 5, 6, 7, 8, 9, 10],
-        '⑧': [6, 7, 8, 9, 10], '⑨': [6, 7, 8, 9], '⑩': [8, 9, 10], '⑪': [9, 10]
-    }
-    
+    shift_coverage = build_shift_coverage(shifts)
+
     for d in range(num_days):
-        current_date = datetime.date(input_data.year, input_data.month, d + 1)
+        current_date = start_date + datetime.timedelta(days=d)
         weekday = current_date.weekday()
         day_weight = 0
         if weekday == 6: day_weight += 10

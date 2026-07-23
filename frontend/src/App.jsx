@@ -7,6 +7,30 @@ const SHIFT_MASTER = {
     '⑨': '17:00～22:00', '⑩': '19:00～24:00', '⑪': '21:00～24:00'
 };
 
+// 前月16日〜当月15日締めの対象期間（Dateの配列）を返す
+const getPeriodDates = (year, month) => {
+    let prevYear = year;
+    let prevMonth = month - 1;
+    if (prevMonth < 1) { prevMonth = 12; prevYear -= 1; }
+    const start = new Date(prevYear, prevMonth - 1, 16);
+    const end = new Date(year, month - 1, 15);
+    const dayCount = Math.round((end - start) / 86400000) + 1;
+    return Array.from({ length: dayCount }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+};
+
+const formatDateLabel = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+const toISODate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const safeParse = (raw, fallback) => {
+    if (!raw) return fallback;
+    try {
+        const parsed = JSON.parse(raw);
+        return parsed === null || parsed === undefined ? fallback : parsed;
+    } catch (e) {
+        return fallback;
+    }
+};
+
 const DEFAULT_DAYS = {
     '正社員': 23, '時間限定社員': 23, '準社員': 23,
     '早パート': 16, '中パート': 16, '遅パート': 16, 
@@ -25,26 +49,24 @@ const INITIAL_DATA = [
 
 export default function App() {
     const [activeTab, setActiveTab] = useState('dashboard');
-    const [employees, setEmployees] = useState(() => {
-        const saved = localStorage.getItem('shift_employees');
-        if (saved) return JSON.parse(saved);
-        return INITIAL_DATA;
-    });
+    const [employees, setEmployees] = useState(() => safeParse(localStorage.getItem('shift_employees'), INITIAL_DATA));
     const [isGenerating, setIsGenerating] = useState(false);
-    const [generatedResult, setGeneratedResult] = useState(() => {
-        const saved = localStorage.getItem('shift_generatedResult');
-        if (saved) return JSON.parse(saved);
-        return null;
-    });
+    const [generatedResult, setGeneratedResult] = useState(() => safeParse(localStorage.getItem('shift_generatedResult'), null));
     const [showModal, setShowModal] = useState(false);
     const [editingIndex, setEditingIndex] = useState(null);
-    
-    // Settings State
-    const [thickDays, setThickDays] = useState(() => {
-        const saved = localStorage.getItem('shift_thickDays');
-        if (saved) return JSON.parse(saved);
-        return [];
+
+    // シフトパターンマスター（カスタムシフト対応）
+    const [shiftMaster, setShiftMaster] = useState(() => {
+        const saved = safeParse(localStorage.getItem('shift_custom_master'), null);
+        return (saved && typeof saved === 'object') ? saved : SHIFT_MASTER;
     });
+
+    useEffect(() => {
+        localStorage.setItem('shift_custom_master', JSON.stringify(shiftMaster));
+    }, [shiftMaster]);
+
+    // Settings State
+    const [thickDays, setThickDays] = useState(() => safeParse(localStorage.getItem('shift_thickDays'), []));
     
     // Date State
     const [currentYear, setCurrentYear] = useState(() => {
@@ -147,6 +169,39 @@ export default function App() {
     const [empRequests, setEmpRequests] = useState('');
     const [selectedShifts, setSelectedShifts] = useState(['④', '⑦']);
 
+    // 自由時間指定（従業員編集モーダル用）
+    const [useCustomTime, setUseCustomTime] = useState(false);
+    const [customStartTime, setCustomStartTime] = useState('');
+    const [customEndTime, setCustomEndTime] = useState('');
+
+    const addCustomShiftToEmployee = () => {
+        if (!customStartTime || !customEndTime) return;
+        const timeStr = `${customStartTime}～${customEndTime}`;
+        setShiftMaster(prev => ({ ...prev, [timeStr]: timeStr }));
+        setSelectedShifts(prev => prev.includes(timeStr) ? prev : [...prev, timeStr]);
+        setCustomStartTime('');
+        setCustomEndTime('');
+    };
+
+    // シフトパターン管理（ルール設定タブ用）
+    const [newShiftName, setNewShiftName] = useState('');
+    const [newShiftStart, setNewShiftStart] = useState('');
+    const [newShiftEnd, setNewShiftEnd] = useState('');
+
+    const addShiftPattern = () => {
+        if (!newShiftName || !newShiftStart || !newShiftEnd) return;
+        setShiftMaster(prev => ({ ...prev, [newShiftName]: `${newShiftStart}～${newShiftEnd}` }));
+        setNewShiftName('');
+        setNewShiftStart('');
+        setNewShiftEnd('');
+    };
+
+    const deleteShiftPattern = (id) => {
+        const newMaster = { ...shiftMaster };
+        delete newMaster[id];
+        setShiftMaster(newMaster);
+    };
+
     const handleTypeChange = (type, updateDays = true) => {
         setEmpType(type);
         if (updateDays) setEmpDays(DEFAULT_DAYS[type]);
@@ -181,6 +236,9 @@ export default function App() {
             setEmpRequests('');
             handleTypeChange('正社員', true);
         }
+        setUseCustomTime(false);
+        setCustomStartTime('');
+        setCustomEndTime('');
         setShowModal(true);
     };
 
@@ -214,22 +272,26 @@ export default function App() {
     const generateShift = async () => {
         setIsGenerating(true);
         setGeneratedResult(null);
-        
+
         try {
-            const shiftTypes = Object.entries(SHIFT_MASTER).map(([id, timeStr]) => {
+            const shiftTypes = Object.entries(shiftMaster).map(([id, timeStr]) => {
                 const [start, end] = timeStr.split('～');
                 return { id, start_time: start, end_time: end };
             });
 
+            const periodDatesForSubmit = getPeriodDates(currentYear, currentMonth);
             let allRequestsOff = [];
             employees.forEach((e, idx) => {
                 if (e.requests) {
                     const days = e.requests.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
                     days.forEach(day => {
-                        allRequestsOff.push({
-                            employee_id: `emp_${idx}`,
-                            date: `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-                        });
+                        const dateObj = periodDatesForSubmit[day - 1];
+                        if (dateObj) {
+                            allRequestsOff.push({
+                                employee_id: `emp_${idx}`,
+                                date: toISODate(dateObj)
+                            });
+                        }
                     });
                 }
             });
@@ -273,8 +335,7 @@ export default function App() {
         }
     };
 
-    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
-    const firstDayOfWeek = new Date(currentYear, currentMonth - 1, 1).getDay();
+    const periodDates = getPeriodDates(currentYear, currentMonth);
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
 
     return (
@@ -316,7 +377,10 @@ export default function App() {
                             <div style={{display: 'flex', alignItems: 'center', gap: '16px'}}>
                                 <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                                     <button className="btn outline" style={{padding: '4px 8px'}} onClick={() => changeMonth(-1)}>&lt;</button>
-                                    <h1 style={{margin: 0}}>{currentYear}年{currentMonth}月</h1>
+                                    <div>
+                                        <h1 style={{margin: 0}}>{currentYear}年{currentMonth}月度</h1>
+                                        <div style={{fontSize: '0.8rem', color: 'var(--text-sub)'}}>{formatDateLabel(periodDates[0])}〜{formatDateLabel(periodDates[periodDates.length - 1])} 締め</div>
+                                    </div>
                                     <button className="btn outline" style={{padding: '4px 8px'}} onClick={() => changeMonth(1)}>&gt;</button>
                                 </div>
                             </div>
@@ -357,8 +421,8 @@ export default function App() {
                                     <div className="glass-card" style={{padding: '16px'}}>
                                         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', background: '#F8FAFC', padding: '12px', borderRadius: '8px'}}>
                                             <button className="btn outline" style={{padding: '6px 12px'}} onClick={() => setSelectedDateIndex(Math.max(0, selectedDateIndex - 1))}>&lt;</button>
-                                            <h3 style={{margin: 0, fontSize: '1.2rem', color: 'var(--primary)'}}>{currentMonth}月{selectedDateIndex + 1}日 ({dayNames[(firstDayOfWeek + selectedDateIndex) % 7]})</h3>
-                                            <button className="btn outline" style={{padding: '6px 12px'}} onClick={() => setSelectedDateIndex(Math.min(daysInMonth - 1, selectedDateIndex + 1))}>&gt;</button>
+                                            <h3 style={{margin: 0, fontSize: '1.2rem', color: 'var(--primary)'}}>{formatDateLabel(periodDates[selectedDateIndex])} ({dayNames[periodDates[selectedDateIndex].getDay()]})</h3>
+                                            <button className="btn outline" style={{padding: '6px 12px'}} onClick={() => setSelectedDateIndex(Math.min(periodDates.length - 1, selectedDateIndex + 1))}>&gt;</button>
                                         </div>
                                         <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
                                             {employees.map((emp, i) => {
@@ -378,12 +442,12 @@ export default function App() {
                                                         <div style={{width: '60px', position: 'relative'}}>
                                                             <div className={cssClass} style={{ pointerEvents: 'none', textAlign: 'center', fontSize: '0.8rem', padding: '6px', borderRadius: '4px', lineHeight: '1.2' }}>
                                                                 {(() => {
-                                                                    const shiftText = cell.shift === '休' ? '休' : (SHIFT_MASTER[cell.shift] || cell.shift);
+                                                                    const shiftText = cell.shift === '休' ? '休' : (shiftMaster[cell.shift] || cell.shift);
                                                                     const lines = shiftText.includes('～') ? shiftText.split('～') : [shiftText];
                                                                     return lines.length === 2 ? <>{lines[0]}<br/>~{lines[1]}</> : <>{cell.shift}</>;
                                                                 })()}
                                                             </div>
-                                                            <select 
+                                                            <select
                                                                 value={cell.shift}
                                                                 style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', appearance: 'none'}}
                                                                 onChange={(e) => {
@@ -393,7 +457,7 @@ export default function App() {
                                                                 }}
                                                             >
                                                                 <option value="休">休</option>
-                                                                {emp.shifts.map(s => <option key={s} value={s}>{SHIFT_MASTER[s] || s}</option>)}
+                                                                {emp.shifts.map(s => <option key={s} value={s}>{shiftMaster[s] || s}</option>)}
                                                             </select>
                                                         </div>
                                                     </div>
@@ -409,11 +473,11 @@ export default function App() {
                                                 <tr>
                                                     <th style={{width: '40px'}}></th>
                                                     <th>従業員</th>
-                                                    {[...Array(daysInMonth)].map((_, i) => {
-                                                        const dow = (firstDayOfWeek + i) % 7;
+                                                    {periodDates.map((d, i) => {
+                                                        const dow = d.getDay();
                                                         const cls = dow === 0 ? 'sun' : dow === 6 ? 'sat' : '';
                                                         return (
-                                                            <th key={i}>{i+1}<span className={`day-label ${cls}`}>({dayNames[dow]})</span></th>
+                                                            <th key={i}>{formatDateLabel(d)}<span className={`day-label ${cls}`}>({dayNames[dow]})</span></th>
                                                         )
                                                     })}
                                                 </tr>
@@ -445,9 +509,9 @@ export default function App() {
                                                                 
                                                                 if (cell.isError) cssClass += ' error';
                                                                 
-                                                                const shiftText = cell.shift === '休' ? '休' : (SHIFT_MASTER[cell.shift] || cell.shift);
+                                                                const shiftText = cell.shift === '休' ? '休' : (shiftMaster[cell.shift] || cell.shift);
                                                                 const lines = shiftText.includes('～') ? shiftText.split('～') : [shiftText];
-                                                                
+
                                                                 return (
                                                                     <td key={d} style={{position: 'relative', width: '50px'}}>
                                                                         <div className={cssClass} style={{ pointerEvents: 'none', textAlign: 'center', fontSize: '0.75rem', padding: '4px', borderRadius: '4px', lineHeight: '1.2', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
@@ -467,7 +531,7 @@ export default function App() {
                                                                             }}
                                                                         >
                                                                             <option value="休">休</option>
-                                                                            {emp.shifts.map(s => <option key={s} value={s}>{SHIFT_MASTER[s] || s}</option>)}
+                                                                            {emp.shifts.map(s => <option key={s} value={s}>{shiftMaster[s] || s}</option>)}
                                                                         </select>
                                                                     </td>
                                                                 )
@@ -505,22 +569,22 @@ export default function App() {
                             </div>
 
                             <h3 style={{marginBottom: '16px', color: 'var(--text-main)'}}>人員を厚くしたい日（追加の個別指定）</h3>
-                            <p style={{fontSize: '0.85rem', color: 'var(--text-sub)', marginBottom: '12px'}}>※特売日などで通常よりシフトを手厚くしたい日付を選択してください。（複数選択可）</p>
+                            <p style={{fontSize: '0.85rem', color: 'var(--text-sub)', marginBottom: '12px'}}>※特売日などで通常よりシフトを手厚くしたい日付を選択してください。（複数選択可・{formatDateLabel(periodDates[0])}〜{formatDateLabel(periodDates[periodDates.length - 1])}の対象期間）</p>
                             <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-                                {[...Array(daysInMonth)].map((_, i) => {
+                                {periodDates.map((d, i) => {
                                     const day = i + 1;
                                     const isSelected = thickDays.includes(day);
                                     return (
-                                        <button 
+                                        <button
                                             key={day}
-                                            className={`shift-badge-toggle ${isSelected ? 'selected' : ''}`} 
-                                            style={{width: '45px', textAlign: 'center', padding: '8px'}}
+                                            className={`shift-badge-toggle ${isSelected ? 'selected' : ''}`}
+                                            style={{width: '50px', textAlign: 'center', padding: '8px'}}
                                             onClick={() => {
-                                                if(isSelected) setThickDays(thickDays.filter(d => d !== day));
+                                                if(isSelected) setThickDays(thickDays.filter(x => x !== day));
                                                 else setThickDays([...thickDays, day]);
                                             }}
                                         >
-                                            {day}
+                                            {formatDateLabel(d)}
                                         </button>
                                     )
                                 })}
@@ -530,6 +594,26 @@ export default function App() {
                                 <strong style={{color: 'var(--text-main)'}}>💡 その他の設定について</strong><br/>
                                 ・<strong>従業員数・登録販売者数</strong>：従業員管理タブで登録したデータからAIが自動的に読み取ります。<br/>
                                 ・<strong>営業時間</strong>：8:15～24:00 でシステムに固定されています。
+                            </div>
+                        </div>
+
+                        <div className="glass-card">
+                            <h3 style={{marginBottom: '16px', color: 'var(--text-main)'}}>シフトパターン管理（カスタム追加）</h3>
+                            <p style={{fontSize: '0.85rem', color: 'var(--text-sub)', marginBottom: '12px'}}>「中番」など独自のシフトパターンを追加・削除できます。追加したパターンは従業員編集で選択できるようになります。</p>
+                            <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px'}}>
+                                {Object.entries(shiftMaster).map(([id, timeStr]) => (
+                                    <div key={id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E5E7EB'}}>
+                                        <span><strong>{id}</strong> : {timeStr}</span>
+                                        <button className="btn danger" style={{padding: '4px 8px'}} onClick={() => deleteShiftPattern(id)}><Trash2 size={14}/></button>
+                                    </div>
+                                ))}
+                            </div>
+                            <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center'}}>
+                                <input type="text" className="form-control" style={{width: '140px'}} placeholder="パターン名 (例: 中番)" value={newShiftName} onChange={e => setNewShiftName(e.target.value)}/>
+                                <input type="time" className="form-control" style={{width: '140px'}} value={newShiftStart} onChange={e => setNewShiftStart(e.target.value)}/>
+                                <span>～</span>
+                                <input type="time" className="form-control" style={{width: '140px'}} value={newShiftEnd} onChange={e => setNewShiftEnd(e.target.value)}/>
+                                <button className="btn" onClick={addShiftPattern}><Plus size={16}/> 追加</button>
                             </div>
                         </div>
                     </div>
@@ -610,7 +694,7 @@ export default function App() {
                                                 </td>
                                                 <td style={{position: 'static', textAlign: 'center'}}>{emp.days}日</td>
                                                 <td style={{position: 'static', textAlign: 'left', lineHeight: 1.6}}>
-                                                    {emp.shifts.map(s => <span key={s} style={{display:'inline-block', background:'#F3F4F6', padding:'2px 6px', borderRadius:'4px', fontSize:'0.8rem', margin:'2px'}}>{s} {SHIFT_MASTER[s]}</span>)}
+                                                    {emp.shifts.map(s => <span key={s} style={{display:'inline-block', background:'#F3F4F6', padding:'2px 6px', borderRadius:'4px', fontSize:'0.8rem', margin:'2px'}}>{shiftMaster[s] && shiftMaster[s] !== s ? `${s} ${shiftMaster[s]}` : s}</span>)}
                                                     {emp.requests && <div style={{color: '#DC2626', fontSize: '0.85rem', marginTop: '4px', fontWeight: 500}}>希望休: {emp.requests}</div>}
                                                 </td>
                                                 <td style={{position: 'static', textAlign: 'center'}}>
@@ -730,6 +814,31 @@ export default function App() {
                                     </>
                                 )}
                             </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="checkbox-label">
+                                <input type="checkbox" checked={useCustomTime} onChange={e => setUseCustomTime(e.target.checked)}/>
+                                自由時間を入力
+                            </label>
+                            {useCustomTime && (
+                                <div style={{display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px'}}>
+                                    <input type="time" className="form-control" value={customStartTime} onChange={e => setCustomStartTime(e.target.value)}/>
+                                    <span>～</span>
+                                    <input type="time" className="form-control" value={customEndTime} onChange={e => setCustomEndTime(e.target.value)}/>
+                                    <button type="button" className="btn outline" style={{whiteSpace: 'nowrap'}} onClick={addCustomShiftToEmployee}>追加</button>
+                                </div>
+                            )}
+                            {selectedShifts.length > 0 && (
+                                <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '12px'}}>
+                                    {selectedShifts.map(s => (
+                                        <span key={s} style={{background: '#EEF2FF', color: '#4338CA', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+                                            {shiftMaster[s] || s}
+                                            <X size={12} style={{cursor: 'pointer'}} onClick={() => setSelectedShifts(selectedShifts.filter(x => x !== s))}/>
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         <div style={{display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px'}}>

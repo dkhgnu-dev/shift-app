@@ -1,25 +1,25 @@
-﻿# CURRENT_STATUS - 友達シフト
+# CURRENT_STATUS - 友達シフト
 
 ## Project
 
 - Name: 友達シフト
 - Repository: dkhgnu-dev/shift-app
-- Main agent: アイ単体
-- External reviewer: Kazumax側Dex（必要時）
+- Main agent: Air / CC / エアクルー（Air Crew）
+- External reviewer: エアクルー (Air Crew) ※Dex制限中の代用
 
 ## Current State
 
 - Cycle: 1
-- Status: アグ向け途中棚卸依頼をGitHubへ共有済み
-- Next: アグが `docs/handoff/kazumax_to_agu_cycle1_inventory_request.md` を読み、現状棚卸を行う
+- Status: CCがP2指示書に従いCycle 1実装(P3)完了。シフト自動生成ロジックに変更が入ったためDexレビュー推奨。
+- Next: `docs/handoff/P3_CC_to_Air/cycle_1_implementation_report.md` をAir/Dexが確認し、レビューまたは本番デプロイの判断を行う
 
 ## Read First
 
 - `AGENTS.md`
 - `docs/handoff/CURRENT_STATUS.md`
 - `docs/PROJECT_RULES.md`
-- 必要に応じて `docs/handoff/WORKFLOW_RULES.md`
-- 今回の依頼: `docs/handoff/kazumax_to_agu_cycle1_inventory_request.md`
+- `docs/handoff/WORKFLOW_RULES.md`
+- 今回の指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_1_mobile_and_flexible_shifts_instructions.md`
 
 ## Stop Conditions
 
