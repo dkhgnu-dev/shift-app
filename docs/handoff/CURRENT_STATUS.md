@@ -11,8 +11,8 @@
 ## Current State
 
 - Cycle: 2
-- Status: Cycle 2 (手動優先空欄自動生成、特殊シフト8h+時間変更、資格者不在判定❌、鍵持ち薄オレンジ/薄緑ハイライト、ポチポチタイムピッカー) のBlueprintおよびP2指示書を作成完了。`air-cc-dev` ブランチへpush済み
-- Next: CCが `air-cc-dev` ブランチ上で `docs/handoff/P2_AirCrew_to_CC/cycle_2_hybrid_and_shift_features_instructions.md` に従って実装(P3)・プッシュを行う
+- Status: CCがCycle 2実装(P3)完了・`air-cc-dev` ブランチへpush済み（version v4.11 -> v4.12）。ローカルbackend/frontendでのブラウザ実機検証済み。
+- Next: Air/エアクルーによるレビュー。必要ならKazumax・友達に実機確認を依頼（有休等の既定8h、鍵持ち開閉店判定ロジックの妥当性）。完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report.md`
 
 ## Read First
 
@@ -21,6 +21,7 @@
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
 - 今回の指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_2_hybrid_and_shift_features_instructions.md`
+- Cycle 2完了報告（既知の制限事項含む）: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report.md`
 - バックログ: `docs/BACKLOG.md`
 
 ## Stop Conditions

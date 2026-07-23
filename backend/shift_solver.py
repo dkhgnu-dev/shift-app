@@ -18,6 +18,10 @@ def time_to_minutes(time_str: str) -> int:
 def build_shift_coverage(shift_types):
     coverage = {}
     for s in shift_types:
+        if getattr(s, 'is_special', False):
+            # 特殊シフト(有休/応援/店長会/研修/勉強会等)は店舗の時間帯カバレッジに寄与しない
+            coverage[s.id] = []
+            continue
         start_min = time_to_minutes(s.start_time)
         end_min = time_to_minutes(s.end_time)
         coverage[s.id] = [
@@ -53,6 +57,12 @@ def solve_shift(input_data: ShiftInput):
     shift_ids = [s.id for s in shifts] + ['OFF']
     num_shifts = len(shift_ids)
 
+    # 特殊シフト(有休/応援/店長会/研修/勉強会等): 個人の勤務日数には計上するが、
+    # 店舗出勤人数・登録販売者カバレッジからは除外する。ソルバーが空欄セルへ
+    # 自動的に割り当てることはなく、fixed_assignments経由でのみ設定される。
+    special_ids = {s.id for s in shifts if getattr(s, 'is_special', False)}
+    special_indices = {shift_ids.index(sid) for sid in special_ids if sid in shift_ids}
+
     # 登録販売者 (RS)
     rs_indices = [i for i, e in enumerate(employees) if e.is_registered_seller]
 
@@ -65,6 +75,12 @@ def solve_shift(input_data: ShiftInput):
             requested_off.add((req.employee_id, day_index))
         except (IndexError, ValueError):
             pass
+
+    # 「空欄自動作成」用の固定割当（既に手動入力されているセルを求解対象から除外する）
+    fixed_map = {}
+    for fa in input_data.fixed_assignments:
+        if fa.shift_id in shift_ids:
+            fixed_map[(fa.employee_id, fa.day_index)] = shift_ids.index(fa.shift_id)
 
     # 変数定義
     x = {}
@@ -81,10 +97,10 @@ def solve_shift(input_data: ShiftInput):
 
     # 1. 各従業員の基本制約
     for e_idx, emp in enumerate(employees):
-        # 可シフトの判定 (IDと一致するもの。空の場合は全シフト可)
-        allowed_s_indices = [shift_ids.index(s_id) for s_id in emp.allowed_shifts if s_id in shift_ids]
+        # 可シフトの判定 (IDと一致するもの。空の場合は全シフト可。特殊シフトは対象外)
+        allowed_s_indices = [shift_ids.index(s_id) for s_id in emp.allowed_shifts if s_id in shift_ids and s_id not in special_ids]
         if not allowed_s_indices:
-            allowed_s_indices = [i for i, s_id in enumerate(shift_ids) if s_id != 'OFF']
+            allowed_s_indices = [i for i, s_id in enumerate(shift_ids) if s_id != 'OFF' and s_id not in special_ids]
 
         off_idx = shift_ids.index('OFF')
 
@@ -92,13 +108,26 @@ def solve_shift(input_data: ShiftInput):
             # 1日1シフト
             model.AddExactlyOne([x[(e_idx, d, s_idx)] for s_idx in range(num_shifts)])
 
-            # 不可シフト禁止
+            is_fixed_today = (emp.id, d) in fixed_map
+            fixed_s_idx = fixed_map.get((emp.id, d))
+
+            # 不可シフト禁止（固定セルとして指定された値は例外として許可する）
             for s_idx in range(num_shifts):
-                if s_idx != off_idx and s_idx not in allowed_s_indices:
+                if s_idx == off_idx:
+                    continue
+                if is_fixed_today and s_idx == fixed_s_idx:
+                    continue
+                if s_idx in special_indices:
+                    # 特殊シフト(有休等)はソルバーが空欄セルへ自動割当することはない
+                    model.Add(x[(e_idx, d, s_idx)] == 0)
+                elif s_idx not in allowed_s_indices:
                     model.Add(x[(e_idx, d, s_idx)] == 0)
 
-            # 【絶対ルール】希望休は絶対厳守 (ハード制約)
-            if (emp.id, d) in requested_off:
+            if is_fixed_today:
+                # 「空欄自動作成」: 既に手動入力済みのセルは固定条件として求解対象から除外
+                model.Add(x[(e_idx, d, fixed_s_idx)] == 1)
+            elif (emp.id, d) in requested_off:
+                # 【絶対ルール】希望休は絶対厳守 (ハード制約)
                 model.Add(x[(e_idx, d, off_idx)] == 1)
 
         # 【連勤・連休制限ルール】
@@ -246,7 +275,7 @@ def solve_shift(input_data: ShiftInput):
     for d in range(num_days):
         current_date = start_date + datetime.timedelta(days=d)
         weekday = current_date.weekday()
-        daily_workers = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in range(num_shifts) if s_idx != off_idx)
+        daily_workers = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in range(num_shifts) if s_idx != off_idx and s_idx not in special_indices)
 
         # 曜日別最低出勤人数の適用（ハード制約）
         # weekday_min_staff が設定されていれば、base_avg-1 と比較して大きい方を採用

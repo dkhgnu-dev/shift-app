@@ -7,6 +7,25 @@ const SHIFT_MASTER = {
     '⑨': '17:00～22:00', '⑩': '19:00～24:00', '⑪': '21:00～24:00'
 };
 
+// 特殊シフト: 個人の出勤日数・時間には計上するが、店舗人数・登録販売者・鍵持ち集計からは除外する
+const SPECIAL_SHIFTS = ['有休', '応援', '店長会', '研修', '勉強会', '希望休', '公休'];
+// 希望休/公休は時間0扱い（実質「休」と同じ）。有休/応援/店長会/研修/勉強会は既定8h計上
+const SPECIAL_OFF_LIKE = new Set(['希望休', '公休']);
+const DEFAULT_SPECIAL_HOURS = 8;
+const BUSINESS_START_LABEL = '8:15';
+const BUSINESS_END_LABEL = '24:00';
+
+const timeToMin = (t) => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+};
+const minToLabel = (mins) => {
+    const m = ((mins % 1440) + 1440) % 1440;
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    return `${h === 0 ? 24 : h}:${String(mm).padStart(2, '0')}`;
+};
+
 // 前月16日〜当月15日締めの対象期間（Dateの配列）を返す
 const getPeriodDates = (year, month) => {
     let prevYear = year;
@@ -38,31 +57,76 @@ const DEFAULT_DAYS = {
 };
 
 const INITIAL_DATA = [
-    { name: 'K.D.', type: '正社員', isRS: true, days: 23, shifts: ['④', '⑦'], requests: '' },
-    { name: 'N.E.', type: '時間限定社員', isRS: true, days: 23, shifts: ['④'], requests: '' },
-    { name: 'N.K.', type: '正社員', isRS: true, days: 23, shifts: ['④', '⑦'], requests: '' },
-    { name: 'T.S.', type: '準社員', isRS: false, days: 23, shifts: ['④'], requests: '' },
-    { name: 'S.M.', type: '準社員', isRS: false, days: 23, shifts: ['④'], requests: '' },
-    { name: 'J.R.', type: '準社員', isRS: false, days: 23, shifts: ['⑦'], requests: '' },
-    { name: 'O.T.', type: '早ロングパート', isRS: false, days: 20, shifts: ['③'], requests: '' },
-    { name: 'K.T.', type: '早ロングパート', isRS: false, days: 20, shifts: ['③'], requests: '' },
-    { name: 'T.Y.', type: '中ロングパート', isRS: false, days: 20, shifts: ['⑤'], requests: '' },
-    { name: 'T.M.(1)', type: '遅ロングパート', isRS: false, days: 20, shifts: ['⑧'], requests: '' },
-    { name: 'O.K.', type: '早パート', isRS: false, days: 16, shifts: ['②'], requests: '' },
-    { name: 'T.M.(2)', type: '早パート', isRS: false, days: 16, shifts: ['①'], requests: '' },
-    { name: 'I.K.(1)', type: '早パート', isRS: false, days: 16, shifts: ['①'], requests: '' },
-    { name: 'M.T.', type: '早パート', isRS: false, days: 16, shifts: ['①'], requests: '' },
-    { name: 'H.M.', type: '早パート', isRS: false, days: 16, shifts: ['①'], requests: '' },
-    { name: 'Y.M.', type: '中パート', isRS: false, days: 16, shifts: ['⑥'], requests: '' },
-    { name: 'Y.I.', type: '遅パート', isRS: false, days: 16, shifts: ['⑨'], requests: '' },
-    { name: 'K.Y.', type: '遅パート', isRS: false, days: 16, shifts: ['⑨'], requests: '' },
-    { name: 'M.R.', type: '遅パート', isRS: false, days: 16, shifts: ['⑨'], requests: '' },
-    { name: 'O.Y.', type: '遅パート', isRS: false, days: 16, shifts: ['⑩'], requests: '' },
-    { name: 'I.H.', type: '遅パート', isRS: false, days: 16, shifts: ['⑩'], requests: '' },
-    { name: 'T.A.', type: '遅パート', isRS: false, days: 16, shifts: ['⑩'], requests: '' },
-    { name: 'I.K.(2)', type: '遅パート', isRS: false, days: 16, shifts: ['⑪'], requests: '' },
-    { name: 'N.H.', type: '遅パート', isRS: false, days: 16, shifts: ['⑪'], requests: '' },
+    { name: 'K.D.', type: '正社員', isRS: true, days: 23, shifts: ['④', '⑦'], requests: '', isKeyHolder: false },
+    { name: 'N.E.', type: '時間限定社員', isRS: true, days: 23, shifts: ['④'], requests: '', isKeyHolder: false },
+    { name: 'N.K.', type: '正社員', isRS: true, days: 23, shifts: ['④', '⑦'], requests: '', isKeyHolder: false },
+    { name: 'T.S.', type: '準社員', isRS: false, days: 23, shifts: ['④'], requests: '', isKeyHolder: false },
+    { name: 'S.M.', type: '準社員', isRS: false, days: 23, shifts: ['④'], requests: '', isKeyHolder: false },
+    { name: 'J.R.', type: '準社員', isRS: false, days: 23, shifts: ['⑦'], requests: '', isKeyHolder: false },
+    { name: 'O.T.', type: '早ロングパート', isRS: false, days: 20, shifts: ['③'], requests: '', isKeyHolder: false },
+    { name: 'K.T.', type: '早ロングパート', isRS: false, days: 20, shifts: ['③'], requests: '', isKeyHolder: false },
+    { name: 'T.Y.', type: '中ロングパート', isRS: false, days: 20, shifts: ['⑤'], requests: '', isKeyHolder: false },
+    { name: 'T.M.(1)', type: '遅ロングパート', isRS: false, days: 20, shifts: ['⑧'], requests: '', isKeyHolder: false },
+    { name: 'O.K.', type: '早パート', isRS: false, days: 16, shifts: ['②'], requests: '', isKeyHolder: false },
+    { name: 'T.M.(2)', type: '早パート', isRS: false, days: 16, shifts: ['①'], requests: '', isKeyHolder: false },
+    { name: 'I.K.(1)', type: '早パート', isRS: false, days: 16, shifts: ['①'], requests: '', isKeyHolder: false },
+    { name: 'M.T.', type: '早パート', isRS: false, days: 16, shifts: ['①'], requests: '', isKeyHolder: false },
+    { name: 'H.M.', type: '早パート', isRS: false, days: 16, shifts: ['①'], requests: '', isKeyHolder: false },
+    { name: 'Y.M.', type: '中パート', isRS: false, days: 16, shifts: ['⑥'], requests: '', isKeyHolder: false },
+    { name: 'Y.I.', type: '遅パート', isRS: false, days: 16, shifts: ['⑨'], requests: '', isKeyHolder: false },
+    { name: 'K.Y.', type: '遅パート', isRS: false, days: 16, shifts: ['⑨'], requests: '', isKeyHolder: false },
+    { name: 'M.R.', type: '遅パート', isRS: false, days: 16, shifts: ['⑨'], requests: '', isKeyHolder: false },
+    { name: 'O.Y.', type: '遅パート', isRS: false, days: 16, shifts: ['⑩'], requests: '', isKeyHolder: false },
+    { name: 'I.H.', type: '遅パート', isRS: false, days: 16, shifts: ['⑩'], requests: '', isKeyHolder: false },
+    { name: 'T.A.', type: '遅パート', isRS: false, days: 16, shifts: ['⑩'], requests: '', isKeyHolder: false },
+    { name: 'I.K.(2)', type: '遅パート', isRS: false, days: 16, shifts: ['⑪'], requests: '', isKeyHolder: false },
+    { name: 'N.H.', type: '遅パート', isRS: false, days: 16, shifts: ['⑪'], requests: '', isKeyHolder: false },
 ];
+
+// ぽちぽちタイムピッカー: ▲▼刻み調整 + 時/分の数字タップで手打ち不要に設定
+function TimePicker({ value, onChange }) {
+    const [h, m] = (value && value.includes(':')) ? value.split(':').map(Number) : [9, 0];
+    const setH = (nh) => {
+        const nnh = ((nh % 24) + 24) % 24;
+        onChange(`${String(nnh).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    };
+    const setM = (nm) => {
+        let nnh = h, nnm = nm;
+        if (nnm >= 60) { nnm -= 60; nnh = (nnh + 1) % 24; }
+        if (nnm < 0) { nnm += 60; nnh = (nnh - 1 + 24) % 24; }
+        onChange(`${String(nnh).padStart(2, '0')}:${String(nnm).padStart(2, '0')}`);
+    };
+    const HOUR_OPTIONS = Array.from({ length: 19 }, (_, i) => i + 6); // 6時～24時
+    const MIN_OPTIONS = [0, 15, 30, 45];
+
+    return (
+        <div className="time-picker">
+            <div className="time-picker-display">
+                <div className="time-picker-col">
+                    <button type="button" className="time-picker-step" onClick={() => setH(h + 1)}><ArrowUp size={14} /></button>
+                    <div className="time-picker-value">{String(h).padStart(2, '0')}</div>
+                    <button type="button" className="time-picker-step" onClick={() => setH(h - 1)}><ArrowDown size={14} /></button>
+                </div>
+                <div className="time-picker-colon">:</div>
+                <div className="time-picker-col">
+                    <button type="button" className="time-picker-step" onClick={() => setM(m + 30)}><ArrowUp size={14} /></button>
+                    <div className="time-picker-value">{String(m).padStart(2, '0')}</div>
+                    <button type="button" className="time-picker-step" onClick={() => setM(m - 30)}><ArrowDown size={14} /></button>
+                </div>
+            </div>
+            <div className="time-picker-quick-row">
+                {HOUR_OPTIONS.map(ho => (
+                    <button type="button" key={ho} className={`time-picker-tap ${h === ho ? 'active' : ''}`} onClick={() => setH(ho)}>{ho}</button>
+                ))}
+            </div>
+            <div className="time-picker-quick-row">
+                {MIN_OPTIONS.map(mo => (
+                    <button type="button" key={mo} className={`time-picker-tap ${m === mo ? 'active' : ''}`} onClick={() => setM(mo)}>{String(mo).padStart(2, '0')}</button>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 export default function App() {
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -192,35 +256,39 @@ export default function App() {
     const [empName, setEmpName] = useState('');
     const [empType, setEmpType] = useState('正社員');
     const [empRS, setEmpRS] = useState(false);
+    const [empIsKeyHolder, setEmpIsKeyHolder] = useState(false);
     const [empDays, setEmpDays] = useState(23);
     const [empRequests, setEmpRequests] = useState('');
     const [selectedShifts, setSelectedShifts] = useState(['④', '⑦']);
 
+    // 特殊シフト(有休等)の勤務時間編集モーダル
+    const [specialHoursModal, setSpecialHoursModal] = useState(null); // { i, d, hours } | null
+
     // 自由時間指定（従業員編集モーダル用）
     const [useCustomTime, setUseCustomTime] = useState(false);
-    const [customStartTime, setCustomStartTime] = useState('');
-    const [customEndTime, setCustomEndTime] = useState('');
+    const [customStartTime, setCustomStartTime] = useState('09:00');
+    const [customEndTime, setCustomEndTime] = useState('18:00');
 
     const addCustomShiftToEmployee = () => {
         if (!customStartTime || !customEndTime) return;
         const timeStr = `${customStartTime}～${customEndTime}`;
         setShiftMaster(prev => ({ ...prev, [timeStr]: timeStr }));
         setSelectedShifts(prev => prev.includes(timeStr) ? prev : [...prev, timeStr]);
-        setCustomStartTime('');
-        setCustomEndTime('');
+        setCustomStartTime('09:00');
+        setCustomEndTime('18:00');
     };
 
     // シフトパターン管理（ルール設定タブ用）
     const [newShiftName, setNewShiftName] = useState('');
-    const [newShiftStart, setNewShiftStart] = useState('');
-    const [newShiftEnd, setNewShiftEnd] = useState('');
+    const [newShiftStart, setNewShiftStart] = useState('09:00');
+    const [newShiftEnd, setNewShiftEnd] = useState('18:00');
 
     const addShiftPattern = () => {
         if (!newShiftName || !newShiftStart || !newShiftEnd) return;
         setShiftMaster(prev => ({ ...prev, [newShiftName]: `${newShiftStart}～${newShiftEnd}` }));
         setNewShiftName('');
-        setNewShiftStart('');
-        setNewShiftEnd('');
+        setNewShiftStart('09:00');
+        setNewShiftEnd('18:00');
     };
 
     const deleteShiftPattern = (id) => {
@@ -253,6 +321,7 @@ export default function App() {
             setEmpName(emp.name);
             setEmpType(emp.type);
             setEmpRS(emp.isRS);
+            setEmpIsKeyHolder(!!emp.isKeyHolder);
             setEmpDays(emp.days);
             setEmpRequests(emp.requests || '');
             setSelectedShifts([...emp.shifts]);
@@ -260,6 +329,7 @@ export default function App() {
             setEditingIndex(null);
             setEmpName('');
             setEmpRS(false);
+            setEmpIsKeyHolder(false);
             setEmpRequests('');
             handleTypeChange('正社員', true);
         }
@@ -274,6 +344,7 @@ export default function App() {
             name: empName || '名称未設定',
             type: empType,
             isRS: empRS,
+            isKeyHolder: empIsKeyHolder,
             days: parseInt(empDays, 10),
             shifts: [...selectedShifts],
             requests: empRequests
@@ -296,33 +367,42 @@ export default function App() {
         }
     };
 
+    const API_URL = 'https://shift-app-rw01.onrender.com/api/generate_shift';
+
+    const buildShiftTypesPayload = () => {
+        const realShifts = Object.entries(shiftMaster).map(([id, timeStr]) => {
+            const [start, end] = timeStr.split('～');
+            return { id, start_time: start, end_time: end, is_special: false };
+        });
+        const specialShifts = SPECIAL_SHIFTS.map(id => ({ id, start_time: '0:00', end_time: '0:00', is_special: true }));
+        return [...realShifts, ...specialShifts];
+    };
+
+    const buildRequestsOff = (periodDatesForSubmit) => {
+        let allRequestsOff = [];
+        employees.forEach((e, idx) => {
+            if (e.requests) {
+                const days = e.requests.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+                days.forEach(day => {
+                    const dateObj = periodDatesForSubmit[day - 1];
+                    if (dateObj) {
+                        allRequestsOff.push({
+                            employee_id: `emp_${idx}`,
+                            date: toISODate(dateObj)
+                        });
+                    }
+                });
+            }
+        });
+        return allRequestsOff;
+    };
+
     const generateShift = async () => {
         setIsGenerating(true);
         setGeneratedResult(null);
 
         try {
-            const shiftTypes = Object.entries(shiftMaster).map(([id, timeStr]) => {
-                const [start, end] = timeStr.split('～');
-                return { id, start_time: start, end_time: end };
-            });
-
             const periodDatesForSubmit = getPeriodDates(currentYear, currentMonth);
-            let allRequestsOff = [];
-            employees.forEach((e, idx) => {
-                if (e.requests) {
-                    const days = e.requests.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-                    days.forEach(day => {
-                        const dateObj = periodDatesForSubmit[day - 1];
-                        if (dateObj) {
-                            allRequestsOff.push({
-                                employee_id: `emp_${idx}`,
-                                date: toISODate(dateObj)
-                            });
-                        }
-                    });
-                }
-            });
-
             const payload = {
                 year: currentYear,
                 month: currentMonth,
@@ -334,14 +414,15 @@ export default function App() {
                     is_registered_seller: e.isRS,
                     allowed_shifts: e.shifts
                 })),
-                shift_types: shiftTypes,
-                requests_off: allRequestsOff,
+                shift_types: buildShiftTypesPayload(),
+                requests_off: buildRequestsOff(periodDatesForSubmit),
                 thick_staffing_days: thickDays,
                 weekday_ranks: weekdayRanks,
-                weekday_min_staff: weekdayMinStaff
+                weekday_min_staff: weekdayMinStaff,
+                fixed_assignments: []
             };
 
-            const res = await fetch('https://shift-app-rw01.onrender.com/api/generate_shift', {
+            const res = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -352,7 +433,7 @@ export default function App() {
             if (res.ok && (data.status === "SUCCESS" || data.status === "FEASIBLE_WITH_WARNINGS")) {
                 const newMatrix = employees.map((emp, idx) => {
                     const empShifts = data.shifts[`emp_${idx}`] || [];
-                    return empShifts.map(s => ({ shift: s, isError: false }));
+                    return empShifts.map(s => ({ shift: s, isError: false, isFixed: false }));
                 });
                 setGeneratedResult({
                     matrix: newMatrix,
@@ -369,8 +450,201 @@ export default function App() {
         }
     };
 
+    // 「空欄自動作成」: 既に値が入っているセル(手動編集/前回生成結果)はそのまま固定し、
+    // 空欄セルのみをバックエンドへ送って穴埋めする
+    const fillBlanks = async () => {
+        if (!generatedResult) return;
+        setIsGenerating(true);
+
+        try {
+            const periodDatesForSubmit = getPeriodDates(currentYear, currentMonth);
+            let fixedAssignments = [];
+            employees.forEach((e, idx) => {
+                generatedResult.matrix[idx].forEach((cell, d) => {
+                    if (cell && cell.shift) {
+                        fixedAssignments.push({
+                            employee_id: `emp_${idx}`,
+                            day_index: d,
+                            shift_id: cell.shift === '休' ? 'OFF' : cell.shift
+                        });
+                    }
+                });
+            });
+
+            const payload = {
+                year: currentYear,
+                month: currentMonth,
+                employees: employees.map((e, idx) => ({
+                    id: `emp_${idx}`,
+                    name: e.name,
+                    employment_type: e.type,
+                    contract_days: e.days,
+                    is_registered_seller: e.isRS,
+                    allowed_shifts: e.shifts
+                })),
+                shift_types: buildShiftTypesPayload(),
+                requests_off: buildRequestsOff(periodDatesForSubmit),
+                thick_staffing_days: thickDays,
+                weekday_ranks: weekdayRanks,
+                weekday_min_staff: weekdayMinStaff,
+                fixed_assignments: fixedAssignments
+            };
+
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+
+            if (res.ok && (data.status === "SUCCESS" || data.status === "FEASIBLE_WITH_WARNINGS")) {
+                const newMatrix = employees.map((emp, idx) => {
+                    const empShifts = data.shifts[`emp_${idx}`] || [];
+                    return generatedResult.matrix[idx].map((cell, d) => {
+                        if (cell && cell.shift) return cell; // 保護セルはそのまま維持
+                        const s = empShifts[d];
+                        return { shift: s === undefined ? '休' : s, isError: false, isFixed: false };
+                    });
+                });
+                setGeneratedResult({
+                    matrix: newMatrix,
+                    hasError: data.status === "FEASIBLE_WITH_WARNINGS",
+                    warnings: data.warnings || []
+                });
+            } else {
+                alert("空欄自動作成に失敗しました: \n" + (data.detail || data.message || "制約が厳しすぎるため解が見つかりませんでした。"));
+            }
+        } catch (e) {
+            alert("通信エラーが発生しました: " + e.message);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    // セルを手動編集した際、自動的に「保護」状態にする（空欄自動作成で上書きされない）
+    // value === '' の場合は保護解除（空欄自動作成の対象に戻す）
+    const updateCell = (i, d, value) => {
+        const newMatrix = [...generatedResult.matrix];
+        const prevCell = newMatrix[i][d];
+        const isSpecial = SPECIAL_SHIFTS.includes(value) && !SPECIAL_OFF_LIKE.has(value);
+        newMatrix[i][d] = {
+            shift: value,
+            isError: false,
+            isFixed: value !== '',
+            hours: isSpecial ? (prevCell && prevCell.hours ? prevCell.hours : DEFAULT_SPECIAL_HOURS) : undefined
+        };
+        setGeneratedResult({ ...generatedResult, matrix: newMatrix });
+        if (isSpecial) {
+            setSpecialHoursModal({ i, d, hours: newMatrix[i][d].hours });
+        }
+    };
+
+    const applySpecialHours = () => {
+        if (!specialHoursModal) return;
+        const { i, d, hours } = specialHoursModal;
+        const newMatrix = [...generatedResult.matrix];
+        newMatrix[i][d] = { ...newMatrix[i][d], hours: parseFloat(hours) || 0 };
+        setGeneratedResult({ ...generatedResult, matrix: newMatrix });
+        setSpecialHoursModal(null);
+    };
+
+    // 従業員1名分の出勤日数・合計時間（特殊シフトも規定通り集計）
+    const computeEmployeeStats = (i) => {
+        if (!generatedResult || !generatedResult.matrix[i]) return { days: 0, hours: 0 };
+        let days = 0, hours = 0;
+        generatedResult.matrix[i].forEach(cell => {
+            if (!cell || !cell.shift) return;
+            if (cell.shift === '休') return;
+            if (SPECIAL_SHIFTS.includes(cell.shift)) {
+                if (SPECIAL_OFF_LIKE.has(cell.shift)) return;
+                days += 1;
+                hours += (cell.hours ?? DEFAULT_SPECIAL_HOURS);
+                return;
+            }
+            const timeStr = shiftMaster[cell.shift];
+            if (timeStr && timeStr.includes('～')) {
+                const [s, e] = timeStr.split('～');
+                hours += (timeToMin(e) - timeToMin(s)) / 60;
+            }
+            days += 1;
+        });
+        return { days, hours };
+    };
+
+    // 指定日の「登録販売者スキマ不在」と「開店/閉店の鍵持ち充足」を判定
+    const analyzeDay = (d) => {
+        if (!generatedResult) return { gaps: [], openerOk: true, closerOk: true, minStart: null, maxEnd: null, openerIdx: [], closerIdx: [] };
+        const businessStart = timeToMin(BUSINESS_START_LABEL);
+        const businessEnd = timeToMin(BUSINESS_END_LABEL);
+        let rsIntervals = [];
+        let allIntervals = [];
+        employees.forEach((emp, i) => {
+            const cell = generatedResult.matrix[i] ? generatedResult.matrix[i][d] : null;
+            if (!cell || !cell.shift || cell.shift === '休' || SPECIAL_SHIFTS.includes(cell.shift)) return;
+            const timeStr = shiftMaster[cell.shift];
+            if (!timeStr || !timeStr.includes('～')) return;
+            const [s, e] = timeStr.split('～');
+            const range = [timeToMin(s), timeToMin(e)];
+            allIntervals.push({ idx: i, range });
+            if (emp.isRS) rsIntervals.push(range);
+        });
+
+        rsIntervals.sort((a, b) => a[0] - b[0]);
+        let gaps = [];
+        let cursor = businessStart;
+        rsIntervals.forEach(([s, e]) => {
+            if (s > cursor) gaps.push([cursor, Math.min(s, businessEnd)]);
+            cursor = Math.max(cursor, e);
+        });
+        if (cursor < businessEnd) gaps.push([cursor, businessEnd]);
+        gaps = gaps.filter(([s, e]) => e > s);
+
+        let openerOk = true, closerOk = true, minStart = null, maxEnd = null, openerIdx = [], closerIdx = [];
+        if (allIntervals.length > 0) {
+            minStart = Math.min(...allIntervals.map(x => x.range[0]));
+            maxEnd = Math.max(...allIntervals.map(x => x.range[1]));
+            const openers = allIntervals.filter(x => x.range[0] === minStart);
+            const closers = allIntervals.filter(x => x.range[1] === maxEnd);
+            openerIdx = openers.map(x => x.idx);
+            closerIdx = closers.map(x => x.idx);
+            openerOk = openers.some(x => employees[x.idx] && employees[x.idx].isKeyHolder);
+            closerOk = closers.some(x => employees[x.idx] && employees[x.idx].isKeyHolder);
+        }
+        return { gaps, openerOk, closerOk, minStart, maxEnd, openerIdx, closerIdx };
+    };
+
     const periodDates = getPeriodDates(currentYear, currentMonth);
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    const dayAnalyses = generatedResult ? periodDates.map((_, d) => analyzeDay(d)) : [];
+
+    const renderCellNode = (cell) => {
+        if (!cell || !cell.shift) return <>－</>;
+        if (cell.shift === '休' || SPECIAL_OFF_LIKE.has(cell.shift)) return <>{cell.shift === '休' ? '休' : cell.shift}</>;
+        if (SPECIAL_SHIFTS.includes(cell.shift)) {
+            return <>{cell.shift}<br />{cell.hours ?? DEFAULT_SPECIAL_HOURS}h</>;
+        }
+        const shiftText = shiftMaster[cell.shift] || cell.shift;
+        const lines = shiftText.includes('～') ? shiftText.split('～') : [shiftText];
+        return lines.length === 2 ? <>{lines[0]}<br />~{lines[1]}</> : <>{cell.shift}</>;
+    };
+
+    const cellClassName = (emp, cell, empIdx, d) => {
+        let cssClass = 'shift-cell ';
+        if (!cell || !cell.shift) cssClass += 'off';
+        else if (cell.shift === '休' || SPECIAL_OFF_LIKE.has(cell.shift)) cssClass += 'off';
+        else if (SPECIAL_SHIFTS.includes(cell.shift)) cssClass += 'special';
+        else if (emp.isRS) cssClass += 'rs';
+        else cssClass += 'normal';
+        if (cell && cell.isError) cssClass += ' error';
+        if (cell && cell.isFixed) cssClass += ' fixed';
+        const da = dayAnalyses[d];
+        if (da) {
+            if (da.openerIdx.includes(empIdx)) cssClass += ' key-open';
+            if (da.closerIdx.includes(empIdx)) cssClass += ' key-close';
+        }
+        return cssClass;
+    };
 
     return (
         <div style={{display: 'flex', width: '100%', minHeight: '100vh'}}>
@@ -380,7 +654,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.11</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.12</span></div>
                 </div>
             )}
 
@@ -391,7 +665,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.11</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.12</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -418,9 +692,16 @@ export default function App() {
                                     <button className="btn outline" style={{padding: '4px 8px'}} onClick={() => changeMonth(1)}>&gt;</button>
                                 </div>
                             </div>
-                            <button className="btn" onClick={generateShift} disabled={isGenerating}>
-                                <Wand2 size={16}/> 最適化シフトを生成
-                            </button>
+                            <div style={{display: 'flex', gap: '8px'}}>
+                                {generatedResult && (
+                                    <button className="btn outline" onClick={fillBlanks} disabled={isGenerating}>
+                                        <Wand2 size={16}/> 空欄自動作成
+                                    </button>
+                                )}
+                                <button className="btn" onClick={generateShift} disabled={isGenerating}>
+                                    <Wand2 size={16}/> 最適化シフトを生成
+                                </button>
+                            </div>
                         </div>
 
                         {!generatedResult && !isGenerating && (
@@ -451,46 +732,58 @@ export default function App() {
 
                                 {isMobileView ? (
                                     <div className="glass-card" style={{padding: '16px'}}>
-                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', background: '#F8FAFC', padding: '12px', borderRadius: '8px'}}>
+                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', background: '#F8FAFC', padding: '12px', borderRadius: '8px'}}>
                                             <button className="btn outline" style={{padding: '6px 12px'}} onClick={() => setSelectedDateIndex(Math.max(0, selectedDateIndex - 1))}>&lt;</button>
                                             <h3 style={{margin: 0, fontSize: '1.2rem', color: 'var(--primary)'}}>{formatDateLabel(periodDates[selectedDateIndex])} ({dayNames[periodDates[selectedDateIndex].getDay()]})</h3>
                                             <button className="btn outline" style={{padding: '6px 12px'}} onClick={() => setSelectedDateIndex(Math.min(periodDates.length - 1, selectedDateIndex + 1))}>&gt;</button>
                                         </div>
+                                        {dayAnalyses[selectedDateIndex] && (
+                                            <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px'}}>
+                                                {dayAnalyses[selectedDateIndex].gaps.length > 0 && (
+                                                    <span className="day-alert-badge" title={dayAnalyses[selectedDateIndex].gaps.map(g => `${minToLabel(g[0])}～${minToLabel(g[1])}`).join(', ')}>❌ 登販不在あり</span>
+                                                )}
+                                                {!dayAnalyses[selectedDateIndex].openerOk && dayAnalyses[selectedDateIndex].minStart !== null && (
+                                                    <span className="day-alert-badge">❌ 朝鍵不在</span>
+                                                )}
+                                                {!dayAnalyses[selectedDateIndex].closerOk && dayAnalyses[selectedDateIndex].maxEnd !== null && (
+                                                    <span className="day-alert-badge">❌ 夜鍵不在</span>
+                                                )}
+                                            </div>
+                                        )}
                                         <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
                                             {employees.map((emp, i) => {
                                                 const cell = generatedResult.matrix[i][selectedDateIndex];
-                                                let cssClass = 'shift-cell ';
-                                                if (cell.shift === '休') cssClass += 'off';
-                                                else if (emp.isRS) cssClass += 'rs';
-                                                else cssClass += 'normal';
-                                                if (cell.isError) cssClass += ' error';
-                                                
+                                                const cssClass = cellClassName(emp, cell, i, selectedDateIndex);
+                                                const stats = computeEmployeeStats(i);
+                                                const isSpecialEditable = cell && SPECIAL_SHIFTS.includes(cell.shift) && !SPECIAL_OFF_LIKE.has(cell.shift);
+
                                                 return (
                                                     <div key={i} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB'}}>
                                                         <div>
                                                             <div style={{fontWeight: 600, fontSize: '1rem', color: 'var(--text-main)'}}>{emp.name}</div>
-                                                            <div style={{fontSize: '0.75rem', color: '#6B7280', marginTop: '4px'}}>{emp.isRS ? <span style={{background:'#D1FAE5', color:'#065F46', padding:'2px 4px', borderRadius:'4px', marginRight:'4px'}}>登販</span> : ''} {emp.type}</div>
+                                                            <div style={{fontSize: '0.75rem', color: '#6B7280', marginTop: '4px'}}>{emp.isRS ? <span style={{background:'#D1FAE5', color:'#065F46', padding:'2px 4px', borderRadius:'4px', marginRight:'4px'}}>登販</span> : ''}{emp.isKeyHolder ? <span style={{marginRight:'4px'}}>🔑</span> : ''} {emp.type}</div>
+                                                            <div className="staff-stat-badge">{stats.days}日 / {stats.hours.toFixed(1)}h</div>
                                                         </div>
                                                         <div style={{width: '60px', position: 'relative'}}>
                                                             <div className={cssClass} style={{ pointerEvents: 'none', textAlign: 'center', fontSize: '0.8rem', padding: '6px', borderRadius: '4px', lineHeight: '1.2' }}>
-                                                                {(() => {
-                                                                    const shiftText = cell.shift === '休' ? '休' : (shiftMaster[cell.shift] || cell.shift);
-                                                                    const lines = shiftText.includes('～') ? shiftText.split('～') : [shiftText];
-                                                                    return lines.length === 2 ? <>{lines[0]}<br/>~{lines[1]}</> : <>{cell.shift}</>;
-                                                                })()}
+                                                                {renderCellNode(cell)}
                                                             </div>
                                                             <select
-                                                                value={cell.shift}
-                                                                style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', appearance: 'none'}}
-                                                                onChange={(e) => {
-                                                                    const newMatrix = [...generatedResult.matrix];
-                                                                    newMatrix[i][selectedDateIndex].shift = e.target.value;
-                                                                    setGeneratedResult({...generatedResult, matrix: newMatrix});
-                                                                }}
+                                                                value={cell.shift || ''}
+                                                                style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', appearance: 'none', zIndex: 1}}
+                                                                onChange={(e) => updateCell(i, selectedDateIndex, e.target.value)}
                                                             >
+                                                                <option value="">－ (未設定)</option>
                                                                 <option value="休">休</option>
                                                                 {emp.shifts.map(s => <option key={s} value={s}>{shiftMaster[s] || s}</option>)}
+                                                                <optgroup label="特殊シフト">
+                                                                    {SPECIAL_SHIFTS.map(sp => <option key={sp} value={sp}>{sp}</option>)}
+                                                                </optgroup>
                                                             </select>
+                                                            {isSpecialEditable && (
+                                                                <button type="button" className="hours-edit-btn" style={{zIndex: 2}}
+                                                                    onClick={(ev) => { ev.stopPropagation(); setSpecialHoursModal({ i, d: selectedDateIndex, hours: cell.hours ?? DEFAULT_SPECIAL_HOURS }); }}>✎</button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 )
@@ -508,8 +801,16 @@ export default function App() {
                                                     {periodDates.map((d, i) => {
                                                         const dow = d.getDay();
                                                         const cls = dow === 0 ? 'sun' : dow === 6 ? 'sat' : '';
+                                                        const da = dayAnalyses[i];
                                                         return (
-                                                            <th key={i}>{formatDateLabel(d)}<span className={`day-label ${cls}`}>({dayNames[dow]})</span></th>
+                                                            <th key={i}>
+                                                                {formatDateLabel(d)}<span className={`day-label ${cls}`}>({dayNames[dow]})</span>
+                                                                {da && da.gaps.length > 0 && (
+                                                                    <div className="day-alert" title={da.gaps.map(g => `${minToLabel(g[0])}～${minToLabel(g[1])}`).join(', ')}>❌登販</div>
+                                                                )}
+                                                                {da && !da.openerOk && da.minStart !== null && <div className="day-alert">❌朝鍵</div>}
+                                                                {da && !da.closerOk && da.maxEnd !== null && <div className="day-alert">❌夜鍵</div>}
+                                                            </th>
                                                         )
                                                     })}
                                                 </tr>
@@ -526,45 +827,39 @@ export default function App() {
                                                             onDragEnd={handleSort} 
                                                             onDragOver={(e) => e.preventDefault()}
                                                         >
-                                                            <td style={{width: '40px', textAlign: 'center', color: '#9CA3AF'}}>
-                                                                <GripVertical size={16} className="drag-handle" />
+                                                            <td style={{width: '28px', textAlign: 'center', color: '#9CA3AF'}}>
+                                                                <span className="drag-handle-compact">⋮⋮</span>
                                                             </td>
                                                             <td>
                                                                 <div style={{fontWeight:600}}>{emp.name}</div>
-                                                                <div style={{fontSize:'0.7rem', color:'#9CA3AF'}}>{emp.isRS ? '登販/' : ''}{shortType}</div>
+                                                                <div style={{fontSize:'0.7rem', color:'#9CA3AF'}}>{emp.isRS ? '登販/' : ''}{emp.isKeyHolder ? '🔑/' : ''}{shortType}</div>
+                                                                <div className="staff-stat-badge">{(() => { const st = computeEmployeeStats(i); return `${st.days}日 / ${st.hours.toFixed(1)}h`; })()}</div>
                                                             </td>
                                                             {generatedResult.matrix[i].map((cell, d) => {
-                                                                let cssClass = 'shift-cell ';
-                                                                if (cell.shift === '休') cssClass += 'off';
-                                                                else if (emp.isRS) cssClass += 'rs';
-                                                                else cssClass += 'normal';
-                                                                
-                                                                if (cell.isError) cssClass += ' error';
-
-                                                                const shiftText = cell.shift === '休' ? '休' : (shiftMaster[cell.shift] || cell.shift);
-                                                                const lines = shiftText.includes('～') ? shiftText.split('～') : [shiftText];
+                                                                const cssClass = cellClassName(emp, cell, i, d);
+                                                                const isSpecialEditable = cell && SPECIAL_SHIFTS.includes(cell.shift) && !SPECIAL_OFF_LIKE.has(cell.shift);
 
                                                                 return (
                                                                     <td key={d} style={{position: 'relative', width: '50px'}}>
                                                                         <div className={cssClass} style={{ pointerEvents: 'none', textAlign: 'center', fontSize: '0.75rem', padding: '4px', borderRadius: '4px', lineHeight: '1.2', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                                                                            {lines.length === 2 ? (
-                                                                                <>{lines[0]}<br/>~{lines[1]}</>
-                                                                            ) : (
-                                                                                <>{cell.shift}</>
-                                                                            )}
+                                                                            {renderCellNode(cell)}
                                                                         </div>
-                                                                        <select 
-                                                                            value={cell.shift}
-                                                                            style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', appearance: 'none'}}
-                                                                            onChange={(e) => {
-                                                                                const newMatrix = [...generatedResult.matrix];
-                                                                                newMatrix[i][d].shift = e.target.value;
-                                                                                setGeneratedResult({...generatedResult, matrix: newMatrix});
-                                                                            }}
+                                                                        <select
+                                                                            value={cell.shift || ''}
+                                                                            style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', appearance: 'none', zIndex: 1}}
+                                                                            onChange={(e) => updateCell(i, d, e.target.value)}
                                                                         >
+                                                                            <option value="">－ (未設定)</option>
                                                                             <option value="休">休</option>
                                                                             {emp.shifts.map(s => <option key={s} value={s}>{shiftMaster[s] || s}</option>)}
+                                                                            <optgroup label="特殊シフト">
+                                                                                {SPECIAL_SHIFTS.map(sp => <option key={sp} value={sp}>{sp}</option>)}
+                                                                            </optgroup>
                                                                         </select>
+                                                                        {isSpecialEditable && (
+                                                                            <button type="button" className="hours-edit-btn" style={{zIndex: 2}}
+                                                                                onClick={(ev) => { ev.stopPropagation(); setSpecialHoursModal({ i, d, hours: cell.hours ?? DEFAULT_SPECIAL_HOURS }); }}>✎</button>
+                                                                        )}
                                                                     </td>
                                                                 )
                                                             })}
@@ -710,12 +1005,14 @@ export default function App() {
                                     </div>
                                 ))}
                             </div>
-                            <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center'}}>
-                                <input type="text" className="form-control" style={{width: '140px'}} placeholder="パターン名 (例: 中番)" value={newShiftName} onChange={e => setNewShiftName(e.target.value)}/>
-                                <input type="time" className="form-control" style={{width: '140px'}} value={newShiftStart} onChange={e => setNewShiftStart(e.target.value)}/>
-                                <span>～</span>
-                                <input type="time" className="form-control" style={{width: '140px'}} value={newShiftEnd} onChange={e => setNewShiftEnd(e.target.value)}/>
-                                <button className="btn" onClick={addShiftPattern}><Plus size={16}/> 追加</button>
+                            <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
+                                <input type="text" className="form-control" style={{width: '200px'}} placeholder="パターン名 (例: 中番)" value={newShiftName} onChange={e => setNewShiftName(e.target.value)}/>
+                                <div style={{display: 'flex', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap'}}>
+                                    <TimePicker value={newShiftStart || '09:00'} onChange={setNewShiftStart} />
+                                    <span style={{paddingTop: '10px'}}>～</span>
+                                    <TimePicker value={newShiftEnd || '18:00'} onChange={setNewShiftEnd} />
+                                    <button className="btn" style={{alignSelf: 'flex-start', marginTop: '10px'}} onClick={addShiftPattern}><Plus size={16}/> 追加</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -836,10 +1133,17 @@ export default function App() {
                             </select>
                         </div>
 
-                        <div className="form-group" style={{marginTop: '24px', marginBottom: '24px'}}>
+                        <div className="form-group" style={{marginTop: '24px', marginBottom: '12px'}}>
                             <label className="checkbox-label">
                                 <input type="checkbox" checked={empRS} onChange={e => setEmpRS(e.target.checked)}/>
                                 登録販売者資格あり
+                            </label>
+                        </div>
+
+                        <div className="form-group" style={{marginBottom: '24px'}}>
+                            <label className="checkbox-label">
+                                <input type="checkbox" checked={empIsKeyHolder} onChange={e => setEmpIsKeyHolder(e.target.checked)}/>
+                                🔑 鍵持ち（開店・閉店対応可）
                             </label>
                         </div>
 
@@ -924,11 +1228,13 @@ export default function App() {
                                 自由時間を入力
                             </label>
                             {useCustomTime && (
-                                <div style={{display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px'}}>
-                                    <input type="time" className="form-control" value={customStartTime} onChange={e => setCustomStartTime(e.target.value)}/>
-                                    <span>～</span>
-                                    <input type="time" className="form-control" value={customEndTime} onChange={e => setCustomEndTime(e.target.value)}/>
-                                    <button type="button" className="btn outline" style={{whiteSpace: 'nowrap'}} onClick={addCustomShiftToEmployee}>追加</button>
+                                <div style={{marginTop: '8px'}}>
+                                    <div style={{display: 'flex', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap'}}>
+                                        <TimePicker value={customStartTime || '09:00'} onChange={setCustomStartTime} />
+                                        <span style={{paddingTop: '10px'}}>～</span>
+                                        <TimePicker value={customEndTime || '18:00'} onChange={setCustomEndTime} />
+                                    </div>
+                                    <button type="button" className="btn outline" style={{whiteSpace: 'nowrap', marginTop: '8px'}} onClick={addCustomShiftToEmployee}>この時間を追加</button>
                                 </div>
                             )}
                             {selectedShifts.length > 0 && (
@@ -946,6 +1252,30 @@ export default function App() {
                         <div style={{display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px'}}>
                             <button className="btn outline" onClick={() => setShowModal(false)}>キャンセル</button>
                             <button className="btn" onClick={saveEmployee}>保存する</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 特殊シフト勤務時間 編集モーダル */}
+            {specialHoursModal && (
+                <div className="modal-overlay" onClick={() => setSpecialHoursModal(null)}>
+                    <div className="modal" style={{maxWidth: '320px'}} onClick={e => e.stopPropagation()}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+                            <h2 style={{fontSize: '1.1rem'}}>勤務時間を調整</h2>
+                            <X style={{cursor:'pointer', color: 'var(--text-sub)'}} onClick={() => setSpecialHoursModal(null)}/>
+                        </div>
+                        <div className="form-group">
+                            <label>個人時間として計上する時間数 (h)</label>
+                            <input
+                                type="number" min="0" max="24" step="0.5" className="form-control"
+                                value={specialHoursModal.hours}
+                                onChange={e => setSpecialHoursModal({...specialHoursModal, hours: e.target.value})}
+                            />
+                        </div>
+                        <div style={{display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px'}}>
+                            <button className="btn outline" onClick={() => setSpecialHoursModal(null)}>キャンセル</button>
+                            <button className="btn" onClick={applySpecialHours}>保存する</button>
                         </div>
                     </div>
                 </div>
