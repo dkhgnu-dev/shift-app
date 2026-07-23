@@ -143,6 +143,42 @@ def solve_shift(input_data: ShiftInput):
     if max_allowed > max_by_percentage and max_by_percentage >= min_allowed:
         max_allowed = max_by_percentage
 
+    # 各日の目標出勤人数をモデル作成前に確定（16日〜15日締め期間の実日付ベース）
+    target_for_days = []
+    lottery_days_count = 5 if input_data.month in [7, 12] else 4
+    for d in range(num_days):
+        current_date = start_date + datetime.timedelta(days=d)
+        weekday = current_date.weekday()
+
+        # 曜日順位による目標人数の決定
+        # 🥇 1位〜2位（上位）： 平均 +1名
+        # ⚪ 3位〜5位（中位）： 平均 ピッタリ
+        # 🔴 6位〜7位（下位）： 平均 -1名
+        target_for_day = base_avg
+        if input_data.weekday_ranks:
+            w_key = str(weekday)
+            if w_key in input_data.weekday_ranks:
+                rank = int(input_data.weekday_ranks[w_key])
+                if rank in [1, 2]:
+                    target_for_day = base_avg + 1
+                elif rank in [6, 7]:
+                    target_for_day = base_avg - 1
+                else:
+                    target_for_day = base_avg
+        else:
+            if weekday == 6:
+                target_for_day = base_avg + 1
+            elif weekday == 0:
+                target_for_day = base_avg - 1
+
+        # 特売日や月末抽選会の強化補正
+        if (d + 1) in input_data.thick_staffing_days or d >= (num_days - lottery_days_count):
+            target_for_day += 1
+
+        target_for_day = max(min_allowed, min(max_allowed, target_for_day))
+        target_for_days.append(target_for_day)
+
+    target_diff_vars = []
     for d in range(num_days):
         daily_workers = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in range(num_shifts) if s_idx != off_idx)
 
@@ -152,6 +188,11 @@ def solve_shift(input_data: ShiftInput):
         model.Add(daily_workers + s_min >= min_allowed)
         model.Add(daily_workers - s_max <= max_allowed)
         slack_daily_staff[d] = (s_min, s_max)
+
+        # 目標人数からの差分変数をモデル定義時に一括作成
+        target_diff = model.NewIntVar(0, len(employees), f'target_diff_{d}')
+        model.AddAbsEquality(target_diff, daily_workers - target_for_days[d])
+        target_diff_vars.append(target_diff)
 
         # 登録販売者カバレッジ (スラック付き・動的ブロック判定)
         for block in range(1, 11):
@@ -191,48 +232,8 @@ def solve_shift(input_data: ShiftInput):
         best_slack = solver.Value(sum(total_slack))
         model.Add(sum(total_slack) <= best_slack)
 
-        # 【フェーズ 2】人数平準化 ＋ 曜日順位(1位〜7位)・特売日・抽選会の統合最適化（16日〜15日締め期間の実日付ベース）
-        rank_terms = []
-        lottery_days_count = 5 if input_data.month in [7, 12] else 4
-        for d in range(num_days):
-            current_date = start_date + datetime.timedelta(days=d)
-            weekday = current_date.weekday()
-            daily_workers = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in range(num_shifts) if s_idx != off_idx)
-
-            # 曜日順位による目標人数の決定
-            # 🥇 1位〜2位（上位）： 平均 +1名
-            # ⚪ 3位〜5位（中位）： 平均 ピッタリ
-            # 🔴 6位〜7位（下位）： 平均 -1名
-            target_for_day = base_avg
-            if input_data.weekday_ranks:
-                w_key = str(weekday)
-                if w_key in input_data.weekday_ranks:
-                    rank = int(input_data.weekday_ranks[w_key])
-                    if rank in [1, 2]:
-                        target_for_day = base_avg + 1
-                    elif rank in [6, 7]:
-                        target_for_day = base_avg - 1
-                    else:
-                        target_for_day = base_avg
-            else:
-                if weekday == 6:
-                    target_for_day = base_avg + 1
-                elif weekday == 0:
-                    target_for_day = base_avg - 1
-
-            # 特売日や月末抽選会の強化補正
-            if (d + 1) in input_data.thick_staffing_days or d >= (num_days - lottery_days_count):
-                target_for_day += 1
-
-            # min_allowed 〜 max_allowed の範囲にクランプ
-            target_for_day = max(min_allowed, min(max_allowed, target_for_day))
-
-            # 各日の目標人数からの差分を最小化
-            target_diff = model.NewIntVar(0, len(employees), f'target_diff_{d}')
-            model.AddAbsEquality(target_diff, daily_workers - target_for_day)
-            rank_terms.append(target_diff)
-
-        model.Minimize(sum(rank_terms))
+        # 【フェーズ 2】各曜日の目標人数の達成最適化
+        model.Minimize(sum(target_diff_vars))
         solver.parameters.max_time_in_seconds = 8.0
         solver.Solve(model)
 
