@@ -300,7 +300,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.7</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.8</span></div>
                 </div>
             )}
             
@@ -311,7 +311,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.7</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.8</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -571,11 +571,12 @@ export default function App() {
                                         ・<strong>登録販売者の絶対配置：</strong> 営業時間（8:15～24:00）の全時間帯で登録販売者を1名以上確実に配置します。<br/>
                                         ・<strong>契約日数の厳守：</strong> 従業員ごとの契約日数に合わせてぴったり割り当てます。<br/>
                                         ・<strong>1日の出勤上限：</strong> どんな日でも総従業員数の70%以下（例: 10人なら最大7人）に自動制限します。<br/>
-                                        ・<strong>出勤人数の平準化：</strong> 曜日ごとの人数の極端な偏りを防ぎ、全体でバランス（平均±1名以内）を取ります。
+                                        ・<strong>出勤人数の厳格平準化（平均±1名制限）：</strong> 全員の契約日数から1日の平均人数を自動計算し、全曜日の出勤人数を「平均±1名以内」に強制固定します（10人対2人等の極端な偏りは絶対発生しません）。
                                     </div>
                                     <div style={{marginTop: '6px'}}><strong style={{color: 'var(--text-main)'}}>【自動評価・イベントルール（ソフト制約）】</strong></div>
                                     <div style={{paddingLeft: '12px'}}>
-                                        ・<strong>曜日ごとの優先順位：</strong> 上記で設定された順位（1位〜7位）に従って余剰人員を自動配分します。<br/>
+                                        ・<strong>曜日優先順位による人員配分（最大1名差）：</strong><br/>
+                                        &nbsp;&nbsp;🥇 1位〜2位（上位）： 平均 +1名 / ⚪ 3位〜5位（中位）： 平均ピタリ / 🔴 6位〜7位（下位）： 平均 -1名<br/>
                                         ・<strong>月末の抽選会・大抽選会：</strong> 通常月は月末4日間、7月・12月は「大抽選会」として月末5日間の人員を自動的に手厚く配分します。<br/>
                                         ・<strong>人員を厚くしたい日：</strong> カレンダーで個別選択された特売日等の人員を優先配分します。<br/>
                                         ・<strong>営業時間：</strong> 8:15～24:00 で固定計算しています。

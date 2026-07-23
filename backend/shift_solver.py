@@ -95,21 +95,23 @@ def solve_shift(input_data: ShiftInput):
     }
 
     total_contract_days = sum(emp.contract_days for emp in employees)
-    target_daily_staff = total_contract_days // num_days if num_days > 0 else 1
+    avg_daily_staff = (total_contract_days / num_days) if num_days > 0 else 1.0
+    base_avg = int(round(avg_daily_staff))
+    if base_avg < 1:
+        base_avg = 1
     
+    # 「±1名以内」の厳格制限（ハード制約枠）
+    min_allowed = max(1, base_avg - 1)
+    max_allowed = base_avg + 1
     max_by_percentage = math.ceil(len(employees) * 0.7)
-    required_daily_avg = math.ceil(total_contract_days / num_days) if num_days > 0 else 1
-    
-    min_allowed = max(1, target_daily_staff - 1)
-    max_allowed = max(target_daily_staff + 1, max_by_percentage, required_daily_avg)
-    if max_allowed < min_allowed:
-        min_allowed = max_allowed
+    if max_allowed > max_by_percentage and max_by_percentage >= min_allowed:
+        max_allowed = max_by_percentage
 
     diff_vars = []
     for d in range(num_days):
         daily_workers = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in range(num_shifts) if s_idx != off_idx)
         
-        # 出勤人数上限・下限をスラック化
+        # 出勤人数上限・下限をスラック化 (平均 ± 1名以内)
         s_min = model.NewIntVar(0, len(employees), f'slack_min_{d}')
         s_max = model.NewIntVar(0, len(employees), f'slack_max_{d}')
         model.Add(daily_workers + s_min >= min_allowed)
@@ -118,7 +120,7 @@ def solve_shift(input_data: ShiftInput):
 
         # 平準化差分
         diff = model.NewIntVar(0, len(employees), f'diff_{d}')
-        model.AddAbsEquality(diff, daily_workers - target_daily_staff)
+        model.AddAbsEquality(diff, daily_workers - base_avg)
         diff_vars.append(diff)
 
         # 登録販売者カバレッジ (スラック付き)
@@ -167,24 +169,38 @@ def solve_shift(input_data: ShiftInput):
             weekday = current_date.weekday()
             daily_workers = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in range(num_shifts) if s_idx != off_idx)
             
-            day_weight = 0
+            # 曜日順位による目標人数の決定
+            # 🥇 1位〜2位（上位）： 平均 +1名
+            # ⚪ 3位〜5位（中位）： 平均 ピッタリ
+            # 🔴 6位〜7位（下位）： 平均 -1名
+            target_for_day = base_avg
             if input_data.weekday_ranks:
                 w_key = str(weekday)
                 if w_key in input_data.weekday_ranks:
                     rank = int(input_data.weekday_ranks[w_key])
-                    if rank > 0:
-                        day_weight += (8 - rank) - 4 # 1位: +3, 7位: -3
+                    if rank in [1, 2]:
+                        target_for_day = base_avg + 1
+                    elif rank in [6, 7]:
+                        target_for_day = base_avg - 1
+                    else:
+                        target_for_day = base_avg
             else:
-                if weekday == 6: day_weight += 2
-                elif weekday == 0: day_weight -= 1
+                if weekday == 6:
+                    target_for_day = base_avg + 1
+                elif weekday == 0:
+                    target_for_day = base_avg - 1
 
-            if d >= (num_days - lottery_days_count):
-                day_weight += 4
-            if (d + 1) in input_data.thick_staffing_days:
-                day_weight += 5
+            # 特売日や月末抽選会の強化補正
+            if (d + 1) in input_data.thick_staffing_days or d >= (num_days - lottery_days_count):
+                target_for_day += 1
+            
+            # min_allowed 〜 max_allowed の範囲にクランプ
+            target_for_day = max(min_allowed, min(max_allowed, target_for_day))
 
-            # 差分の極端な偏りを防ぎつつ(10 * diff)、曜日順位が高い日に人数を多く配分(-5 * day_weight * daily_workers)
-            rank_terms.append(10 * diff_vars[d] - 5 * day_weight * daily_workers)
+            # 各日の目標人数からの差分を最小化
+            target_diff = model.NewIntVar(0, len(employees), f'target_diff_{d}')
+            model.AddAbsEquality(target_diff, daily_workers - target_for_day)
+            rank_terms.append(target_diff)
 
         model.Minimize(sum(rank_terms))
         solver.parameters.max_time_in_seconds = 8.0
@@ -220,9 +236,9 @@ def solve_shift(input_data: ShiftInput):
         u_val = solver.Value(su)
         o_val = solver.Value(so)
         if u_val > 0:
-            warnings.append(f"{emp.name}さん: 契約日数({emp.days}日)に対して割り当てが{u_val}日不足しています。")
+            warnings.append(f"{emp.name}さん: 契約日数({emp.contract_days}日)に対して割り当てが{u_val}日不足しています。")
         elif o_val > 0:
-            warnings.append(f"{emp.name}さん: 契約日数({emp.days}日)に対して割り当てが{o_val}日超過しています。")
+            warnings.append(f"{emp.name}さん: 契約日数({emp.contract_days}日)に対して割り当てが{o_val}日超過しています。")
 
     for (day, block), s_rs in slack_rs.items():
         if solver.Value(s_rs) == 1:
