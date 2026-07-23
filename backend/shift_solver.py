@@ -299,24 +299,53 @@ def solve_shift(input_data: ShiftInput):
 
     solver = cp_model.CpSolver()
     solver.parameters.num_search_workers = 8
-    solver.parameters.max_time_in_seconds = 8.0
-    status = solver.Solve(model)
+    solver.parameters.max_time_in_seconds = 10.0
+    phase1_status = solver.Solve(model)
+    status = phase1_status
+    phase2_status = None
 
-    if status in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
-        best_slack = solver.Value(sum(total_slack))
-        model.Add(sum(total_slack) <= best_slack)
+    def snapshot():
+        """現在のsolver状態から結果復元に必要な値だけを取り出す（フェーズ2失敗時のフォールバック用）"""
+        return {
+            'x': {k: solver.Value(v) for k, v in x.items()},
+            'slack_contract': {emp_id: (solver.Value(su), solver.Value(so)) for emp_id, (su, so) in slack_contract.items()},
+            'slack_rs': {k: solver.Value(v) for k, v in slack_rs.items()},
+        }
 
-        # 【フェーズ 2】曜日目標人数の達成 ＋ 連勤抑制の統合最適化
+    final_values = None
+
+    if phase1_status in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
+        # フェーズ1解のスナップショットを必ず確保しておく（フェーズ2が解を返せなかった場合のフォールバック用）
+        phase1_snapshot = snapshot()
+        final_values = phase1_snapshot
+
         # 連勤ペナルティ係数: 15（1連勤発生 = 目標人数ズレ15人分のコスト）
         consec_penalty_sum = sum(15 * v for v in consec_penalty_vars) if consec_penalty_vars else 0
-        model.Minimize(sum(target_diff_vars) + consec_penalty_sum)
-        solver.parameters.max_time_in_seconds = 12.0
-        solver.Solve(model)
+
+        if phase1_status == cp_model.OPTIMAL:
+            # OPTIMAL（証明済み最小スラック）の場合のみ、以降のフェーズでスラックを悪化させない
+            # ハード制約として固定してよい。
+            best_slack = solver.Value(sum(total_slack))
+            model.Add(sum(total_slack) <= best_slack)
+            model.Minimize(sum(target_diff_vars) + consec_penalty_sum)
+        else:
+            # FEASIBLE（未証明の暫定解）の場合、この時点のスラックを固定してしまうと
+            # 「本当はもっと減らせたはずのスラック」が確定してしまう。
+            # そのためフェーズ2でも total_slack を圧倒的に大きい重みで目的関数に含め、
+            # 曜日目標人数や連勤抑制より優先してスラック削減を継続させる。
+            model.Minimize(100000 * sum(total_slack) + sum(target_diff_vars) + consec_penalty_sum)
+
+        solver.parameters.max_time_in_seconds = 15.0
+        phase2_status = solver.Solve(model)
+
+        if phase2_status in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
+            final_values = snapshot()
+        # else: フェーズ2が解を返さなかった場合は phase1_snapshot のまま（フォールバック）
 
     warnings = []
 
-    # 絶対失敗しない安全フォールバック
-    if status not in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
+    # 絶対失敗しない安全フォールバック（フェーズ1自体が解なしの場合のみ）
+    if phase1_status not in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
         warnings.append("⚠️ 条件の自動計算が困難だったため基本仮シフトを構築しました。従業員の契約日数や希望休の重複をご確認ください。")
         fallback_shifts = {}
         for emp in employees:
@@ -337,18 +366,16 @@ def solve_shift(input_data: ShiftInput):
             "message": warnings[0]
         }
 
-    # スラック値のチェックと警告生成
+    # スラック値のチェックと警告生成（フェーズ2が有効ならその結果、無効ならフェーズ1解を使用）
     for emp in employees:
-        su, so = slack_contract[emp.id]
-        u_val = solver.Value(su)
-        o_val = solver.Value(so)
+        u_val, o_val = final_values['slack_contract'][emp.id]
         if u_val > 0:
             warnings.append(f"{emp.name}さん: 契約日数({emp.contract_days}日)に対して割り当てが{u_val}日不足しています。")
         elif o_val > 0:
             warnings.append(f"{emp.name}さん: 契約日数({emp.contract_days}日)に対して割り当てが{o_val}日超過しています。")
 
-    for (d, block), s_rs in slack_rs.items():
-        if solver.Value(s_rs) == 1:
+    for (d, block), s_rs_val in final_values['slack_rs'].items():
+        if s_rs_val == 1:
             warn_date = start_date + datetime.timedelta(days=d)
             warnings.append(f"{warn_date.month}/{warn_date.day}: 時間帯ブロック{block}で登録販売者が不足しています。")
 
@@ -359,7 +386,7 @@ def solve_shift(input_data: ShiftInput):
         emp_shifts = []
         for d in range(num_days):
             for s_idx, s_id in enumerate(shift_ids):
-                if solver.Value(x[(e_idx, d, s_idx)]) == 1:
+                if final_values['x'][(e_idx, d, s_idx)] == 1:
                     emp_shifts.append(s_id if s_id != 'OFF' else '休')
         result_shifts[emp.id] = emp_shifts
 
@@ -370,5 +397,7 @@ def solve_shift(input_data: ShiftInput):
         "shifts": result_shifts,
         "score": 100 if len(warnings) == 0 else 80,
         "warnings": warnings,
-        "message": warnings[0] if warnings else None
+        "message": warnings[0] if warnings else None,
+        "phase1_status": solver.StatusName(phase1_status),
+        "phase2_status": solver.StatusName(phase2_status) if phase2_status is not None else None
     }

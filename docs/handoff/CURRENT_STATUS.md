@@ -10,13 +10,14 @@
 ## Current State
 
 - Cycle: 1
-- Status: Dex(P4)レビューでTake2差し戻し。`backend/shift_solver.py` のフェーズ1スラック最小化がFEASIBLE暫定解を固定する問題を確認。
-- Next: CC/Aguが `docs/handoff/P4_Rollback/cycle_1_main_integration_take2_request.md` と `docs/handoff/P4_Dex_Review/cycle_1_main_integration_review.md` を読み、Take2修正を行う。
+- Status: Take2対応完了・push済み（v4.11）。`docs/handoff/P3_CC_to_Dex/cycle_1_main_integration_take2.md` に完了報告あり。
+- Next: Dexの再レビュー待ち。
 
 ## 実装済み機能（統合後）
 
 ### バックエンド (`backend/shift_solver.py` / `backend/models.py`)
-- 多段階（辞書順）最適化＋スラック自動診断エンジン（アグ担当・v4.10）
+- 多段階（辞書順）最適化＋スラック自動診断エンジン（アグ担当・v4.10、Take2でCCがP1/P2バグ修正）
+  - **【Take2修正】フェーズ1が`OPTIMAL`の場合のみスラックをハード固定。`FEASIBLE`の場合はフェーズ2でも圧倒的重みでスラック削減を継続。フェーズ2のSolve戻り値を明示的に判定し、失敗時はフェーズ1解へフォールバック。実店舗24名構成での登録販売者不足警告が248件→0件に改善。**
   - 希望休100%絶対厳守、連勤上限（社員5連勤/パート4連勤）、契約日数遵守
   - **【v4.10新機能】連休制限ルール（希望休は対象外）**
     - 正社員・時間限定社員・準社員: AI自動割当での**3連休以上を絶対禁止（最大2連休まで）**
