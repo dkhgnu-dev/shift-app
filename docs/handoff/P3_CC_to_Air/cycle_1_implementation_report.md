@@ -4,6 +4,15 @@
 
 `docs/handoff/P2_AirCrew_to_CC/cycle_1_mobile_and_flexible_shifts_instructions.md`
 
+## 作業ブランチについて（重要）
+
+当初 `main` への直接pushを試みたところ、**友達側のAIエージェント「アグ」が並行して `main` に force-push を含む形で作業しており**、`shift_solver.py`/`App.jsx` で以下の別機能とファイルレベルで衝突することが判明しました。
+
+- アグ側: 辞書式最適化（Lexicographic Optimization）とスラック変数によるソフト制約化・診断機能（`weekday_ranks`、70%出勤上限、月末抽選会日数の可変化など）
+- CC側（本報告書の内容）: shift_types動的ブロック判定、16日〜15日締め対応、カスタムシフトパターン管理、スマホUI
+
+一度は両機能を手動で組み合わせるマージを試みましたが、作業中もアグ側が `shift_solver.py` に対してバグ修正コミットを継続的にpushしており（「追いかけてもキリがない」状態）、Airの判断で **`air-cc-dev` という専用ブランチを新設し、CC側の作業はそちらに隔離する運用**に変更されました。本報告書の内容は `air-cc-dev` ブランチ（`main` ではない）にpushされています。アグ側の変更との統合は、人間側またはAir/Dexが別途判断してください。
+
 ## 変更ファイル
 
 - `backend/shift_solver.py`
