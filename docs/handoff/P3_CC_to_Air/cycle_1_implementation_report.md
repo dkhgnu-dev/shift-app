@@ -11,7 +11,22 @@
 - アグ側: 辞書式最適化（Lexicographic Optimization）とスラック変数によるソフト制約化・診断機能（`weekday_ranks`、70%出勤上限、月末抽選会日数の可変化など）
 - CC側（本報告書の内容）: shift_types動的ブロック判定、16日〜15日締め対応、カスタムシフトパターン管理、スマホUI
 
-一度は両機能を手動で組み合わせるマージを試みましたが、作業中もアグ側が `shift_solver.py` に対してバグ修正コミットを継続的にpushしており（「追いかけてもキリがない」状態）、Airの判断で **`air-cc-dev` という専用ブランチを新設し、CC側の作業はそちらに隔離する運用**に変更されました。本報告書の内容は `air-cc-dev` ブランチ（`main` ではない）にpushされています。アグ側の変更との統合は、人間側またはAir/Dexが別途判断してください。
+一度は両機能を手動で組み合わせるマージを試みましたが、作業中もアグ側が `shift_solver.py` に対してバグ修正コミットを継続的にpushしており（「追いかけてもキリがない」状態）、Airの判断で **`air-cc-dev` という専用ブランチを新設し、CC側の作業はそちらに隔離する運用**に変更されました。
+
+## 追記: mainへの統合完了（友達の作業一時停止後）
+
+Kazumaxさんが友達（アグ）に作業を一時停止してもらい、その間に改めて統合を実施しました。
+
+1. `git merge origin/main --allow-unrelated-histories` で `origin/main`（アグ側 v4.8: 辞書式最適化・スラック自動診断エンジン）を `air-cc-dev` に取り込み、`backend/shift_solver.py` / `backend/models.py` / `frontend/src/App.jsx` / `frontend/src/index.css` / `AGENTS.md` / `docs/PROJECT_RULES.md` / `docs/handoff/WORKFLOW_RULES.md` / `docs/handoff/CURRENT_STATUS.md` のコンフリクトを手動解決。
+   - `shift_solver.py`: アグ側の多段階最適化・スラック診断・連勤上限の雇用形態別差別化（社員5連勤/パート4連勤）・100%フェイルセーフフォールバックの構造を維持しつつ、CC側の `build_shift_coverage`（動的ブロック判定）・`get_period_start`/`get_period_end`（16-15日締め）を組み込み。あわせてアグ側コードに残っていた `emp.days`（存在しないフィールド）参照バグを `emp.contract_days` に修正。
+   - `App.jsx`: アグ側の `weekdayRanks` UI・v4.8バッジ・動的診断警告パネル・`employment_type` 送信と、CC側の `shiftMaster` カスタムシフト管理・自由時間入力・16-15日締め期間表示を統合。
+   - `AGENTS.md`/`docs/PROJECT_RULES.md`/`docs/handoff/WORKFLOW_RULES.md`: Air主導のair-cc-dev運用ルール（こちら側）を採用。
+   - `docs/handoff/CURRENT_STATUS.md`: 両者の実装内容を反映した内容に書き直し。
+2. 直後にアグ側がさらに1コミット（`bc10b78`: 辞書順最適化のモデル宣言一括化・解法安定性修正）をpushしていたため、これも追って取り込み、同じ目的の修正をCC側の期間ベース日付計算を保った形で反映。
+3. `npm run build`・`python -m py_compile`・`solve_shift()` の統合テスト（雇用形態別連勤上限・カスタムシフトのブロックカバレッジ・16-15日締め期間の希望休判定）・ブラウザでのUI表示確認をすべて実施し、問題なし。
+4. `git push origin air-cc-dev` → `git push origin air-cc-dev:main`（fast-forward）で `main` への反映が完了。
+
+統合後は `main` に両機能（アグ側v4.8エンジン＋CC側Cycle 1機能）が共存しています。友達（アグ）側は次回作業開始時に `git pull` で取り込んでください。
 
 ## 変更ファイル
 
