@@ -28,13 +28,4 @@ class ShiftInput(BaseModel):
     shift_types: List[ShiftType]
     requests_off: List[RequestOff]
     thick_staffing_days: List[int] = []
-    # Priority settings (optional, could be configured here)
-    day_priorities: dict = {
-        0: 7, # Monday: 7th
-        1: 3, # Tuesday: 3rd
-        2: 4, # Wednesday: 4th
-        3: 6, # Thursday: 6th
-        4: 5, # Friday: 5th
-        5: 2, # Saturday: 2nd
-        6: 1  # Sunday: 1st
-    }
+    weekday_ranks: Optional[dict] = None  # 例: {"6": 1, "5": 2, "0": 7} (1位が最優先、7位が最低)

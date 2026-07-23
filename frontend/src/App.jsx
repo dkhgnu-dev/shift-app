@@ -67,7 +67,12 @@ export default function App() {
 
     // Settings State
     const [thickDays, setThickDays] = useState(() => safeParse(localStorage.getItem('shift_thickDays'), []));
-    
+    const [weekdayRanks, setWeekdayRanks] = useState(() => safeParse(localStorage.getItem('shift_weekdayRanks'), { 6: 1, 5: 2, 1: 3, 2: 4, 4: 5, 3: 6, 0: 7 }));
+
+    useEffect(() => {
+        localStorage.setItem('shift_weekdayRanks', JSON.stringify(weekdayRanks));
+    }, [weekdayRanks]);
+
     // Date State
     const [currentYear, setCurrentYear] = useState(() => {
         const saved = localStorage.getItem('shift_year');
@@ -302,13 +307,15 @@ export default function App() {
                 employees: employees.map((e, idx) => ({
                     id: `emp_${idx}`,
                     name: e.name,
+                    employment_type: e.type,
                     contract_days: e.days,
                     is_registered_seller: e.isRS,
                     allowed_shifts: e.shifts
                 })),
                 shift_types: shiftTypes,
                 requests_off: allRequestsOff,
-                thick_staffing_days: thickDays
+                thick_staffing_days: thickDays,
+                weekday_ranks: weekdayRanks
             };
 
             const res = await fetch('https://shift-app-rw01.onrender.com/api/generate_shift', {
@@ -318,13 +325,17 @@ export default function App() {
             });
 
             const data = await res.json();
-            
-            if (res.ok && data.status === "SUCCESS") {
+
+            if (res.ok && (data.status === "SUCCESS" || data.status === "FEASIBLE_WITH_WARNINGS")) {
                 const newMatrix = employees.map((emp, idx) => {
                     const empShifts = data.shifts[`emp_${idx}`] || [];
                     return empShifts.map(s => ({ shift: s, isError: false }));
                 });
-                setGeneratedResult({ matrix: newMatrix, hasError: false });
+                setGeneratedResult({
+                    matrix: newMatrix,
+                    hasError: data.status === "FEASIBLE_WITH_WARNINGS",
+                    warnings: data.warnings || []
+                });
             } else {
                 alert("シフト生成に失敗しました: \n" + (data.detail || data.message || "制約が厳しすぎるため解が見つかりませんでした。希望休や登録販売者の数を見直してください。"));
             }
@@ -346,10 +357,10 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo"><Calendar size={20} /></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.8</span></div>
                 </div>
             )}
-            
+
             {/* Sidebar Overlay (Mobile) */}
             {isMobileView && isMobileMenuOpen && (
                 <div className="sidebar-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
@@ -357,7 +368,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only"><Calendar style={{color:'var(--primary)'}}/> Shift-Ag</div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.8</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -398,16 +409,14 @@ export default function App() {
 
                         {generatedResult && (
                             <>
-                                {generatedResult.hasError && (
-                                    <div className="warning-panel" style={{display: 'block'}}>
-                                        <div className="warning-title"><AlertCircle size={18}/> 未完成シフト：制約違反が検出されました</div>
-                                        <div className="warning-item">
-                                            <div className="warning-msg">⚠️ 8月3日(土) 19:00～24:00 登録販売者不足</div>
-                                            <div className="suggestion-box">
-                                                <div><strong>💡 AIの提案:</strong> 出勤予定の資格なしスタッフと休みの登販スタッフを入れ替えますか？</div>
-                                                <button className="btn outline" style={{fontSize: '0.8rem', padding: '4px 8px'}}>入れ替える</button>
+                                {generatedResult.hasError && generatedResult.warnings && generatedResult.warnings.length > 0 && (
+                                    <div className="warning-panel" style={{display: 'block', marginBottom: '16px'}}>
+                                        <div className="warning-title"><AlertCircle size={18}/> 【AIシフト作成・自動診断アドバイス】</div>
+                                        {generatedResult.warnings.map((warn, wIdx) => (
+                                            <div key={wIdx} className="warning-item" style={{marginTop: '8px', fontSize: '0.9rem'}}>
+                                                <div className="warning-msg">{warn}</div>
                                             </div>
-                                        </div>
+                                        ))}
                                     </div>
                                 )}
                                 
@@ -508,7 +517,7 @@ export default function App() {
                                                                 else cssClass += 'normal';
                                                                 
                                                                 if (cell.isError) cssClass += ' error';
-                                                                
+
                                                                 const shiftText = cell.shift === '休' ? '休' : (shiftMaster[cell.shift] || cell.shift);
                                                                 const lines = shiftText.includes('～') ? shiftText.split('～') : [shiftText];
 
@@ -558,14 +567,36 @@ export default function App() {
                             </div>
                         </div>
                         <div className="glass-card">
-                            <h3 style={{marginBottom: '16px', color: 'var(--text-main)'}}>AIの基本最適化ルール（固定）</h3>
-                            <div style={{background: '#F8FAFC', padding: '16px', border: '1px solid #E5E7EB', borderRadius: '8px', marginBottom: '24px', fontSize: '0.95rem', lineHeight: 1.6}}>
-                                <strong>【曜日別・時間帯の配置優先度】</strong><br/>
-                                <span style={{color:'var(--primary)', fontWeight:600}}>・日曜日：</span> 出勤人数が最も多くなるようにシフトを組む<br/>
-                                <span style={{color:'var(--primary)', fontWeight:600}}>・月曜日：</span> 出勤人数が最も少なくなるようにシフトを組む<br/>
-                                <span style={{color:'var(--primary)', fontWeight:600}}>・火曜日・水曜日：</span> 14時までの時間帯（早番）の人員を厚くする<br/>
-                                <span style={{color:'var(--primary)', fontWeight:600}}>・土曜日：</span> 19時以降の時間帯（遅番）の人員を厚くする<br/>
-                                <span style={{color:'var(--primary)', fontWeight:600}}>・月末4日間：</span> 全体的に人員を厚くする
+                            <h3 style={{marginBottom: '16px', color: 'var(--text-main)'}}>曜日ごとの出勤優先順位（1位〜7位）</h3>
+                            <p style={{fontSize: '0.85rem', color: 'var(--text-sub)', marginBottom: '16px'}}>
+                                ※曜日の優先度を1位（最優先で人を手厚くしたい）〜7位（最も少なくて良い）で設定できます。<br/>
+                                AIが全体の出勤人数の平準化（バランス）を第一に保ちながら、この順位通りに人数を調整します。
+                            </p>
+                            <div style={{display: 'grid', gridTemplateColumns: isMobileView ? 'repeat(2, 1fr)' : 'repeat(7, 1fr)', gap: '10px', marginBottom: '24px'}}>
+                                {[
+                                    { key: 6, name: '日曜日' },
+                                    { key: 0, name: '月曜日' },
+                                    { key: 1, name: '火曜日' },
+                                    { key: 2, name: '水曜日' },
+                                    { key: 3, name: '木曜日' },
+                                    { key: 4, name: '金曜日' },
+                                    { key: 5, name: '土曜日' },
+                                ].map(d => (
+                                    <div key={d.key} style={{background: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', textAlign: 'center'}}>
+                                        <div style={{fontWeight: 600, fontSize: '0.9rem', marginBottom: '8px'}}>{d.name}</div>
+                                        <select
+                                            value={weekdayRanks[d.key] ?? 4}
+                                            style={{width: '100%', padding: '6px', fontSize: '0.85rem', borderRadius: '6px', border: '1px solid #CBD5E1', cursor: 'pointer', textAlign: 'center'}}
+                                            onChange={(e) => setWeekdayRanks({...weekdayRanks, [d.key]: parseInt(e.target.value, 10)})}
+                                        >
+                                            {[1, 2, 3, 4, 5, 6, 7].map(r => (
+                                                <option key={r} value={r}>
+                                                    {r}位 {r === 1 ? '(最高)' : r === 7 ? '(最低)' : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                ))}
                             </div>
 
                             <h3 style={{marginBottom: '16px', color: 'var(--text-main)'}}>人員を厚くしたい日（追加の個別指定）</h3>
@@ -590,10 +621,27 @@ export default function App() {
                                 })}
                             </div>
 
-                            <div style={{marginTop: '24px', fontSize: '0.85rem', color: 'var(--text-sub)', background: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px dashed #CBD5E1'}}>
-                                <strong style={{color: 'var(--text-main)'}}>💡 その他の設定について</strong><br/>
-                                ・<strong>従業員数・登録販売者数</strong>：従業員管理タブで登録したデータからAIが自動的に読み取ります。<br/>
-                                ・<strong>営業時間</strong>：8:15～24:00 でシステムに固定されています。
+                            <div style={{marginTop: '24px', fontSize: '0.88rem', color: 'var(--text-sub)', background: '#F8FAFC', padding: '16px', borderRadius: '8px', border: '1px solid #E5E7EB', lineHeight: 1.7}}>
+                                <strong style={{color: 'var(--primary)', fontSize: '0.95rem', display: 'block', marginBottom: '8px'}}>🤖 AI自動最適化ルール（現在適用中の一覧）</strong>
+                                <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                                    <div><strong style={{color: 'var(--text-main)'}}>【絶対禁止・絶対遵守ルール（ハード制約）】</strong></div>
+                                    <div style={{paddingLeft: '12px'}}>
+                                        ・<strong>希望休の絶対厳守：</strong> 申請された希望休は100%絶対に休みに設定します（出勤させません）。<br/>
+                                        ・<strong>連勤上限（社員5連勤/パート等4連勤）：</strong> 正社員・準社員は最大5連勤まで、パート・アルバイト等は最大4連勤までに厳しく制限します。<br/>
+                                        ・<strong>登録販売者の絶対配置：</strong> 営業時間（8:15～24:00）の全時間帯で登録販売者を1名以上確実に配置します。<br/>
+                                        ・<strong>契約日数の厳守：</strong> 従業員ごとの契約日数に合わせてぴったり割り当てます。<br/>
+                                        ・<strong>1日の出勤上限：</strong> どんな日でも総従業員数の70%以下（例: 10人なら最大7人）に自動制限します。<br/>
+                                        ・<strong>出勤人数の厳格平準化（平均±1名制限）：</strong> 全員の契約日数から1日の平均人数を自動計算し、全曜日の出勤人数を「平均±1名以内」に強制固定します（10人対2人等の極端な偏りは絶対発生しません）。
+                                    </div>
+                                    <div style={{marginTop: '6px'}}><strong style={{color: 'var(--text-main)'}}>【自動評価・イベントルール（ソフト制約）】</strong></div>
+                                    <div style={{paddingLeft: '12px'}}>
+                                        ・<strong>曜日優先順位による人員配分（最大1名差）：</strong><br/>
+                                        &nbsp;&nbsp;🥇 1位〜2位（上位）： 平均 +1名 / ⚪ 3位〜5位（中位）： 平均ピタリ / 🔴 6位〜7位（下位）： 平均 -1名<br/>
+                                        ・<strong>月末の抽選会・大抽選会：</strong> 通常月は対象期間末4日間、7月・12月は「大抽選会」として末5日間の人員を自動的に手厚く配分します。<br/>
+                                        ・<strong>人員を厚くしたい日：</strong> カレンダーで個別選択された特売日等の人員を優先配分します。<br/>
+                                        ・<strong>営業時間：</strong> 8:15～24:00 で固定計算しています。
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
