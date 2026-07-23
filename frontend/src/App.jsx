@@ -380,7 +380,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.9</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.10</span></div>
                 </div>
             )}
 
@@ -391,7 +391,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.9</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.10</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -678,8 +678,9 @@ export default function App() {
                                 <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
                                     <div><strong style={{color: 'var(--text-main)'}}>【絶対禁止・絶対遵守ルール（ハード制約）】</strong></div>
                                     <div style={{paddingLeft: '12px'}}>
-                                        ・<strong>希望休の絶対厳守：</strong> 申請された希望休は100%絶対に休みに設定します（出勤させません）。<br/>
+                                        ・<strong>希望休の絶対厳守：</strong> 申請された希望休は100%絶対に休みに設定します（連休制限の対象からも除外）。<br/>
                                         ・<strong>連勤上限（社員5連勤/パート等4連勤）：</strong> 正社員・準社員は最大5連勤まで、パート・アルバイト等は最大4連勤までに厳しく制限します。<br/>
+                                        ・<strong>連休制限（社員最大2連休/パート最大3連休）：</strong> 正社員・準社員は自動割り当てでの3連休以上を絶対禁止（最大2連休）、パート等は自動5連休以上を絶対禁止します。<br/>
                                         ・<strong>登録販売者の絶対配置：</strong> 営業時間（8:15～24:00）の全時間帯で登録販売者を1名以上確実に配置します。<br/>
                                         ・<strong>契約日数の厳守：</strong> 従業員ごとの契約日数に合わせてぴったり割り当てます。<br/>
                                         ・<strong>1日の出勤上限：</strong> どんな日でも総従業員数の70%以下（例: 10人なら最大7人）に自動制限します。<br/>
@@ -687,6 +688,7 @@ export default function App() {
                                     </div>
                                     <div style={{marginTop: '6px'}}><strong style={{color: 'var(--text-main)'}}>【自動評価・イベントルール（ソフト制約）】</strong></div>
                                     <div style={{paddingLeft: '12px'}}>
+                                        ・<strong>連勤・連休のソフト抑制：</strong> 社員の5連勤・パートの4連勤・パートの4連休はペナルティ加算により極力回避します。<br/>
                                         ・<strong>曜日優先順位による人員配分（最大1名差）：</strong><br/>
                                         &nbsp;&nbsp;🥇 1位〜2位（上位）： 平均 +1名 / ⚪ 3位〜5位（中位）： 平均ピタリ / 🔴 6位〜7位（下位）： 平均 -1名<br/>
                                         ・<strong>月末の抽選会・大抽選会：</strong> 通常月は対象期間末4日間、7月・12月は「大抽選会」として末5日間の人員を自動的に手厚く配分します。<br/>

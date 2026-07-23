@@ -101,18 +101,19 @@ def solve_shift(input_data: ShiftInput):
             if (emp.id, d) in requested_off:
                 model.Add(x[(e_idx, d, off_idx)] == 1)
 
-        # 【絶対ルール】連勤上限 (社員・準社員は最大5連勤、その他は最大4連勤)
+        # 【連勤・連休制限ルール】
         is_full_time = emp.employment_type in ['正社員', '時間限定社員', '準社員']
 
         if is_full_time:
-            # 社員・準社員：最大5連勤 (6連勤以上禁止) ← ハード制約
+            # --- 正社員・準社員 ---
+            # 1) 連勤上限: 最大5連勤 (6連勤以上は絶対禁止) ← ハード制約
             for start_d in range(num_days - 5):
                 model.Add(sum(
                     x[(e_idx, d, s_idx)]
                     for d in range(start_d, start_d + 6)
                     for s_idx in range(num_shifts) if s_idx != off_idx
                 ) <= 5)
-            # 社員・準社員：5連勤を極力避ける ← ソフト制約
+            # 2) 5連勤を極力避ける ← ソフト制約
             for start_d in range(num_days - 4):
                 five_consec = model.NewBoolVar(f'five_consec_{emp.id}_{start_d}')
                 work_5 = sum(
@@ -120,19 +121,31 @@ def solve_shift(input_data: ShiftInput):
                     for d in range(start_d, start_d + 5)
                     for s_idx in range(num_shifts) if s_idx != off_idx
                 )
-                # work_5 == 5 のとき five_consec=1 にしてペナルティを加算
                 model.Add(work_5 >= 5).OnlyEnforceIf(five_consec)
                 model.Add(work_5 <= 4).OnlyEnforceIf(five_consec.Not())
                 consec_penalty_vars.append(five_consec)
+
+            # 3) 連休制限: 最大2連休まで（希望休を除く自動3連休以上は絶対禁止） ← ハード制約
+            for start_d in range(num_days - 2):
+                window = range(start_d, start_d + 3)
+                non_auto_off_terms = []
+                for d in window:
+                    if (emp.id, d) in requested_off:
+                        non_auto_off_terms.append(1)
+                    else:
+                        work_var = sum(x[(e_idx, d, s_idx)] for s_idx in range(num_shifts) if s_idx != off_idx)
+                        non_auto_off_terms.append(work_var)
+                model.Add(sum(non_auto_off_terms) >= 1)
         else:
-            # パート・アルバイト等：最大4連勤 (5連勤以上禁止) ← ハード制約
+            # --- パート・アルバイト等 ---
+            # 1) 連勤上限: 最大4连勤 (5連勤以上は絶対禁止) ← ハード制約
             for start_d in range(num_days - 4):
                 model.Add(sum(
                     x[(e_idx, d, s_idx)]
                     for d in range(start_d, start_d + 5)
                     for s_idx in range(num_shifts) if s_idx != off_idx
                 ) <= 4)
-            # パート・アルバイト等：4連勤を極力避ける ← ソフト制約
+            # 2) 4連勤を極力避ける ← ソフト制約
             for start_d in range(num_days - 3):
                 four_consec = model.NewBoolVar(f'four_consec_{emp.id}_{start_d}')
                 work_4 = sum(
@@ -143,6 +156,33 @@ def solve_shift(input_data: ShiftInput):
                 model.Add(work_4 >= 4).OnlyEnforceIf(four_consec)
                 model.Add(work_4 <= 3).OnlyEnforceIf(four_consec.Not())
                 consec_penalty_vars.append(four_consec)
+
+            # 3) 連休制限: 5連休以上は絶対禁止（希望休を除く） ← ハード制約
+            for start_d in range(num_days - 4):
+                window = range(start_d, start_d + 5)
+                non_auto_off_terms = []
+                for d in window:
+                    if (emp.id, d) in requested_off:
+                        non_auto_off_terms.append(1)
+                    else:
+                        work_var = sum(x[(e_idx, d, s_idx)] for s_idx in range(num_shifts) if s_idx != off_idx)
+                        non_auto_off_terms.append(work_var)
+                model.Add(sum(non_auto_off_terms) >= 1)
+
+            # 4) 連休制限: 4連休を極力避ける（希望休を除く） ← ソフト制約
+            for start_d in range(num_days - 3):
+                window = range(start_d, start_d + 4)
+                has_req_off = any((emp.id, d) in requested_off for d in window)
+                if not has_req_off:
+                    four_consec_off = model.NewBoolVar(f'four_consec_off_{emp.id}_{start_d}')
+                    work_4_days = sum(
+                        x[(e_idx, d, s_idx)]
+                        for d in window
+                        for s_idx in range(num_shifts) if s_idx != off_idx
+                    )
+                    model.Add(work_4_days == 0).OnlyEnforceIf(four_consec_off)
+                    model.Add(work_4_days >= 1).OnlyEnforceIf(four_consec_off.Not())
+                    consec_penalty_vars.append(four_consec_off)
 
         # 契約日数遵守 (スラック付き)
         working_days = sum(x[(e_idx, d, s_idx)] for d in range(num_days) for s_idx in range(num_shifts) if s_idx != off_idx)
