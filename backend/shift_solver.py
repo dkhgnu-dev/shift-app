@@ -93,13 +93,14 @@ def solve_shift(input_data: ShiftInput):
                 model.Add(covered == 0)
             objective_terms.append(2000 * covered)
 
-        # 優先順位の調整: ユーザーがフロントエンドから指定した曜日の手動優先度を反映
+        # 優先順位の調整: ユーザーがフロントエンドから指定した曜日の順位 (1位〜7位) を反映
         day_weight = 0
-        if input_data.weekday_weights:
+        if input_data.weekday_ranks:
             w_key = str(weekday)
-            if w_key in input_data.weekday_weights:
-                # ユーザーの指定値 (-2〜+3) をそのまま微調整タイブレーカーとして使用
-                day_weight += int(input_data.weekday_weights[w_key])
+            if w_key in input_data.weekday_ranks:
+                rank = int(input_data.weekday_ranks[w_key])
+                # 1位 -> +3点, 2位 -> +2点, 3位 -> +1点, 4位 -> 0点, 5位 -> -1点, 6位 -> -2点, 7位 -> -3点
+                day_weight += (8 - rank) - 4
         else:
             if weekday == 6: day_weight += 2         # 日曜日: デフォルト微増
             elif weekday == 0: day_weight -= 1       # 月曜日: デフォルト微減

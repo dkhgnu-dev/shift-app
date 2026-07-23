@@ -28,4 +28,4 @@ class ShiftInput(BaseModel):
     shift_types: List[ShiftType]
     requests_off: List[RequestOff]
     thick_staffing_days: List[int] = []
-    weekday_weights: Optional[dict] = None  # 例: {"0": -1, "1": 0, "6": 2} (0:月 ... 6:日)
+    weekday_ranks: Optional[dict] = None  # 例: {"6": 1, "5": 2, "0": 7} (1位が最優先、7位が最低)

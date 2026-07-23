@@ -45,15 +45,15 @@ export default function App() {
         if (saved) return JSON.parse(saved);
         return [];
     });
-    const [weekdayWeights, setWeekdayWeights] = useState(() => {
-        const saved = localStorage.getItem('shift_weekdayWeights');
+    const [weekdayRanks, setWeekdayRanks] = useState(() => {
+        const saved = localStorage.getItem('shift_weekdayRanks');
         if (saved) return JSON.parse(saved);
-        return { 0: -1, 1: 0, 2: 0, 3: 0, 4: 0, 5: 1, 6: 2 };
+        return { 6: 1, 5: 2, 1: 3, 2: 4, 4: 5, 3: 6, 0: 7 };
     });
 
     useEffect(() => {
-        localStorage.setItem('shift_weekdayWeights', JSON.stringify(weekdayWeights));
-    }, [weekdayWeights]);
+        localStorage.setItem('shift_weekdayRanks', JSON.stringify(weekdayRanks));
+    }, [weekdayRanks]);
     
     // Date State
     const [currentYear, setCurrentYear] = useState(() => {
@@ -256,7 +256,7 @@ export default function App() {
                 shift_types: shiftTypes,
                 requests_off: allRequestsOff,
                 thick_staffing_days: thickDays,
-                weekday_weights: weekdayWeights
+                weekday_ranks: weekdayRanks
             };
 
             const res = await fetch('https://shift-app-rw01.onrender.com/api/generate_shift', {
@@ -504,9 +504,10 @@ export default function App() {
                             </div>
                         </div>
                         <div className="glass-card">
-                            <h3 style={{marginBottom: '16px', color: 'var(--text-main)'}}>曜日ごとの出勤人数コントロール（優先度指定）</h3>
+                            <h3 style={{marginBottom: '16px', color: 'var(--text-main)'}}>曜日ごとの出勤優先順位（1位〜7位）</h3>
                             <p style={{fontSize: '0.85rem', color: 'var(--text-sub)', marginBottom: '16px'}}>
-                                ※各曜日の出勤人数の多さを選択できます。AIが日ごとの人数バランス（平準化）を保ちつつ微調整します。
+                                ※曜日の優先度を1位（最優先で人を手厚くしたい）〜7位（最も少なくて良い）で設定できます。<br/>
+                                AIが全体の出勤人数の平準化（バランス）を第一に保ちながら、この順位通りに人数を調整します。
                             </p>
                             <div style={{display: 'grid', gridTemplateColumns: isMobileView ? 'repeat(2, 1fr)' : 'repeat(7, 1fr)', gap: '10px', marginBottom: '24px'}}>
                                 {[
@@ -521,14 +522,15 @@ export default function App() {
                                     <div key={d.key} style={{background: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', textAlign: 'center'}}>
                                         <div style={{fontWeight: 600, fontSize: '0.9rem', marginBottom: '8px'}}>{d.name}</div>
                                         <select 
-                                            value={weekdayWeights[d.key] ?? 0}
-                                            style={{width: '100%', padding: '6px', fontSize: '0.85rem', borderRadius: '6px', border: '1px solid #CBD5E1', cursor: 'pointer'}}
-                                            onChange={(e) => setWeekdayWeights({...weekdayWeights, [d.key]: parseInt(e.target.value, 10)})}
+                                            value={weekdayRanks[d.key] ?? 4}
+                                            style={{width: '100%', padding: '6px', fontSize: '0.85rem', borderRadius: '6px', border: '1px solid #CBD5E1', cursor: 'pointer', textAlign: 'center'}}
+                                            onChange={(e) => setWeekdayRanks({...weekdayRanks, [d.key]: parseInt(e.target.value, 10)})}
                                         >
-                                            <option value={2}>多め (+2)</option>
-                                            <option value={1}>やや多め (+1)</option>
-                                            <option value={0}>普通 (0)</option>
-                                            <option value={-1}>少なめ (-1)</option>
+                                            {[1, 2, 3, 4, 5, 6, 7].map(r => (
+                                                <option key={r} value={r}>
+                                                    {r}位 {r === 1 ? '(最高)' : r === 7 ? '(最低)' : ''}
+                                                </option>
+                                            ))}
                                         </select>
                                     </div>
                                 ))}
