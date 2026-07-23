@@ -267,14 +267,18 @@ export default function App() {
 
             const data = await res.json();
             
-            if (res.ok && data.status === "SUCCESS") {
+            if (res.ok && (data.status === "SUCCESS" || data.status === "FEASIBLE_WITH_WARNINGS")) {
                 const newMatrix = employees.map((emp, idx) => {
                     const empShifts = data.shifts[`emp_${idx}`] || [];
                     return empShifts.map(s => ({ shift: s, isError: false }));
                 });
-                setGeneratedResult({ matrix: newMatrix, hasError: false });
+                setGeneratedResult({ 
+                    matrix: newMatrix, 
+                    hasError: data.status === "FEASIBLE_WITH_WARNINGS",
+                    warnings: data.warnings || [] 
+                });
             } else {
-                alert("シフト生成に失敗しました: \n" + (data.detail || data.message || "制約が厳しすぎるため解が見つかりませんでした。希望休や登録販売者の数を見直してください。"));
+                alert("シフト生成に失敗しました: \n" + (data.detail || data.message || "制約が厳しすぎるため解が見つかりませんでした。"));
             }
         } catch (e) {
             alert("通信エラーが発生しました: " + e.message);
@@ -344,16 +348,14 @@ export default function App() {
 
                         {generatedResult && (
                             <>
-                                {generatedResult.hasError && (
-                                    <div className="warning-panel" style={{display: 'block'}}>
-                                        <div className="warning-title"><AlertCircle size={18}/> 未完成シフト：制約違反が検出されました</div>
-                                        <div className="warning-item">
-                                            <div className="warning-msg">⚠️ 8月3日(土) 19:00～24:00 登録販売者不足</div>
-                                            <div className="suggestion-box">
-                                                <div><strong>💡 AIの提案:</strong> 出勤予定の資格なしスタッフと休みの登販スタッフを入れ替えますか？</div>
-                                                <button className="btn outline" style={{fontSize: '0.8rem', padding: '4px 8px'}}>入れ替える</button>
+                                {generatedResult.hasError && generatedResult.warnings && generatedResult.warnings.length > 0 && (
+                                    <div className="warning-panel" style={{display: 'block', marginBottom: '16px'}}>
+                                        <div className="warning-title"><AlertCircle size={18}/> 【AIシフト作成・自動診断アドバイス】</div>
+                                        {generatedResult.warnings.map((warn, wIdx) => (
+                                            <div key={wIdx} className="warning-item" style={{marginTop: '8px', fontSize: '0.9rem'}}>
+                                                <div className="warning-msg">{warn}</div>
                                             </div>
-                                        </div>
+                                        ))}
                                     </div>
                                 )}
                                 
