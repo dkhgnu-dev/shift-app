@@ -6,13 +6,13 @@
 - Repository: dkhgnu-dev/shift-app
 - Working Branch: `air-cc-dev` （※mainへの衝突防止のため専用ブランチで運用中）
 - Main agent: Air / CC / エアクルー（Air Crew）
-- External reviewer: エアクルー (Air Crew) ※Dex制限中の代用
+- External reviewer: Dex（復帰）※実装完了ごとにDexへレビュー依頼する通常運用に復帰
 
 ## Current State
 
 - Cycle: 2
-- Status: CCがCycle 2実装(P3)完了・`air-cc-dev` ブランチへpush済み（version v4.11 -> v4.12）。ローカルbackend/frontendでのブラウザ実機検証済み。
-- Next: Air/エアクルーによるレビュー。必要ならKazumax・友達に実機確認を依頼（有休等の既定8h、鍵持ち開閉店判定ロジックの妥当性）。完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report.md`
+- Status: CCがCycle 2実装(P3)完了・`air-cc-dev` ブランチへpush済み（version v4.11 -> v4.12）。ローカルbackend/frontendでのブラウザ実機検証済み。Dexへレビュー依頼(P4)済み。
+- Next: Dexレビュー待ち。完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report.md` / レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_request.md`
 
 ## Read First
 
