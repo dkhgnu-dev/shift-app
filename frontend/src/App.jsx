@@ -223,6 +223,7 @@ export default function App() {
     
     // Mobile View State
     const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
+    const [isNarrowViewport, setIsNarrowViewport] = useState(window.innerWidth <= 768);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [selectedDateIndex, setSelectedDateIndex] = useState(0);
 
@@ -284,7 +285,10 @@ export default function App() {
     }, [thickDays]);
 
     useEffect(() => {
-        const handleResize = () => setIsMobileView(window.innerWidth <= 768);
+        const handleResize = () => {
+            setIsMobileView(window.innerWidth <= 768);
+            setIsNarrowViewport(window.innerWidth <= 768);
+        };
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
@@ -758,15 +762,40 @@ export default function App() {
         return cssClass;
     };
 
+    const renderActions = () => {
+        if (activeTab === 'dashboard') {
+            return (
+                <div style={{display: 'flex', gap: '8px', width: isNarrowViewport ? '100%' : 'auto'}}>
+                    {generatedResult && (
+                        <button className="btn outline" style={{flex: isNarrowViewport ? 1 : 'none', justifyContent: 'center'}} onClick={() => fillBlanks()} disabled={isGenerating}>
+                            <Wand2 size={16}/> 空欄自動作成
+                        </button>
+                    )}
+                    <button className="btn" style={{flex: isNarrowViewport ? 1 : 'none', justifyContent: 'center'}} onClick={() => generateShift()} disabled={isGenerating}>
+                        <Wand2 size={16}/> 最適化シフトを生成
+                    </button>
+                </div>
+            );
+        }
+        if (activeTab === 'employees') {
+            return (
+                <div style={{display: 'flex', gap: '8px', width: isNarrowViewport ? '100%' : 'auto'}}>
+                    <button className="btn" style={{flex: isNarrowViewport ? 1 : 'none', justifyContent: 'center'}} onClick={() => openModal()}><Plus size={16}/> 新規追加</button>
+                </div>
+            );
+        }
+        return null;
+    };
+
     return (
-        <div style={{display: 'flex', width: '100%', minHeight: '100vh'}}>
+        <div className="app-container">
             {/* Mobile Header */}
             {isMobileView && (
                 <div className="mobile-header">
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.16</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.17</span></div>
                 </div>
             )}
 
@@ -777,7 +806,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.16</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.17</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -804,16 +833,7 @@ export default function App() {
                                     <button className="btn outline" style={{padding: '4px 8px'}} onClick={() => changeMonth(1)}>&gt;</button>
                                 </div>
                             </div>
-                            <div style={{display: 'flex', gap: '8px'}}>
-                                {generatedResult && (
-                                    <button className="btn outline" onClick={() => fillBlanks()} disabled={isGenerating}>
-                                        <Wand2 size={16}/> 空欄自動作成
-                                    </button>
-                                )}
-                                <button className="btn" onClick={() => generateShift()} disabled={isGenerating}>
-                                    <Wand2 size={16}/> 最適化シフトを生成
-                                </button>
-                            </div>
+                            {!isNarrowViewport && renderActions()}
                         </div>
 
                         {infeasibleInfo && (
@@ -1166,7 +1186,7 @@ export default function App() {
                                 <h1>従業員管理</h1>
                                 <p style={{color: 'var(--text-sub)', marginTop: '4px'}}>スタッフの追加・編集・削除</p>
                             </div>
-                            <button className="btn" onClick={() => openModal()}><Plus size={16}/> 新規追加</button>
+                            {!isNarrowViewport && renderActions()}
                         </div>
                         <div className="glass-card" style={{padding: isMobileView ? '0' : '0', overflow: 'hidden', background: isMobileView ? 'transparent' : 'var(--glass-bg)', border: isMobileView ? 'none' : '', boxShadow: isMobileView ? 'none' : ''}}>
                             {isMobileView ? (
@@ -1426,6 +1446,12 @@ export default function App() {
                 <div className="loading-overlay">
                     <div className="spinner"></div>
                     <h2 style={{color: 'var(--primary)'}}>最適化を実行中...</h2>
+                </div>
+            )}
+
+            {isNarrowViewport && (
+                <div className="mobile-bottom-bar">
+                    {renderActions()}
                 </div>
             )}
         </div>
