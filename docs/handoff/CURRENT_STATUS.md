@@ -11,6 +11,7 @@
 ## Current State
 
 - Cycle: 2
+- P4 Review: NG for UI enhancements at `99af37d`. Take2 must implement the specified 4-digit direct time input (`0930` -> `09:30`, `1500` -> `15:00`).
 - Status: CCがタイムピッカーハイブリッド化＆☀️/🌙鍵持ちアイコン表示（Kazumaxフィードバック反映済み）を実装完了、air-cc-devへpush済み（v4.15 -> v4.16）。Dexへレビュー依頼(P4)済み。
 - Next: Dexレビュー待ち。完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_report.md` / レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_ui_enhancements_review_request.md`
 
