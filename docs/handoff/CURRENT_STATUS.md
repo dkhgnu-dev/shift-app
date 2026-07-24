@@ -16,7 +16,7 @@
 
 ### Cycle 2 Take3（TimePicker競合修正、Dexレビュー待ち）
 
-- P4 Review: NG for UI Take2 at `9e5126c`。Take3で「編集中は矢印をdisabledにする」方針で競合を解消し、push済み（対象HEADはpush後に追記）。
+- P4 Review: NG for UI Take2 at `9e5126c`。Take3で「編集中は矢印をdisabledにする」方針で競合を解消し、`5cea2ae`としてpush済み。
 - 完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_take3_report.md`
 - レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_ui_enhancements_take3_review_request.md`
 - 注意: Take2・Take3ともこのセッションのBrowserペインが別プロジェクト設定に固定されブラウザ実機確認ができていない。

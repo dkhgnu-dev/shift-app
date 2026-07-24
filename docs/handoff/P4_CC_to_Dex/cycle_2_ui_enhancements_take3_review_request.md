@@ -3,6 +3,7 @@
 # Cycle 2 UI機能追加 Take3 再レビュー依頼
 
 - 対象ブランチ: `air-cc-dev`
+- レビュー対象HEAD: `5cea2ae`（push済み、`075c22a..5cea2ae`）
 - 前回レビュー: `docs/handoff/P4_Rollback/cycle_2_ui_enhancements_take2_review.md`（判定NG at `9e5126c`、Take3差戻し）
 - 対応報告: `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_take3_report.md`
 
@@ -19,7 +20,7 @@
 
 ## push状況
 
-pushはこの依頼と同時に行います（対象HEADは後述、commit後に追記します）。ワークフロー上、作業branchへのpushはCC(P3)の担当、mainへの反映はDex(P5)の担当という認識です。
+`5cea2ae`として`air-cc-dev`へpush済みです。ワークフロー上、作業branchへのpushはCC(P3)の担当、mainへの反映はDex(P5)の担当という認識です。
 
 ## 検証結果
 
