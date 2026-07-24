@@ -720,7 +720,8 @@ export default function App() {
     // 両方兼ねる日は☀️🌙を表示する。
     const keyHolderIcon = (empIdx, d) => {
         const da = dayAnalyses[d];
-        if (!da) return null;
+        const emp = employees[empIdx];
+        if (!da || !emp || !emp.isKeyHolder) return null;
         const isOpener = da.openerIdx.includes(empIdx);
         const isCloser = da.closerIdx.includes(empIdx);
         if (!isOpener && !isCloser) return null;
