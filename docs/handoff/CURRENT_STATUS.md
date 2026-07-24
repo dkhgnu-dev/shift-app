@@ -6,13 +6,13 @@
 - Repository: dkhgnu-dev/shift-app
 - Working Branch: `air-cc-dev` （※mainへの衝突防止のため専用ブランチで運用中）
 - Main agent: Air / CC / エアクルー（Air Crew）
-- External reviewer: エアクルー (Air Crew) ※Dex制限中の代用
+- External reviewer: Dex（復帰）※実装完了ごとにDexへレビュー依頼する通常運用
 
 ## Current State
 
 - Cycle: 2
-- Status: CCがタイムピッカーハイブリッド化＆☀️/🌙鍵持ちアイコン表示を実装完了、air-cc-devへpush済み（v4.15 -> v4.16）。ローカルbackend/frontendでブラウザ実機検証済み。
-- Next: Air/エアクルーによるレビュー待ち。完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_report.md`
+- Status: CCがタイムピッカーハイブリッド化＆☀️/🌙鍵持ちアイコン表示（Kazumaxフィードバック反映済み）を実装完了、air-cc-devへpush済み（v4.15 -> v4.16）。Dexへレビュー依頼(P4)済み。
+- Next: Dexレビュー待ち。完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_report.md` / レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_ui_enhancements_review_request.md`
 
 ## Read First
 
@@ -22,6 +22,7 @@
 - `docs/handoff/WORKFLOW_RULES.md`
 - 今回の指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_2_ui_enhancements_instructions.md`
 - 完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_report.md`
+- レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_ui_enhancements_review_request.md`
 - バックログ: `docs/BACKLOG.md`
 
 ## Stop Conditions
