@@ -11,6 +11,7 @@
 ## Current State
 
 - Cycle: 2
+- P4 Review: OK for Cycle 2 Take4 at `68c7768`. P5 is paused until Kazumax confirms whether pre-existing BACKLOG commits on `air-cc-dev` may merge to main together.
 - Status: Dex Take4差し戻し(P1: 通常生成のINFEASIBLE/通信失敗で既存表が消える)にCCが対応し、air-cc-devへpush済み（v4.14 -> v4.15）。Dexへ再レビュー依頼(P4)済み。
 - Next: Dex再レビュー待ち。Take4完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report_take4.md` / 再レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_take4_request.md`
 
