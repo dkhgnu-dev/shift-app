@@ -527,7 +527,6 @@ export default function App() {
     // 「空欄自動作成」: 既に値が入っているセル(手動編集/前回生成結果)はそのまま固定し、
     // 空欄セルのみをバックエンドへ送って穴埋めする
     const fillBlanks = async (allowWarningDraft = false) => {
-        if (!generatedResult) return;
         setIsGenerating(true);
 
         try {
@@ -659,7 +658,7 @@ export default function App() {
 
     // 従業員1名分の出勤日数・合計時間（特殊シフトも規定通り集計）
     const computeEmployeeStats = (i) => {
-        if (!generatedResult || !generatedResult.matrix[i]) return { days: 0, hours: 0 };
+        if (!generatedResult?.matrix?.[i]) return { days: 0, hours: 0 };
         let days = 0, hours = 0;
         generatedResult.matrix[i].forEach(cell => {
             if (!cell || !cell.shift) return;
@@ -803,7 +802,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.17</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.18</span></div>
                 </div>
             )}
 
@@ -814,7 +813,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.17</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.18</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -933,7 +932,7 @@ export default function App() {
                                                                 {renderCellNode(cell, i, selectedDateIndex)}
                                                             </div>
                                                             <select
-                                                                value={cell.shift || ''}
+                                                                value={cell?.shift || ''}
                                                                 style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', appearance: 'none', zIndex: 1}}
                                                                 onChange={(e) => updateCell(i, selectedDateIndex, e.target.value)}
                                                             >
@@ -1010,7 +1009,7 @@ export default function App() {
                                                                             {renderCellNode(cell, i, d)}
                                                                         </div>
                                                                         <select
-                                                                            value={cell.shift || ''}
+                                                                            value={cell?.shift || ''}
                                                                             style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', appearance: 'none', zIndex: 1}}
                                                                             onChange={(e) => updateCell(i, d, e.target.value)}
                                                                         >
