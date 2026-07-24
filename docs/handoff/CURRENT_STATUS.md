@@ -4,15 +4,15 @@
 
 - Name: 友達シフト
 - Repository: dkhgnu-dev/shift-app
-- Working Branch: air-cc-dev
+- Working Branch: main
 - Main agent: Air / CC / エアクルー（Air Crew）
 - External reviewer: Dex
 
 ## Current State
 
-- Cycle: 3
-- Status: P3完了。スマホ版UI/UX最適化（Take 2）を実装し、375px等での設定画面の空ボトムバー非表示化、および実画面検証結果の記録を行いました。
-- Next: DexによるP4 Take 2の再レビュー待ち。OKが出れば一括P5（origin/mainへのマージ）を実施。
+- Cycle: 3 complete
+- Status: Cycle 2 UI機能追加とCycle 3スマホ版UI/UX最適化を、Kazumax承認済みA案に従ってDexが一括P5統合済み。mainは安定版。
+- Next: Kazumaxの次サイクル指示待ち。実装開始時はmainを`git pull --ff-only`で最新化してから作業branchを作る。
 
 ## Read First
 
@@ -20,7 +20,7 @@
 - docs/handoff/CURRENT_STATUS.md
 - docs/PROJECT_RULES.md
 - docs/handoff/WORKFLOW_RULES.md
-- 今回の指示書: docs/handoff/P2_AirCrew_to_CC/cycle_3_mobile_layout_fix.md
+- 直近統合記録: docs/handoff/P5_Dex_Integration/cycle_2_3_p5_integration.md
 
 ## Stop Conditions
 
