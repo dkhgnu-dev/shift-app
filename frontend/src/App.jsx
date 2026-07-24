@@ -238,7 +238,7 @@ export default function App() {
             _employees.splice(dragOverItem.current, 0, draggedItemContent);
             setEmployees(_employees);
             
-            if (generatedResult) {
+            if (generatedResult?.matrix) {
                 let _matrix = [...generatedResult.matrix];
                 const draggedMatrixContent = _matrix.splice(dragItem.current, 1)[0];
                 _matrix.splice(dragOverItem.current, 0, draggedMatrixContent);
@@ -260,7 +260,7 @@ export default function App() {
         _employees.splice(newIndex, 0, item);
         setEmployees(_employees);
         
-        if (generatedResult) {
+        if (generatedResult?.matrix) {
             let _matrix = [...generatedResult.matrix];
             const matrixItem = _matrix.splice(index, 1)[0];
             _matrix.splice(newIndex, 0, matrixItem);
@@ -534,7 +534,7 @@ export default function App() {
             const periodDatesForSubmit = getPeriodDates(currentYear, currentMonth);
             let fixedAssignments = [];
             employees.forEach((e, idx) => {
-                generatedResult.matrix[idx].forEach((cell, d) => {
+                (generatedResult?.matrix?.[idx] || []).forEach((cell, d) => {
                     if (cell && cell.shift) {
                         // 希望休はバックエンド未登録の独立シフト種別ではないため、OFFとして送る
                         // （表示上は引き続き「希望休」のまま保護される）
@@ -583,6 +583,7 @@ export default function App() {
                 setInfeasibleInfo(null);
                 const newMatrix = employees.map((emp, idx) => {
                     const empShifts = data.shifts[`emp_${idx}`] || [];
+                    if (!generatedResult || !generatedResult.matrix || !generatedResult.matrix[idx]) return empShifts.map(s => ({ shift: s, isError: false, isFixed: false }));
                     return generatedResult.matrix[idx].map((cell, d) => {
                         if (cell && cell.shift) return cell; // 保護セルはそのまま維持
                         const s = empShifts[d];
@@ -609,16 +610,21 @@ export default function App() {
     // セルを手動編集した際、自動的に「保護」状態にする（空欄自動作成で上書きされない）
     // value === '' の場合は保護解除（空欄自動作成の対象に戻す）
     const updateCell = (i, d, value) => {
-        const newMatrix = [...generatedResult.matrix];
-        const prevCell = newMatrix[i][d];
+        let currentMatrix = generatedResult ? generatedResult.matrix : null;
+        if (!currentMatrix) {
+            currentMatrix = employees.map(() => periodDates.map(() => ({})));
+        }
+        const newMatrix = currentMatrix.map(row => [...row]);
+        const prevCell = newMatrix[i][d] || {};
         const isSpecial = SPECIAL_SHIFTS.includes(value) && !SPECIAL_OFF_LIKE.has(value);
         newMatrix[i][d] = {
+            ...prevCell,
             shift: value,
             isError: false,
             isFixed: value !== '',
             hours: isSpecial ? (prevCell && prevCell.hours ? prevCell.hours : DEFAULT_SPECIAL_HOURS) : undefined
         };
-        setGeneratedResult({ ...generatedResult, matrix: newMatrix });
+        setGeneratedResult(prev => ({ ...prev, matrix: newMatrix }));
 
         // 希望休はセルと従業員編集モーダルの「希望休」欄(requests)を同期させ、二重管理・
         // 衝突を防ぐ（セルで選ぶ/解除する操作が、そのままrequestsへの追加/削除になる）。
@@ -641,9 +647,13 @@ export default function App() {
             alert('勤務時間は0〜24の範囲の数値で入力してください。');
             return;
         }
-        const newMatrix = [...generatedResult.matrix];
+        let currentMatrix = generatedResult ? generatedResult.matrix : null;
+        if (!currentMatrix) {
+            currentMatrix = employees.map(() => periodDates.map(() => ({})));
+        }
+        const newMatrix = currentMatrix.map(row => [...row]);
         newMatrix[i][d] = { ...newMatrix[i][d], hours: parseStrictNumber(hours) };
-        setGeneratedResult({ ...generatedResult, matrix: newMatrix });
+        setGeneratedResult(prev => ({ ...prev, matrix: newMatrix }));
         setSpecialHoursModal(null);
     };
 
@@ -678,7 +688,7 @@ export default function App() {
         let rsIntervals = [];
         let allIntervals = [];
         employees.forEach((emp, i) => {
-            const cell = generatedResult.matrix[i] ? generatedResult.matrix[i][d] : null;
+            const cell = generatedResult?.matrix?.[i]?.[d] || null;
             if (!cell || !cell.shift || cell.shift === '休' || SPECIAL_SHIFTS.includes(cell.shift)) return;
             const timeStr = shiftMaster[cell.shift];
             if (!timeStr || !timeStr.includes('～')) return;
@@ -906,7 +916,7 @@ export default function App() {
                                         )}
                                         <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
                                             {employees.map((emp, i) => {
-                                                const cell = generatedResult.matrix[i][selectedDateIndex];
+                                                const cell = generatedResult?.matrix?.[i]?.[selectedDateIndex] || null;
                                                 const cssClass = cellClassName(emp, cell, i, selectedDateIndex);
                                                 const stats = computeEmployeeStats(i);
                                                 const isSpecialEditable = cell && SPECIAL_SHIFTS.includes(cell.shift) && !SPECIAL_OFF_LIKE.has(cell.shift);
@@ -989,7 +999,8 @@ export default function App() {
                                                                 <div style={{fontSize:'0.7rem', color:'#9CA3AF'}}>{emp.isRS ? '登販/' : ''}{emp.isKeyHolder ? '🔑/' : ''}{shortType}</div>
                                                                 <div className="staff-stat-badge">{(() => { const st = computeEmployeeStats(i); return `${st.days}日 / ${st.hours.toFixed(1)}h`; })()}</div>
                                                             </td>
-                                                            {generatedResult.matrix[i].map((cell, d) => {
+                                                            {periodDates.map((_, d) => {
+                                                                const cell = generatedResult?.matrix?.[i]?.[d] || null;
                                                                 const cssClass = cellClassName(emp, cell, i, d);
                                                                 const isSpecialEditable = cell && SPECIAL_SHIFTS.includes(cell.shift) && !SPECIAL_OFF_LIKE.has(cell.shift);
 
