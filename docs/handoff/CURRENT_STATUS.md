@@ -11,8 +11,8 @@
 ## Current State
 
 - Cycle: 2
-- Status: Kazumaxの仕様判断（希望休一本化・有休の連勤ハイブリッドルール）確定後、CCがTake2修正を完了しair-cc-devへpush済み（v4.12 -> v4.13）。Dexへ再レビュー依頼(P4)済み。
-- Next: Dex再レビュー待ち。Take2完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report_take2.md` / 再レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_take2_request.md`
+- Status: DexがCycle 2 Take2 P4再レビューを完了し、Take3差し戻し。INFEASIBLE時にハード制約違反の仮表をFEASIBLEとして返すBlockerが残る。
+- Next: KazumaxがINFEASIBLE時の停止UXと公休扱いを確認後、CCがTake3修正。差し戻し: `docs/handoff/P4_Rollback/cycle_2_review_take3.md`
 
 ## Read First
 
@@ -23,6 +23,7 @@
 - 今回の指示書: `docs/handoff/P4_Rollback/cycle_2_review_take2.md`
 - Take2完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report_take2.md`
 - Take2再レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_take2_request.md`
+- Take3差し戻し: `docs/handoff/P4_Rollback/cycle_2_review_take3.md`
 - バックログ: `docs/BACKLOG.md`
 
 ## Stop Conditions
