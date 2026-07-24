@@ -12,7 +12,7 @@
 
 - Cycle: 2
 - Status: DexがCycle 2 Take2 P4再レビューを完了し、Take3差し戻し。INFEASIBLE時にハード制約違反の仮表をFEASIBLEとして返すBlockerが残る。
-- Next: KazumaxがINFEASIBLE時の停止UXと公休扱いを確認後、CCがTake3修正。差し戻し: `docs/handoff/P4_Rollback/cycle_2_review_take3.md`
+- Next: Kazumax確定仕様（INFEASIBLE時は通常停止し、利用者選択時のみ違反一覧付き仮シフト／公休・希望休は全計算で休み／有休は出勤日数・勤務時間のみ勤務扱い）に従い、CCがTake3修正。差し戻し: `docs/handoff/P4_Rollback/cycle_2_review_take3.md`
 
 ## Read First
 
