@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2, Menu, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
-import { computeHourChange, computeMinuteChange, formatTime, isValidSpecialHours } from './timeUtils';
+import { computeHourChange, computeMinuteChange, formatTime, isValidSpecialHours, parseStrictNumber } from './timeUtils';
 
 const SHIFT_MASTER = {
     '①': '8:15～12:15', '②': '8:15～14:15', '③': '8:15～16:15',
@@ -423,7 +423,10 @@ export default function App() {
 
     const generateShift = async (allowWarningDraft = false) => {
         setIsGenerating(true);
-        if (!allowWarningDraft) setGeneratedResult(null);
+        // P4 Take4指摘: 応答を受け取る前に表を消してはいけない。INFEASIBLE・HTTPエラー・
+        // 通信例外のいずれでも、既存の表(手編集済みセル含む)とlocalStorageの内容を保持する。
+        // 表の置換は、成功した通常生成、または利用者が明示選択した警告付き仮シフトの
+        // 応答を受け取った時点(下のSUCCESS/FEASIBLE_WITH_WARNINGS分岐)でのみ行う。
 
         try {
             const periodDatesForSubmit = getPeriodDates(currentYear, currentMonth);
@@ -600,7 +603,7 @@ export default function App() {
             return;
         }
         const newMatrix = [...generatedResult.matrix];
-        newMatrix[i][d] = { ...newMatrix[i][d], hours: parseFloat(hours) };
+        newMatrix[i][d] = { ...newMatrix[i][d], hours: parseStrictNumber(hours) };
         setGeneratedResult({ ...generatedResult, matrix: newMatrix });
         setSpecialHoursModal(null);
     };
@@ -710,7 +713,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.14</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.15</span></div>
                 </div>
             )}
 
@@ -721,7 +724,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.14</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.15</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>

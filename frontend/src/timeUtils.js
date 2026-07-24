@@ -33,8 +33,18 @@ export function formatTime(h, m) {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-// 特殊シフト(有休等)の勤務時間として保存してよい値か検証する。0〜24の有限数のみ許可。
+// parseFloatは"8abc"のような末尾に不正な文字が付いた値も8として受理してしまうため、
+// 厳密な数値表現(先頭の空白トリムのみ許容)だけを受け付ける。全体が数値でなければNaN。
+export function parseStrictNumber(value) {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+    if (typeof value !== 'string') return NaN;
+    const trimmed = value.trim();
+    if (trimmed === '' || !/^-?\d+(\.\d+)?$/.test(trimmed)) return NaN;
+    return Number(trimmed);
+}
+
+// 特殊シフト(有休等)の勤務時間として保存してよい値か検証する。0〜24の厳密な数値のみ許可。
 export function isValidSpecialHours(value) {
-    const parsed = parseFloat(value);
+    const parsed = parseStrictNumber(value);
     return Number.isFinite(parsed) && parsed >= 0 && parsed <= 24;
 }

@@ -11,6 +11,7 @@ import {
     computeMinuteChange,
     formatTime,
     isValidSpecialHours,
+    parseStrictNumber,
 } from './src/timeUtils.js';
 
 const failures = [];
@@ -49,6 +50,11 @@ check('invalid: 25は無効', isValidSpecialHours('25') === false);
 check('invalid: 負数は無効', isValidSpecialHours('-1') === false);
 check('invalid: 非数値は無効', isValidSpecialHours('abc') === false);
 check('invalid: 空文字は無効', isValidSpecialHours('') === false);
+// P4 Take4 P2指摘: parseFloatは"8abc"を8として受理してしまうため、厳密な数値変換に置き換えた
+check('invalid: 末尾に文字が付く"8abc"は無効(parseFloatの緩さを再発させない)', isValidSpecialHours('8abc') === false);
+check('valid: parseStrictNumberは通常の数値を数値として返す', parseStrictNumber('12.5') === 12.5);
+check('invalid: parseStrictNumberは"8abc"に対してNaNを返す', Number.isNaN(parseStrictNumber('8abc')));
+check('invalid: parseStrictNumberは前後空白のみ許容し中身は厳密("1 2")はNaN', Number.isNaN(parseStrictNumber('1 2')));
 
 console.log();
 if (failures.length > 0) {

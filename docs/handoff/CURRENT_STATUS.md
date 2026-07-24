@@ -11,20 +11,18 @@
 ## Current State
 
 - Cycle: 2
-- P4 Review: NG Take4 — normal generation clears the existing table before an INFEASIBLE or failed response. See `docs/handoff/P4_Rollback/cycle_2_review_take4.md`.
-- Status: Kazumax確定仕様（INFEASIBLE時は通常停止＋利用者選択時のみ警告仮シフト／公休・希望休は全計算で休み／有休は出勤日数・勤務時間のみ勤務扱い）に従い、CCがTake3修正を完了しair-cc-devへpush済み（v4.13 -> v4.14）。Dexへ再レビュー依頼(P4)済み。
-- Next: Dex再レビュー待ち。Take3完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report_take3.md` / 再レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_take3_request.md`
+- Status: Dex Take4差し戻し(P1: 通常生成のINFEASIBLE/通信失敗で既存表が消える)にCCが対応し、air-cc-devへpush済み（v4.14 -> v4.15）。Dexへ再レビュー依頼(P4)済み。
+- Next: Dex再レビュー待ち。Take4完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report_take4.md` / 再レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_take4_request.md`
 
 ## Read First
 
 - `AGENTS.md`
-- P4 Take4 rollback: `docs/handoff/P4_Rollback/cycle_2_review_take4.md`
 - `docs/handoff/CURRENT_STATUS.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- 今回の指示書: `docs/handoff/P4_Rollback/cycle_2_review_take3.md`
-- Take3完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report_take3.md`
-- Take3再レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_take3_request.md`
+- 今回の指示書: `docs/handoff/P4_Rollback/cycle_2_review_take4.md`
+- Take4完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report_take4.md`
+- Take4再レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_take4_request.md`
 - バックログ: `docs/BACKLOG.md`
 
 ## Stop Conditions
