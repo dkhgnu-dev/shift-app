@@ -45,7 +45,36 @@ def get_period_end(year: int, month: int) -> datetime.date:
     return datetime.date(year, month, 15)
 
 
-def solve_shift(input_data: ShiftInput):
+def _validate_input(input_data: ShiftInput):
+    """employee ID / shift ID の一意性・予約ID衝突を検証する。不正な場合は例外を送出する。"""
+    emp_id_counts = {}
+    for e in input_data.employees:
+        emp_id_counts[e.id] = emp_id_counts.get(e.id, 0) + 1
+    dup_emp_ids = sorted([eid for eid, c in emp_id_counts.items() if c > 1])
+    if dup_emp_ids:
+        raise ValueError(f"従業員IDが重複しています: {dup_emp_ids}")
+
+    shift_id_counts = {}
+    for s in input_data.shift_types:
+        shift_id_counts[s.id] = shift_id_counts.get(s.id, 0) + 1
+    dup_shift_ids = sorted([sid for sid, c in shift_id_counts.items() if c > 1])
+    if dup_shift_ids:
+        raise ValueError(f"シフトIDが重複しています: {dup_shift_ids}")
+
+    if any(s.id == 'OFF' for s in input_data.shift_types):
+        raise ValueError("シフトID「OFF」は予約済みのため、shift_typesに含めることはできません。")
+
+
+def _solve_once(input_data: ShiftInput, diagnostic_mode: bool):
+    """
+    シフト割当モデルを構築して解く。
+
+    diagnostic_mode=False: 通常モード。人数上限、5/4連勤上限、7日間休みルールはハード制約。
+    diagnostic_mode=True: 診断モード。上記3種の制約にスラックを与えてソフト化し、
+        「本来は満たすべきだが今回満たせなかった条件」を特定できるようにする。
+        固定セル(fixed_assignments)と希望休(requested_off)の強制は、診断モードでも
+        絶対に緩めない（黙って変更して解消してはいけないため）。
+    """
     model = cp_model.CpModel()
 
     start_date = get_period_start(input_data.year, input_data.month)
@@ -58,22 +87,28 @@ def solve_shift(input_data: ShiftInput):
     num_shifts = len(shift_ids)
     off_idx = shift_ids.index('OFF')
 
-    # 特殊シフト(有休/応援/店長会/研修/勉強会等): 個人の勤務日数には計上するが、
-    # 店舗出勤人数・登録販売者カバレッジからは除外する。ソルバーが空欄セルへ
-    # 自動的に割り当てることはなく、fixed_assignments経由でのみ設定される。
+    # 特殊シフト(有休/応援/店長会/研修/勉強会/公休等): 店舗出勤人数・登録販売者カバレッジからは
+    # 常に除外する。ソルバーが空欄セルへ自動的に割り当てることはなく、fixed_assignments経由でのみ設定される。
     special_ids = {s.id for s in shifts if getattr(s, 'is_special', False)}
     special_indices = {shift_ids.index(sid) for sid in special_ids if sid in shift_ids}
 
-    # 有休(法令上の連勤カウント対象)・公休(真の休みとして扱う特殊シフト)の位置
+    # 有休(出勤日数・勤務時間には計上するが、人員/RS/鍵/実働連勤には数えない)
     yukyu_idx = shift_ids.index('有休') if '有休' in shift_ids else None
+    # 公休(希望休と同じ扱い＝出勤日数・勤務時間・人員・RS・鍵・連勤の全てで休みとして扱う"真の休み")
     koukyuu_idx = shift_ids.index('公休') if '公休' in shift_ids else None
-    # 「7日間に最低1日は真の休みが必要」というハード制約で"休み"とみなすシフト
+
+    # 「真の休み」= OFF（希望休・自動休み共通）と公休。7日間休みルール・実働連勤上限・
+    # 契約勤務日数のいずれにおいても "休み" として扱うシフトの集合。
     rest_indices = {off_idx}
     if koukyuu_idx is not None:
         rest_indices.add(koukyuu_idx)
-    # 5連勤/4連勤の「実働」上限カウント対象（有休は休みとして扱い除外。OFF以外の
-    # 通常シフト・応援/店長会/研修/勉強会等は引き続き"勤務"として数える）
-    real_work_indices = [s_idx for s_idx in range(num_shifts) if s_idx != off_idx and s_idx != yukyu_idx]
+
+    # 5連勤/4連勤の「実働」上限カウント対象（真の休み(OFF/公休)と有休は除外。
+    # 応援/店長会/研修/勉強会等は引き続き"勤務"として数える）
+    non_real_work_indices = set(rest_indices)
+    if yukyu_idx is not None:
+        non_real_work_indices.add(yukyu_idx)
+    real_work_indices = [s_idx for s_idx in range(num_shifts) if s_idx not in non_real_work_indices]
 
     # 登録販売者 (RS)
     rs_indices = [i for i, e in enumerate(employees) if e.is_registered_seller]
@@ -134,10 +169,15 @@ def solve_shift(input_data: ShiftInput):
                 x[(e_idx, d, s_idx)] = model.NewBoolVar(f'shift_{emp.id}_{d}_{s_id}')
 
     # --- スラック変数 (診断用ソフト制約) ---
-    slack_contract = {}    # 契約日数のズレ
-    slack_rs = {}          # 登販不足
-    # ※ slack_daily_staff は廃止。±1名制限はハード制約に昇格済み。
-    consec_penalty_vars = []  # 連勤ソフト制約ペナルティ変数
+    slack_contract = {}    # 契約日数のズレ（常時ソフト）
+    slack_rs = {}          # 登販不足（常時ソフト）
+    consec_penalty_vars = []  # 連勤ソフト制約ペナルティ変数（フェーズ2の目的関数用）
+
+    # diagnostic_mode時のみ使用する診断用スラック（違反箇所の特定に使う）
+    diag_head_slacks = {}     # day_index -> (slack_under, slack_over, day_min, max_allowed)
+    diag_consec_slacks = []   # (employee_id, start_d, window_len, limit, slack_var)
+    diag_7day_slacks = []     # (employee_id, start_d, slack_var)
+    diag_objective_terms = []
 
     # 1. 各従業員の基本制約
     for e_idx, emp in enumerate(employees):
@@ -165,6 +205,8 @@ def solve_shift(input_data: ShiftInput):
                 elif s_idx not in allowed_s_indices:
                     model.Add(x[(e_idx, d, s_idx)] == 0)
 
+            # 固定セル・希望休の強制は、通常モード/診断モードいずれでも絶対に緩めない
+            # （黙って固定セルや希望休を変更して制約違反を解消してはいけないため）。
             if is_fixed_today:
                 # 「空欄自動作成」: 既に手動入力済みのセルは固定条件として求解対象から除外
                 model.Add(x[(e_idx, d, fixed_s_idx)] == 1)
@@ -174,73 +216,54 @@ def solve_shift(input_data: ShiftInput):
 
         # 【連勤・連休制限ルール】
         is_full_time = emp.employment_type in ['正社員', '時間限定社員', '準社員']
+        real_cap = 5 if is_full_time else 4
+        soft_window = real_cap
+        hard_window = real_cap + 1
 
-        if is_full_time:
-            # --- 正社員・準社員 ---
-            # 1) 連勤上限: 最大5連勤 (6連勤以上は絶対禁止) ← ハード制約（有休は休みとして除外）
-            for start_d in range(num_days - 5):
-                model.Add(sum(
-                    x[(e_idx, d, s_idx)]
-                    for d in range(start_d, start_d + 6)
-                    for s_idx in real_work_indices
-                ) <= 5)
-            # 2) 5連勤を極力避ける ← ソフト制約（有休は休みとして除外）
-            for start_d in range(num_days - 4):
-                five_consec = model.NewBoolVar(f'five_consec_{emp.id}_{start_d}')
-                work_5 = sum(
-                    x[(e_idx, d, s_idx)]
-                    for d in range(start_d, start_d + 5)
-                    for s_idx in real_work_indices
-                )
-                model.Add(work_5 >= 5).OnlyEnforceIf(five_consec)
-                model.Add(work_5 <= 4).OnlyEnforceIf(five_consec.Not())
-                consec_penalty_vars.append(five_consec)
+        # 1) 連勤上限: 実働real_cap連勤 (real_cap+1連勤以上は絶対禁止) ← ハード制約
+        #    （診断モードのみ違反を許容し、どの窓で何日超過したかを特定できるようにする）
+        for start_d in range(num_days - hard_window + 1):
+            work_sum = sum(
+                x[(e_idx, d, s_idx)]
+                for d in range(start_d, start_d + hard_window)
+                for s_idx in real_work_indices
+            )
+            if diagnostic_mode:
+                slack_consec = model.NewIntVar(0, hard_window, f'diag_consec_{emp.id}_{start_d}')
+                model.Add(work_sum - slack_consec <= real_cap)
+                diag_consec_slacks.append((emp.id, start_d, hard_window, real_cap, slack_consec))
+                diag_objective_terms.append(3 * slack_consec)
+            else:
+                model.Add(work_sum <= real_cap)
 
-            # 3) 連休制限: 最大2連休まで（希望休を除く自動3連休以上は絶対禁止） ← ハード制約
-            for start_d in range(num_days - 2):
-                window = range(start_d, start_d + 3)
-                non_auto_off_terms = []
-                for d in window:
-                    if (emp.id, d) in requested_off:
-                        non_auto_off_terms.append(1)
-                    else:
-                        work_var = sum(x[(e_idx, d, s_idx)] for s_idx in range(num_shifts) if s_idx != off_idx)
-                        non_auto_off_terms.append(work_var)
-                model.Add(sum(non_auto_off_terms) >= 1)
-        else:
-            # --- パート・アルバイト等 ---
-            # 1) 連勤上限: 最大4连勤 (5連勤以上は絶対禁止) ← ハード制約（有休は休みとして除外）
-            for start_d in range(num_days - 4):
-                model.Add(sum(
-                    x[(e_idx, d, s_idx)]
-                    for d in range(start_d, start_d + 5)
-                    for s_idx in real_work_indices
-                ) <= 4)
-            # 2) 4連勤を極力避ける ← ソフト制約（有休は休みとして除外）
-            for start_d in range(num_days - 3):
-                four_consec = model.NewBoolVar(f'four_consec_{emp.id}_{start_d}')
-                work_4 = sum(
-                    x[(e_idx, d, s_idx)]
-                    for d in range(start_d, start_d + 4)
-                    for s_idx in real_work_indices
-                )
-                model.Add(work_4 >= 4).OnlyEnforceIf(four_consec)
-                model.Add(work_4 <= 3).OnlyEnforceIf(four_consec.Not())
-                consec_penalty_vars.append(four_consec)
+        # 2) real_cap連勤を極力避ける ← ソフト制約（有休・真の休みは除外）
+        for start_d in range(num_days - soft_window + 1):
+            consec_flag = model.NewBoolVar(f'consec_soft_{emp.id}_{start_d}')
+            work_n = sum(
+                x[(e_idx, d, s_idx)]
+                for d in range(start_d, start_d + soft_window)
+                for s_idx in real_work_indices
+            )
+            model.Add(work_n >= soft_window).OnlyEnforceIf(consec_flag)
+            model.Add(work_n <= soft_window - 1).OnlyEnforceIf(consec_flag.Not())
+            consec_penalty_vars.append(consec_flag)
 
-            # 3) 連休制限: 5連休以上は絶対禁止（希望休を除く） ← ハード制約
-            for start_d in range(num_days - 4):
-                window = range(start_d, start_d + 5)
-                non_auto_off_terms = []
-                for d in window:
-                    if (emp.id, d) in requested_off:
-                        non_auto_off_terms.append(1)
-                    else:
-                        work_var = sum(x[(e_idx, d, s_idx)] for s_idx in range(num_shifts) if s_idx != off_idx)
-                        non_auto_off_terms.append(work_var)
-                model.Add(sum(non_auto_off_terms) >= 1)
+        # 3) 連休制限（真の休み以外が連続しすぎないようにする） ← ハード制約
+        #    正社員等: 最大2連休まで（3連休以上禁止）／パート等: 最大4連休まで（5連休以上禁止）
+        off_hard_window = 3 if is_full_time else 5
+        for start_d in range(num_days - off_hard_window + 1):
+            window = range(start_d, start_d + off_hard_window)
+            non_auto_off_terms = []
+            for d in window:
+                if (emp.id, d) in requested_off:
+                    non_auto_off_terms.append(1)
+                else:
+                    work_var = sum(x[(e_idx, d, s_idx)] for s_idx in range(num_shifts) if s_idx != off_idx)
+                    non_auto_off_terms.append(work_var)
+            model.Add(sum(non_auto_off_terms) >= 1)
 
-            # 4) 連休制限: 4連休を極力避ける（希望休を除く） ← ソフト制約
+        # 4) パート等のみ: 4連休を極力避ける ← ソフト制約
+        if not is_full_time:
             for start_d in range(num_days - 3):
                 window = range(start_d, start_d + 4)
                 has_req_off = any((emp.id, d) in requested_off for d in window)
@@ -257,7 +280,7 @@ def solve_shift(input_data: ShiftInput):
 
         # 【法令ルール・全雇用形態共通】7日間の窓の中で真の休み(OFF/公休)が最低1日必要 ← ハード制約
         # 有休はこの上限では「出勤扱い」としてカウントする（有休を挟んでも休みなし連続稼働を無制限にはできない）。
-        # 例:「4連勤+有休+4連勤」のように実働の連勤上限(5/4連勤)を個別には満たしていても、
+        # 例:「4連勤+有休+4連勤」のように実働の連勤上限を個別には満たしていても、
         # 合計9日間・真の休みなしとなる組み合わせは、この制約により禁止される。
         for start_d in range(num_days - 6):
             window = range(start_d, start_d + 7)
@@ -266,10 +289,17 @@ def solve_shift(input_data: ShiftInput):
                 for d in window
                 for s_idx in rest_indices
             )
-            model.Add(rest_sum >= 1)
+            if diagnostic_mode:
+                slack_7day = model.NewIntVar(0, 1, f'diag_7day_{emp.id}_{start_d}')
+                model.Add(rest_sum + slack_7day >= 1)
+                diag_7day_slacks.append((emp.id, start_d, slack_7day))
+                diag_objective_terms.append(3 * slack_7day)
+            else:
+                model.Add(rest_sum >= 1)
 
-        # 契約日数遵守 (スラック付き)
-        working_days = sum(x[(e_idx, d, s_idx)] for d in range(num_days) for s_idx in range(num_shifts) if s_idx != off_idx)
+        # 契約日数遵守 (スラック付き)。真の休み(OFF/公休)は勤務日数に算入しない。
+        # 有休は実際には出勤しないが、契約日数・勤務時間には勤務と同じ扱いで計上する。
+        working_days = sum(x[(e_idx, d, s_idx)] for d in range(num_days) for s_idx in range(num_shifts) if s_idx not in rest_indices)
         slack_under = model.NewIntVar(0, num_days, f'slack_under_{emp.id}')
         slack_over = model.NewIntVar(0, num_days, f'slack_over_{emp.id}')
         model.Add(working_days + slack_under - slack_over == emp.contract_days)
@@ -330,7 +360,9 @@ def solve_shift(input_data: ShiftInput):
     for d in range(num_days):
         current_date = start_date + datetime.timedelta(days=d)
         weekday = current_date.weekday()
-        daily_workers = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in range(num_shifts) if s_idx != off_idx and s_idx not in special_indices)
+        daily_workers_expr = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in range(num_shifts) if s_idx != off_idx and s_idx not in special_indices)
+        daily_workers = model.NewIntVar(0, len(employees), f'daily_workers_{d}')
+        model.Add(daily_workers == daily_workers_expr)
 
         # 曜日別最低出勤人数の適用（ハード制約）
         # weekday_min_staff が設定されていれば、base_avg-1 と比較して大きい方を採用
@@ -343,10 +375,20 @@ def solve_shift(input_data: ShiftInput):
                     # 上限 (max_allowed) を超えないようにクランプ
                     day_min = max(day_min, min(user_min, max_allowed))
 
-        # 出勤人数上限・下限は「ハード制約」として直接固定（スラックなし）
+        # 出勤人数上限・下限は通常モードでは「ハード制約」として直接固定（スラックなし）
         # → フェーズ1で均等配分に固定されることなく、フェーズ2の順位配分が機能する
-        model.Add(daily_workers >= day_min)
-        model.Add(daily_workers <= max_allowed)
+        # 診断モードのみソフト化し、どの日が何名不足/超過するかを特定できるようにする。
+        if diagnostic_mode:
+            slack_head_under = model.NewIntVar(0, len(employees), f'diag_head_under_{d}')
+            slack_head_over = model.NewIntVar(0, len(employees), f'diag_head_over_{d}')
+            model.Add(daily_workers + slack_head_under >= day_min)
+            model.Add(daily_workers - slack_head_over <= max_allowed)
+            diag_head_slacks[d] = (slack_head_under, slack_head_over, day_min, max_allowed)
+            diag_objective_terms.append(slack_head_under)
+            diag_objective_terms.append(slack_head_over)
+        else:
+            model.Add(daily_workers >= day_min)
+            model.Add(daily_workers <= max_allowed)
 
         # 目標人数からの差分変数をモデル定義時に一括作成
         target_diff = model.NewIntVar(0, len(employees), f'target_diff_{d}')
@@ -371,21 +413,25 @@ def solve_shift(input_data: ShiftInput):
 
     # === 辞書順最適化 (Lexicographic Optimization) ===
 
-    # 【フェーズ 1】最優先: スラック（契約日数・登販不足）の最小化
-    # ※ 均等化ペナルティは除外。±1名制限はハード制約のため不要。
+    # 【フェーズ 1】最優先: スラック（契約日数・登販不足、診断モードでは追加の診断用スラックも含む）の最小化
     total_slack = []
     for (emp_id, (su, so)) in slack_contract.items():
         total_slack.append(100 * su + 100 * so)
     for rs_key, s_rs in slack_rs.items():
         total_slack.append(2000 * s_rs)
 
-    model.Minimize(sum(total_slack))
+    phase1_objective = sum(total_slack)
+    if diagnostic_mode and diag_objective_terms:
+        # 診断モードでは「本来ハードだった制約」の違反を最優先で最小化する
+        # （契約日数・RS不足より、まず人数/連勤/7日ルールの違反を減らす方を優先）
+        phase1_objective = 5000 * sum(diag_objective_terms) + phase1_objective
+
+    model.Minimize(phase1_objective)
 
     solver = cp_model.CpSolver()
     solver.parameters.num_search_workers = 8
     solver.parameters.max_time_in_seconds = 10.0
     phase1_status = solver.Solve(model)
-    status = phase1_status
     phase2_status = None
 
     def snapshot():
@@ -394,6 +440,9 @@ def solve_shift(input_data: ShiftInput):
             'x': {k: solver.Value(v) for k, v in x.items()},
             'slack_contract': {emp_id: (solver.Value(su), solver.Value(so)) for emp_id, (su, so) in slack_contract.items()},
             'slack_rs': {k: solver.Value(v) for k, v in slack_rs.items()},
+            'diag_head_slacks': {d: (solver.Value(su), solver.Value(so), dmin, dmax) for d, (su, so, dmin, dmax) in diag_head_slacks.items()},
+            'diag_consec_slacks': [(eid, sd, wl, lim, solver.Value(sv)) for (eid, sd, wl, lim, sv) in diag_consec_slacks],
+            'diag_7day_slacks': [(eid, sd, solver.Value(sv)) for (eid, sd, sv) in diag_7day_slacks],
         }
 
     final_values = None
@@ -406,18 +455,25 @@ def solve_shift(input_data: ShiftInput):
         # 連勤ペナルティ係数: 15（1連勤発生 = 目標人数ズレ15人分のコスト）
         consec_penalty_sum = sum(15 * v for v in consec_penalty_vars) if consec_penalty_vars else 0
 
+        # 診断モードでは、フェーズ1で見つかった診断スラックの合計を悪化させないよう固定した上で、
+        # 通常の目標人数・連勤抑制の最適化へ進む。
+        diag_best = solver.Value(sum(diag_objective_terms)) if (diagnostic_mode and diag_objective_terms) else None
+
         if phase1_status == cp_model.OPTIMAL:
             # OPTIMAL（証明済み最小スラック）の場合のみ、以降のフェーズでスラックを悪化させない
             # ハード制約として固定してよい。
             best_slack = solver.Value(sum(total_slack))
             model.Add(sum(total_slack) <= best_slack)
+            if diag_best is not None:
+                model.Add(sum(diag_objective_terms) <= diag_best)
             model.Minimize(sum(target_diff_vars) + consec_penalty_sum)
         else:
             # FEASIBLE（未証明の暫定解）の場合、この時点のスラックを固定してしまうと
             # 「本当はもっと減らせたはずのスラック」が確定してしまう。
             # そのためフェーズ2でも total_slack を圧倒的に大きい重みで目的関数に含め、
             # 曜日目標人数や連勤抑制より優先してスラック削減を継続させる。
-            model.Minimize(100000 * sum(total_slack) + sum(target_diff_vars) + consec_penalty_sum)
+            diag_term = 100000 * sum(diag_objective_terms) if diag_objective_terms else 0
+            model.Minimize(diag_term + 100000 * sum(total_slack) + sum(target_diff_vars) + consec_penalty_sum)
 
         solver.parameters.max_time_in_seconds = 15.0
         phase2_status = solver.Solve(model)
@@ -426,38 +482,31 @@ def solve_shift(input_data: ShiftInput):
             final_values = snapshot()
         # else: フェーズ2が解を返さなかった場合は phase1_snapshot のまま（フォールバック）
 
-    warnings = list(validation_warnings) + list(conflict_warnings)
+    return {
+        'phase1_status': phase1_status,
+        'phase2_status': phase2_status,
+        'final_values': final_values,
+        'shift_ids': shift_ids,
+        'off_idx': off_idx,
+        'employees': employees,
+        'num_days': num_days,
+        'start_date': start_date,
+        'validation_warnings': validation_warnings,
+        'conflict_warnings': conflict_warnings,
+        'solver': solver,
+    }
 
-    # 絶対失敗しない安全フォールバック（フェーズ1自体が解なしの場合のみ）
-    # 手動固定されたセル（通常シフト・OFF・特殊シフトいずれも）は必ず保持し、
-    # 空欄セルのみデフォルト値で埋める。特殊シフトを空欄へ自動割当することはない。
-    if phase1_status not in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
-        warnings.append("⚠️ 条件の自動計算が困難だったため基本仮シフトを構築しました。従業員の契約日数や希望休の重複をご確認ください。")
-        fallback_shifts = {}
-        for emp in employees:
-            allowed = [s_id for s_id in emp.allowed_shifts if s_id in shift_ids and s_id not in special_ids]
-            if not allowed:
-                allowed = [s.id for s in shifts if s.id != 'OFF' and s.id not in special_ids]
-            default_shift = allowed[0] if allowed else 'OFF'
-            emp_s = []
-            for d in range(num_days):
-                if (emp.id, d) in fixed_map:
-                    fixed_id = shift_ids[fixed_map[(emp.id, d)]]
-                    emp_s.append('休' if fixed_id == 'OFF' else fixed_id)
-                elif (emp.id, d) in requested_off:
-                    emp_s.append('休')
-                else:
-                    emp_s.append('休' if default_shift == 'OFF' else default_shift)
-            fallback_shifts[emp.id] = emp_s
-        return {
-            "status": "FEASIBLE_WITH_WARNINGS",
-            "shifts": fallback_shifts,
-            "score": 50,
-            "warnings": warnings,
-            "message": warnings[0]
-        }
 
-    # スラック値のチェックと警告生成（フェーズ2が有効ならその結果、無効ならフェーズ1解を使用）
+def _build_shifts_and_warnings(result):
+    """_solve_once()の結果(final_valuesが存在する前提)からresult_shiftsとwarningsを構築する。"""
+    final_values = result['final_values']
+    employees = result['employees']
+    shift_ids = result['shift_ids']
+    num_days = result['num_days']
+    start_date = result['start_date']
+
+    warnings = list(result['validation_warnings']) + list(result['conflict_warnings'])
+
     for emp in employees:
         u_val, o_val = final_values['slack_contract'][emp.id]
         if u_val > 0:
@@ -470,8 +519,6 @@ def solve_shift(input_data: ShiftInput):
             warn_date = start_date + datetime.timedelta(days=d)
             warnings.append(f"{warn_date.month}/{warn_date.day}: 時間帯ブロック{block}で登録販売者が不足しています。")
 
-    # ※ slack_daily_staff の警告は廃止（ハード制約化により違反は発生しない）
-
     result_shifts = {}
     for e_idx, emp in enumerate(employees):
         emp_shifts = []
@@ -481,14 +528,120 @@ def solve_shift(input_data: ShiftInput):
                     emp_shifts.append(s_id if s_id != 'OFF' else '休')
         result_shifts[emp.id] = emp_shifts
 
-    status_str = "SUCCESS" if len(warnings) == 0 else "FEASIBLE_WITH_WARNINGS"
+    return result_shifts, warnings
 
+
+def _extract_violations(diag_result):
+    """診断モードの結果から、違反箇所・理由を人が読める文言のリストにして返す。"""
+    final_values = diag_result['final_values']
+    employees = diag_result['employees']
+    start_date = diag_result['start_date']
+    emp_by_id = {e.id: e for e in employees}
+    violations = []
+
+    if final_values is None:
+        # 診断モデルすら解なしの場合（極めて稀）
+        return ["条件が厳しすぎるため、診断モデルでも解を求められませんでした。固定セルや希望休の組み合わせを見直してください。"]
+
+    for d, (su, so, dmin, dmax) in sorted(final_values['diag_head_slacks'].items()):
+        warn_date = start_date + datetime.timedelta(days=d)
+        if su > 0:
+            violations.append(f"{warn_date.month}/{warn_date.day}: 必要人数{dmin}人に対し{dmin - su}人しか配置できません。")
+        if so > 0:
+            violations.append(f"{warn_date.month}/{warn_date.day}: 人数上限{dmax}人を{so}人超過しています。")
+
+    for (eid, sd, window_len, limit, slack_val) in final_values['diag_consec_slacks']:
+        if slack_val > 0:
+            emp_label = emp_by_id[eid].name if eid in emp_by_id else eid
+            window_start = start_date + datetime.timedelta(days=sd)
+            window_end = start_date + datetime.timedelta(days=sd + window_len - 1)
+            violations.append(
+                f"{emp_label}さん: {window_start.month}/{window_start.day}〜{window_end.month}/{window_end.day}の{window_len}日間で"
+                f"実働上限{limit}日を{slack_val}日超過しています。"
+            )
+
+    for (eid, sd, slack_val) in final_values['diag_7day_slacks']:
+        if slack_val > 0:
+            emp_label = emp_by_id[eid].name if eid in emp_by_id else eid
+            window_start = start_date + datetime.timedelta(days=sd)
+            window_end = start_date + datetime.timedelta(days=sd + 6)
+            violations.append(
+                f"{emp_label}さん: {window_start.month}/{window_start.day}〜{window_end.month}/{window_end.day}の7日間に真の休み(公休/希望休)がありません。"
+            )
+
+    for eid, (su, so) in final_values['slack_contract'].items():
+        emp_label = emp_by_id[eid].name if eid in emp_by_id else eid
+        if su > 0:
+            violations.append(f"{emp_label}さん: 契約日数に対して{su}日不足しています。")
+        elif so > 0:
+            violations.append(f"{emp_label}さん: 契約日数に対して{so}日超過しています。")
+
+    for (d, block), s_rs_val in final_values['slack_rs'].items():
+        if s_rs_val == 1:
+            warn_date = start_date + datetime.timedelta(days=d)
+            violations.append(f"{warn_date.month}/{warn_date.day}: 時間帯ブロック{block}で登録販売者が不在です。")
+
+    if not violations:
+        violations.append("具体的な違反箇所を特定できませんでした（複数条件の組み合わせが原因の可能性があります）。固定セルや希望休の組み合わせを見直してください。")
+
+    return violations
+
+
+def solve_shift(input_data: ShiftInput):
+    _validate_input(input_data)
+
+    result = _solve_once(input_data, diagnostic_mode=False)
+
+    if result['phase1_status'] in [cp_model.OPTIMAL, cp_model.FEASIBLE] and result['final_values'] is not None:
+        result_shifts, warnings = _build_shifts_and_warnings(result)
+        status_str = "SUCCESS" if len(warnings) == 0 else "FEASIBLE_WITH_WARNINGS"
+        return {
+            "status": status_str,
+            "shifts": result_shifts,
+            "score": 100 if len(warnings) == 0 else 80,
+            "warnings": warnings,
+            "message": warnings[0] if warnings else None,
+            "phase1_status": result['solver'].StatusName(result['phase1_status']),
+            "phase2_status": result['solver'].StatusName(result['phase2_status']) if result['phase2_status'] is not None else None
+        }
+
+    # --- フェーズ1がINFEASIBLE（通常のハード制約では解が求まらない）場合 ---
+    # Kazumax確定仕様: 通常出力は停止し、まず条件未達の箇所と理由を提示する。
+    # 利用者が明示的に選んだ場合だけ、違反一覧付きの警告仮シフトを返す。
+    diag_result = _solve_once(input_data, diagnostic_mode=True)
+    violations = _extract_violations(diag_result)
+    base_warnings = list(result['validation_warnings']) + list(result['conflict_warnings'])
+
+    if not input_data.allow_warning_draft:
+        return {
+            "status": "INFEASIBLE",
+            "shifts": {},
+            "score": 0,
+            "warnings": base_warnings,
+            "violations": violations,
+            "message": "条件を満たす自動生成ができませんでした。下記の違反箇所をご確認のうえ、固定セルや希望休、人員設定を見直してください。"
+        }
+
+    if diag_result['final_values'] is None:
+        # 診断モデルでも解が求まらない極めて稀なケース（固定セル同士が構造的に矛盾等）
+        return {
+            "status": "INFEASIBLE",
+            "shifts": {},
+            "score": 0,
+            "warnings": base_warnings,
+            "violations": violations,
+            "message": "警告付き仮シフトも作成できませんでした。固定セルの組み合わせ自体に矛盾がある可能性があります。"
+        }
+
+    draft_shifts, draft_warnings = _build_shifts_and_warnings(diag_result)
     return {
-        "status": status_str,
-        "shifts": result_shifts,
-        "score": 100 if len(warnings) == 0 else 80,
-        "warnings": warnings,
-        "message": warnings[0] if warnings else None,
-        "phase1_status": solver.StatusName(phase1_status),
-        "phase2_status": solver.StatusName(phase2_status) if phase2_status is not None else None
+        "status": "FEASIBLE_WITH_WARNINGS",
+        "shifts": draft_shifts,
+        "score": 30,
+        "warnings": draft_warnings,
+        "violations": violations,
+        "is_warning_draft": True,
+        "message": "⚠️ これは警告付き仮シフトです。下記の違反箇所が解消されていません。内容を確認のうえご利用ください。",
+        "phase1_status": diag_result['solver'].StatusName(diag_result['phase1_status']),
+        "phase2_status": diag_result['solver'].StatusName(diag_result['phase2_status']) if diag_result['phase2_status'] is not None else None
     }

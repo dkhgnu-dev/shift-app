@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2, Menu, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
+import { computeHourChange, computeMinuteChange, formatTime, isValidSpecialHours } from './timeUtils';
 
 const SHIFT_MASTER = {
     '①': '8:15～12:15', '②': '8:15～14:15', '③': '8:15～16:15',
@@ -87,20 +88,15 @@ const INITIAL_DATA = [
 // 営業終了時刻として24:00を保持できるようにする（24を0に丸め込まない）。
 function TimePicker({ value, onChange }) {
     const [h, m] = (value && value.includes(':')) ? value.split(':').map(Number) : [9, 0];
-    const MAX_HOUR = 24;
     const setH = (nh) => {
-        const nnh = Math.max(0, Math.min(MAX_HOUR, nh));
-        const nnm = nnh === MAX_HOUR ? 0 : m; // 24:00固定（24:30等は存在しない）
-        onChange(`${String(nnh).padStart(2, '0')}:${String(nnm).padStart(2, '0')}`);
+        const next = computeHourChange(m, nh);
+        onChange(formatTime(next.h, next.m));
     };
     const setM = (nm) => {
-        if (h === MAX_HOUR) return; // 24:00の分は固定
-        let nnh = h, nnm = nm;
-        if (nnm >= 60) { nnm -= 60; nnh = Math.min(MAX_HOUR, nnh + 1); if (nnh === MAX_HOUR) nnm = 0; }
-        if (nnm < 0) { nnm += 60; nnh = Math.max(0, nnh - 1); }
-        onChange(`${String(nnh).padStart(2, '0')}:${String(nnm).padStart(2, '0')}`);
+        const next = computeMinuteChange(h, nm);
+        onChange(formatTime(next.h, next.m));
     };
-    const HOUR_OPTIONS = Array.from({ length: 19 }, (_, i) => i + 6); // 6時～24時
+    const HOUR_OPTIONS = Array.from({ length: 19 }, (_, i) => i + 6); // 6時～24時(MAX_TIME_PICKER_HOUR)
     const MIN_OPTIONS = [0, 15, 30, 45];
 
     return (
@@ -137,6 +133,8 @@ export default function App() {
     const [employees, setEmployees] = useState(() => safeParse(localStorage.getItem('shift_employees'), INITIAL_DATA));
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedResult, setGeneratedResult] = useState(() => safeParse(localStorage.getItem('shift_generatedResult'), null));
+    // INFEASIBLE時(通常出力を停止した場合)の違反一覧。表は更新せず、この情報だけを表示する。
+    const [infeasibleInfo, setInfeasibleInfo] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [editingIndex, setEditingIndex] = useState(null);
 
@@ -423,9 +421,9 @@ export default function App() {
         return allRequestsOff;
     };
 
-    const generateShift = async () => {
+    const generateShift = async (allowWarningDraft = false) => {
         setIsGenerating(true);
-        setGeneratedResult(null);
+        if (!allowWarningDraft) setGeneratedResult(null);
 
         try {
             const periodDatesForSubmit = getPeriodDates(currentYear, currentMonth);
@@ -445,7 +443,8 @@ export default function App() {
                 thick_staffing_days: thickDays,
                 weekday_ranks: weekdayRanks,
                 weekday_min_staff: weekdayMinStaff,
-                fixed_assignments: []
+                fixed_assignments: [],
+                allow_warning_draft: allowWarningDraft
             };
 
             const res = await fetch(API_URL, {
@@ -456,7 +455,12 @@ export default function App() {
 
             const data = await res.json();
 
-            if (res.ok && (data.status === "SUCCESS" || data.status === "FEASIBLE_WITH_WARNINGS")) {
+            if (res.ok && data.status === "INFEASIBLE") {
+                // Kazumax確定仕様: 通常出力は停止し、現在の表は更新しない。
+                // 違反箇所を提示し、利用者が明示選択した場合のみ警告付き仮シフトを表示する。
+                setInfeasibleInfo({ violations: data.violations || [], message: data.message, retry: () => generateShift(true) });
+            } else if (res.ok && (data.status === "SUCCESS" || data.status === "FEASIBLE_WITH_WARNINGS")) {
+                setInfeasibleInfo(null);
                 const newMatrix = employees.map((emp, idx) => {
                     const empShifts = data.shifts[`emp_${idx}`] || [];
                     return empShifts.map(s => ({ shift: s, isError: false, isFixed: false }));
@@ -464,7 +468,9 @@ export default function App() {
                 setGeneratedResult({
                     matrix: newMatrix,
                     hasError: data.status === "FEASIBLE_WITH_WARNINGS",
-                    warnings: data.warnings || []
+                    warnings: data.warnings || [],
+                    isWarningDraft: !!data.is_warning_draft,
+                    violations: data.violations || []
                 });
             } else {
                 alert("シフト生成に失敗しました: \n" + (data.detail || data.message || "制約が厳しすぎるため解が見つかりませんでした。希望休や登録販売者の数を見直してください。"));
@@ -478,7 +484,7 @@ export default function App() {
 
     // 「空欄自動作成」: 既に値が入っているセル(手動編集/前回生成結果)はそのまま固定し、
     // 空欄セルのみをバックエンドへ送って穴埋めする
-    const fillBlanks = async () => {
+    const fillBlanks = async (allowWarningDraft = false) => {
         if (!generatedResult) return;
         setIsGenerating(true);
 
@@ -516,7 +522,8 @@ export default function App() {
                 thick_staffing_days: thickDays,
                 weekday_ranks: weekdayRanks,
                 weekday_min_staff: weekdayMinStaff,
-                fixed_assignments: fixedAssignments
+                fixed_assignments: fixedAssignments,
+                allow_warning_draft: allowWarningDraft
             };
 
             const res = await fetch(API_URL, {
@@ -527,7 +534,11 @@ export default function App() {
 
             const data = await res.json();
 
-            if (res.ok && (data.status === "SUCCESS" || data.status === "FEASIBLE_WITH_WARNINGS")) {
+            if (res.ok && data.status === "INFEASIBLE") {
+                // 通常出力は停止し、現在の表(保護セルを含む)は一切変更しない。
+                setInfeasibleInfo({ violations: data.violations || [], message: data.message, retry: () => fillBlanks(true) });
+            } else if (res.ok && (data.status === "SUCCESS" || data.status === "FEASIBLE_WITH_WARNINGS")) {
+                setInfeasibleInfo(null);
                 const newMatrix = employees.map((emp, idx) => {
                     const empShifts = data.shifts[`emp_${idx}`] || [];
                     return generatedResult.matrix[idx].map((cell, d) => {
@@ -539,7 +550,9 @@ export default function App() {
                 setGeneratedResult({
                     matrix: newMatrix,
                     hasError: data.status === "FEASIBLE_WITH_WARNINGS",
-                    warnings: data.warnings || []
+                    warnings: data.warnings || [],
+                    isWarningDraft: !!data.is_warning_draft,
+                    violations: data.violations || []
                 });
             } else {
                 alert("空欄自動作成に失敗しました: \n" + (data.detail || data.message || "制約が厳しすぎるため解が見つかりませんでした。"));
@@ -582,13 +595,12 @@ export default function App() {
     const applySpecialHours = () => {
         if (!specialHoursModal) return;
         const { i, d, hours } = specialHoursModal;
-        const parsed = parseFloat(hours);
-        if (!Number.isFinite(parsed) || parsed < 0 || parsed > 24) {
+        if (!isValidSpecialHours(hours)) {
             alert('勤務時間は0〜24の範囲の数値で入力してください。');
             return;
         }
         const newMatrix = [...generatedResult.matrix];
-        newMatrix[i][d] = { ...newMatrix[i][d], hours: parsed };
+        newMatrix[i][d] = { ...newMatrix[i][d], hours: parseFloat(hours) };
         setGeneratedResult({ ...generatedResult, matrix: newMatrix });
         setSpecialHoursModal(null);
     };
@@ -698,7 +710,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.13</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.14</span></div>
                 </div>
             )}
 
@@ -709,7 +721,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.13</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.14</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -738,17 +750,35 @@ export default function App() {
                             </div>
                             <div style={{display: 'flex', gap: '8px'}}>
                                 {generatedResult && (
-                                    <button className="btn outline" onClick={fillBlanks} disabled={isGenerating}>
+                                    <button className="btn outline" onClick={() => fillBlanks()} disabled={isGenerating}>
                                         <Wand2 size={16}/> 空欄自動作成
                                     </button>
                                 )}
-                                <button className="btn" onClick={generateShift} disabled={isGenerating}>
+                                <button className="btn" onClick={() => generateShift()} disabled={isGenerating}>
                                     <Wand2 size={16}/> 最適化シフトを生成
                                 </button>
                             </div>
                         </div>
 
-                        {!generatedResult && !isGenerating && (
+                        {infeasibleInfo && (
+                            <div className="infeasible-panel" style={{marginBottom: '16px'}}>
+                                <div className="infeasible-title"><AlertCircle size={18}/> 自動生成を停止しました（条件を満たせませんでした）</div>
+                                <div style={{fontSize: '0.9rem', marginTop: '4px', marginBottom: '8px'}}>{infeasibleInfo.message}</div>
+                                <ul style={{margin: '8px 0', paddingLeft: '20px'}}>
+                                    {infeasibleInfo.violations.map((v, vIdx) => (
+                                        <li key={vIdx} style={{fontSize: '0.85rem', marginBottom: '4px'}}>{v}</li>
+                                    ))}
+                                </ul>
+                                <div style={{display: 'flex', gap: '8px', marginTop: '12px'}}>
+                                    <button className="btn outline" onClick={() => setInfeasibleInfo(null)}>閉じる</button>
+                                    <button className="btn danger" onClick={() => { const retry = infeasibleInfo.retry; setInfeasibleInfo(null); retry(); }} disabled={isGenerating}>
+                                        違反一覧を確認のうえ、警告付き仮シフトを表示する
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {!generatedResult && !isGenerating && !infeasibleInfo && (
                             <div className="glass-card" style={{textAlign: 'center', padding: '80px 20px'}}>
                                 <Calendar size={48} color="#CBD5E1" style={{marginBottom:'16px'}}/>
                                 <h2 style={{color: 'var(--text-sub)', fontWeight: 500}}>右上のボタンからシフトを生成してください</h2>
@@ -757,6 +787,17 @@ export default function App() {
 
                         {generatedResult && (
                             <>
+                                {generatedResult.isWarningDraft && (
+                                    <div className="infeasible-panel" style={{marginBottom: '16px'}}>
+                                        <div className="infeasible-title"><AlertCircle size={18}/> ⚠️ これは警告付き仮シフトです（未確定・条件未達あり）</div>
+                                        <div style={{fontSize: '0.85rem', marginTop: '4px', marginBottom: '8px'}}>以下の条件が満たされていません。内容を確認のうえご利用ください。固定セル・希望休は変更していません。</div>
+                                        <ul style={{margin: '8px 0', paddingLeft: '20px'}}>
+                                            {(generatedResult.violations || []).map((v, vIdx) => (
+                                                <li key={vIdx} style={{fontSize: '0.85rem', marginBottom: '4px'}}>{v}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
                                 {generatedResult.hasError && generatedResult.warnings && generatedResult.warnings.length > 0 && (
                                     <div className="warning-panel" style={{display: 'block', marginBottom: '16px'}}>
                                         <div className="warning-title"><AlertCircle size={18}/> 【AIシフト作成・自動診断アドバイス】</div>
@@ -767,7 +808,7 @@ export default function App() {
                                         ))}
                                     </div>
                                 )}
-                                
+
                                 <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '16px'}}>
                                     <button className="btn outline" onClick={() => setIsMobileView(!isMobileView)}>
                                         {isMobileView ? '💻 PCビューで表示' : '📱 スマホビューで表示'}

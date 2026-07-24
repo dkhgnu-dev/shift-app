@@ -37,3 +37,4 @@ class ShiftInput(BaseModel):
     weekday_ranks: Optional[dict] = None  # 例: {"6": 1, "5": 2, "0": 7} (1位が最優先、7位が最低)
     weekday_min_staff: Optional[dict] = None   # 例: {"6": 5, "5": 4, "0": 3} (曜日別の最低出勤人数。0または未設定=制限なし)
     fixed_assignments: List[FixedAssignment] = []  # 「空欄自動作成」用: 既に手動入力済みのセルを固定条件として渡す
+    allow_warning_draft: bool = False  # true時のみ、INFEASIBLE時に違反一覧付きの警告仮シフトを返す（false時は表を返さない）

@@ -65,6 +65,10 @@ body {
 .warning-msg { font-weight: 600; color: #991B1B; margin-bottom: 6px; font-size: 0.95rem; }
 .suggestion-box { background: #F8FAFC; padding: 10px; border-radius: 6px; font-size: 0.85rem; border: 1px dashed #CBD5E1; display: flex; justify-content: space-between; align-items: center;}
 
+/* INFEASIBLE時の停止パネル・警告付き仮シフトのバナー（通常の完成シフトと明確に区別する） */
+.infeasible-panel { background: repeating-linear-gradient(135deg, #FEF2F2, #FEF2F2 10px, #FEE2E2 10px, #FEE2E2 20px); border: 2px dashed var(--danger); border-radius: 8px; padding: 16px; }
+.infeasible-title { color: #991B1B; font-weight: 700; display: flex; align-items: center; gap: 8px; font-size: 1rem; }
+
 .table-container { width: 100%; overflow-x: auto; border: 1px solid #E5E7EB; border-radius: 8px; background: white; scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
 .table-container::-webkit-scrollbar { height: 8px; }
 .table-container::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 4px; }

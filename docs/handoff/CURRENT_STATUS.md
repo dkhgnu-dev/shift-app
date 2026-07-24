@@ -11,8 +11,8 @@
 ## Current State
 
 - Cycle: 2
-- Status: DexがCycle 2 Take2 P4再レビューを完了し、Take3差し戻し。INFEASIBLE時にハード制約違反の仮表をFEASIBLEとして返すBlockerが残る。
-- Next: Kazumax確定仕様（INFEASIBLE時は通常停止し、利用者選択時のみ違反一覧付き仮シフト／公休・希望休は全計算で休み／有休は出勤日数・勤務時間のみ勤務扱い）に従い、CCがTake3修正。差し戻し: `docs/handoff/P4_Rollback/cycle_2_review_take3.md`
+- Status: Kazumax確定仕様（INFEASIBLE時は通常停止＋利用者選択時のみ警告仮シフト／公休・希望休は全計算で休み／有休は出勤日数・勤務時間のみ勤務扱い）に従い、CCがTake3修正を完了しair-cc-devへpush済み（v4.13 -> v4.14）。Dexへ再レビュー依頼(P4)済み。
+- Next: Dex再レビュー待ち。Take3完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report_take3.md` / 再レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_take3_request.md`
 
 ## Read First
 
@@ -20,10 +20,9 @@
 - `docs/handoff/CURRENT_STATUS.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- 今回の指示書: `docs/handoff/P4_Rollback/cycle_2_review_take2.md`
-- Take2完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report_take2.md`
-- Take2再レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_take2_request.md`
-- Take3差し戻し: `docs/handoff/P4_Rollback/cycle_2_review_take3.md`
+- 今回の指示書: `docs/handoff/P4_Rollback/cycle_2_review_take3.md`
+- Take3完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report_take3.md`
+- Take3再レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_take3_request.md`
 - バックログ: `docs/BACKLOG.md`
 
 ## Stop Conditions
