@@ -1449,7 +1449,7 @@ export default function App() {
                 </div>
             )}
 
-            {isNarrowViewport && (
+            {isNarrowViewport && (activeTab === 'dashboard' || activeTab === 'employees') && (
                 <div className="mobile-bottom-bar">
                     {renderActions()}
                 </div>

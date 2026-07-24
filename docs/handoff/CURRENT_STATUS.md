@@ -11,8 +11,8 @@
 ## Current State
 
 - Cycle: 3
-- Status: Kazumaxより「Cycle 2+3をair-cc-devで一括P4/P5統合する」方針の明示承認を獲得。AirがDexのP2 Take 2レビューをクリアするため、制御文字を完全除去し独立コミットを実施。
-- Next: Airが特例P3としてスマホ版UI/UX最適化を実装する。Cycle 3 P3後にDexが全差分をP4し、OK後にDexがmainへ一括P5する。
+- Status: P3完了。スマホ版UI/UX最適化（Take 2）を実装し、375px等での設定画面の空ボトムバー非表示化、および実画面検証結果の記録を行いました。
+- Next: DexによるP4 Take 2の再レビュー待ち。OKが出れば一括P5（origin/mainへのマージ）を実施。
 
 ## Read First
 
