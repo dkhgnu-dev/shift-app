@@ -11,8 +11,8 @@
 ## Current State
 
 - Cycle: 2
-- Status: Airの無断コード修正をキャンセル（revert）完了。マニュアルへの「Air直接実装の原則禁止＆指示書と壁打ちの混同防止」ルールを追記・同期済み。CC向けにタイムピッカーハイブリッド化＆☀️/🌙鍵持ちアイコン表示のP2指示書を作成完了
-- Next: CCが `air-cc-dev` ブランチ上で `docs/handoff/P2_AirCrew_to_CC/cycle_2_ui_enhancements_instructions.md` に従って実装(P3)・検証・プッシュを行う
+- Status: CCがタイムピッカーハイブリッド化＆☀️/🌙鍵持ちアイコン表示を実装完了、air-cc-devへpush済み（v4.15 -> v4.16）。ローカルbackend/frontendでブラウザ実機検証済み。
+- Next: Air/エアクルーによるレビュー待ち。完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_report.md`
 
 ## Read First
 
@@ -21,6 +21,7 @@
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
 - 今回の指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_2_ui_enhancements_instructions.md`
+- 完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_report.md`
 - バックログ: `docs/BACKLOG.md`
 
 ## Stop Conditions

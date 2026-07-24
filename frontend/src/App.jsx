@@ -86,8 +86,13 @@ const INITIAL_DATA = [
 
 // ぽちぽちタイムピッカー: ▲▼刻み調整 + 時/分の数字タップで手打ち不要に設定
 // 営業終了時刻として24:00を保持できるようにする（24を0に丸め込まない）。
+// ぽちぽち矢印 ＋ タップでキーボード直打ちのハイブリッドタイムピッカー。
+// 数字ボタン群は廃止し、.time-picker-value をタップするとinputに切り替わる。
 function TimePicker({ value, onChange }) {
     const [h, m] = (value && value.includes(':')) ? value.split(':').map(Number) : [9, 0];
+    const [editingField, setEditingField] = useState(null); // 'h' | 'm' | null
+    const [editingText, setEditingText] = useState('');
+
     const setH = (nh) => {
         const next = computeHourChange(m, nh);
         onChange(formatTime(next.h, next.m));
@@ -96,33 +101,67 @@ function TimePicker({ value, onChange }) {
         const next = computeMinuteChange(h, nm);
         onChange(formatTime(next.h, next.m));
     };
-    const HOUR_OPTIONS = Array.from({ length: 19 }, (_, i) => i + 6); // 6時～24時(MAX_TIME_PICKER_HOUR)
-    const MIN_OPTIONS = [0, 15, 30, 45];
+
+    const startEditing = (field, currentValue) => {
+        setEditingField(field);
+        setEditingText(String(currentValue).padStart(2, '0'));
+    };
+    const commitEditing = () => {
+        if (editingField === null) return;
+        const n = parseInt(editingText, 10);
+        if (!isNaN(n)) {
+            if (editingField === 'h') setH(n);
+            else setM(n);
+        }
+        setEditingField(null);
+        setEditingText('');
+    };
+    const cancelEditing = () => {
+        setEditingField(null);
+        setEditingText('');
+    };
+
+    const renderValueOrInput = (field, current) => {
+        if (editingField === field) {
+            return (
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={2}
+                    autoFocus
+                    className="time-picker-input"
+                    value={editingText}
+                    onChange={e => setEditingText(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+                    onBlur={commitEditing}
+                    onKeyDown={e => {
+                        if (e.key === 'Enter') { e.preventDefault(); commitEditing(); }
+                        if (e.key === 'Escape') { e.preventDefault(); cancelEditing(); }
+                    }}
+                    onClick={e => e.target.select()}
+                />
+            );
+        }
+        return (
+            <div className="time-picker-value" onClick={() => startEditing(field, current)} title="タップして数字を直接入力">
+                {String(current).padStart(2, '0')}
+            </div>
+        );
+    };
 
     return (
         <div className="time-picker">
             <div className="time-picker-display">
                 <div className="time-picker-col">
                     <button type="button" className="time-picker-step" onClick={() => setH(h + 1)}><ArrowUp size={14} /></button>
-                    <div className="time-picker-value">{String(h).padStart(2, '0')}</div>
+                    {renderValueOrInput('h', h)}
                     <button type="button" className="time-picker-step" onClick={() => setH(h - 1)}><ArrowDown size={14} /></button>
                 </div>
                 <div className="time-picker-colon">:</div>
                 <div className="time-picker-col">
-                    <button type="button" className="time-picker-step" onClick={() => setM(m + 30)}><ArrowUp size={14} /></button>
-                    <div className="time-picker-value">{String(m).padStart(2, '0')}</div>
-                    <button type="button" className="time-picker-step" onClick={() => setM(m - 30)}><ArrowDown size={14} /></button>
+                    <button type="button" className="time-picker-step" onClick={() => setM(m + 15)}><ArrowUp size={14} /></button>
+                    {renderValueOrInput('m', m)}
+                    <button type="button" className="time-picker-step" onClick={() => setM(m - 15)}><ArrowDown size={14} /></button>
                 </div>
-            </div>
-            <div className="time-picker-quick-row">
-                {HOUR_OPTIONS.map(ho => (
-                    <button type="button" key={ho} className={`time-picker-tap ${h === ho ? 'active' : ''}`} onClick={() => setH(ho)}>{ho}</button>
-                ))}
-            </div>
-            <div className="time-picker-quick-row">
-                {MIN_OPTIONS.map(mo => (
-                    <button type="button" key={mo} className={`time-picker-tap ${m === mo ? 'active' : ''}`} onClick={() => setM(mo)}>{String(mo).padStart(2, '0')}</button>
-                ))}
             </div>
         </div>
     );
@@ -677,15 +716,32 @@ export default function App() {
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
     const dayAnalyses = generatedResult ? periodDates.map((_, d) => analyzeDay(d)) : [];
 
-    const renderCellNode = (cell) => {
-        if (!cell || !cell.shift) return <>－</>;
-        if (cell.shift === '休' || SPECIAL_OFF_LIKE.has(cell.shift)) return <>{cell.shift === '休' ? '休' : cell.shift}</>;
+    // 鍵持ちアイコン: 朝一番の開錠担当は☀️(オレンジ)、夜最後の施錠担当は🌙(パープル)。
+    // 両方兼ねる日は☀️🌙を表示する。
+    const keyHolderIcon = (empIdx, d) => {
+        const da = dayAnalyses[d];
+        if (!da) return null;
+        const isOpener = da.openerIdx.includes(empIdx);
+        const isCloser = da.closerIdx.includes(empIdx);
+        if (!isOpener && !isCloser) return null;
+        return (
+            <div style={{fontSize: '0.75rem', lineHeight: 1}}>
+                {isOpener && <span style={{color: '#EA580C'}}>☀️</span>}
+                {isCloser && <span style={{color: '#7C3AED'}}>🌙</span>}
+            </div>
+        );
+    };
+
+    const renderCellNode = (cell, empIdx, d) => {
+        const icon = keyHolderIcon(empIdx, d);
+        if (!cell || !cell.shift) return <>{icon}－</>;
+        if (cell.shift === '休' || SPECIAL_OFF_LIKE.has(cell.shift)) return <>{icon}{cell.shift === '休' ? '休' : cell.shift}</>;
         if (SPECIAL_SHIFTS.includes(cell.shift)) {
-            return <>{cell.shift}<br />{cell.hours ?? DEFAULT_SPECIAL_HOURS}h</>;
+            return <>{icon}{cell.shift}<br />{cell.hours ?? DEFAULT_SPECIAL_HOURS}h</>;
         }
         const shiftText = shiftMaster[cell.shift] || cell.shift;
         const lines = shiftText.includes('～') ? shiftText.split('～') : [shiftText];
-        return lines.length === 2 ? <>{lines[0]}<br />~{lines[1]}</> : <>{cell.shift}</>;
+        return lines.length === 2 ? <>{icon}{lines[0]}<br />~{lines[1]}</> : <>{icon}{cell.shift}</>;
     };
 
     const cellClassName = (emp, cell, empIdx, d) => {
@@ -713,7 +769,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.15</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.16</span></div>
                 </div>
             )}
 
@@ -724,7 +780,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.15</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.16</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -854,7 +910,7 @@ export default function App() {
                                                         </div>
                                                         <div style={{width: '60px', position: 'relative'}}>
                                                             <div className={cssClass} style={{ pointerEvents: 'none', textAlign: 'center', fontSize: '0.8rem', padding: '6px', borderRadius: '4px', lineHeight: '1.2' }}>
-                                                                {renderCellNode(cell)}
+                                                                {renderCellNode(cell, i, selectedDateIndex)}
                                                             </div>
                                                             <select
                                                                 value={cell.shift || ''}
@@ -930,7 +986,7 @@ export default function App() {
                                                                 return (
                                                                     <td key={d} style={{position: 'relative', width: '50px'}}>
                                                                         <div className={cssClass} style={{ pointerEvents: 'none', textAlign: 'center', fontSize: '0.75rem', padding: '4px', borderRadius: '4px', lineHeight: '1.2', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                                                                            {renderCellNode(cell)}
+                                                                            {renderCellNode(cell, i, d)}
                                                                         </div>
                                                                         <select
                                                                             value={cell.shift || ''}
