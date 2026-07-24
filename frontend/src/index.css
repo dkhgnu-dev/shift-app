@@ -110,6 +110,7 @@ th:first-child { z-index: 3; }
 .time-picker-value:hover { background: #EEF2FF; }
 .time-picker-step { background: white; border: 1px solid #D1D5DB; border-radius: 4px; width: 26px; height: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--primary); padding: 0; }
 .time-picker-step:hover { background: #EEF2FF; }
+.time-picker-step:disabled { opacity: 0.35; cursor: not-allowed; background: white; }
 .time-picker-input { font-size: 1.1rem; font-weight: 700; color: var(--primary); min-width: 56px; width: 60px; text-align: center; border: 1px solid var(--primary); border-radius: 4px; padding: 1px 2px; }
 .time-picker-input:focus { outline: none; box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15); }
 

@@ -88,6 +88,11 @@ const INITIAL_DATA = [
 // 営業終了時刻として24:00を保持できるようにする（24を0に丸め込まない）。
 // 矢印は従来通り時±1・分±15の個別ステップを維持し、中央表示だけを
 // 単一のinputに切り替えて「0930」「1500」等の4桁直接入力を受け付ける(Cycle2 Take2)。
+// 編集中(isEditing)は矢印ボタンをdisabledにする。理由(Cycle2 Take3):
+// 編集中に矢印を押すと、blurで確定した入力値を、旧h/mを基準にした矢印の
+// setH/setMが上書きしてしまう競合があった(Dex Take2差戻し)。disabledのボタンは
+// クリックイベント自体を発火しない(フォーカスも奪わない)ため、
+// 「編集完了(Enter/blur/Escape)してから矢印を押す」という順序を構造的に強制する。
 function TimePicker({ value, onChange }) {
     const [h, m] = (value && value.includes(':')) ? value.split(':').map(Number) : [9, 0];
     const [isEditing, setIsEditing] = useState(false);
@@ -125,8 +130,8 @@ function TimePicker({ value, onChange }) {
         <div className="time-picker">
             <div className="time-picker-display">
                 <div className="time-picker-col">
-                    <button type="button" className="time-picker-step" onClick={() => setH(h + 1)}><ArrowUp size={14} /></button>
-                    <button type="button" className="time-picker-step" onClick={() => setH(h - 1)}><ArrowDown size={14} /></button>
+                    <button type="button" className="time-picker-step" disabled={isEditing} onClick={() => setH(h + 1)}><ArrowUp size={14} /></button>
+                    <button type="button" className="time-picker-step" disabled={isEditing} onClick={() => setH(h - 1)}><ArrowDown size={14} /></button>
                 </div>
                 {isEditing ? (
                     <input
@@ -150,8 +155,8 @@ function TimePicker({ value, onChange }) {
                     </div>
                 )}
                 <div className="time-picker-col">
-                    <button type="button" className="time-picker-step" onClick={() => setM(m + 15)}><ArrowUp size={14} /></button>
-                    <button type="button" className="time-picker-step" onClick={() => setM(m - 15)}><ArrowDown size={14} /></button>
+                    <button type="button" className="time-picker-step" disabled={isEditing} onClick={() => setM(m + 15)}><ArrowUp size={14} /></button>
+                    <button type="button" className="time-picker-step" disabled={isEditing} onClick={() => setM(m - 15)}><ArrowDown size={14} /></button>
                 </div>
             </div>
         </div>

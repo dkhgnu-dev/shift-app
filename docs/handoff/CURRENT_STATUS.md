@@ -1,32 +1,35 @@
-# CURRENT_STATUS - 友達シフト
+﻿# CURRENT_STATUS - 友達シフト
 
 ## Project
 
 - Name: 友達シフト
 - Repository: dkhgnu-dev/shift-app
-- Working Branch: `air-cc-dev` （※mainへの衝突防止のため専用ブランチで運用中）
+- Working Branch: air-cc-dev （※mainへの衝突防止のため専用ブランチで運用中）
 - Main agent: Air / CC / エアクルー（Air Crew）
-- External reviewer: Dex（復帰）※実装完了ごとにDexへレビュー依頼する通常運用
+- External reviewer: エアクルー (Air Crew) ※Dex制限中の代用
 
 ## Current State
 
-- Cycle: 2
-- P4 Review: NG for UI Take2 at `9e5126c`. Take3 must resolve the TimePicker blur-versus-arrow stale-value race and verify Enter/blur/Escape UI behavior.
-- P4 Review: NG for UI enhancements at `99af37d`（Take1）。Take2で4桁直接入力（`0930`->`09:30`、`1500`->`15:00`）を実装し、`e05231a`としてair-cc-devへpush済み。
-- Status: CCがTimePickerの4桁直接入力（Take2）を実装・push済み。`node test_time_utils.mjs`とビルドは成功。ただしこのセッションのBrowserペインが別プロジェクトのdevサーバー設定に固定されており、**ブラウザ実機確認は未実施**のままDexレビューに回している。
-- Next: Dexへ再レビュー依頼済み（対象HEAD: `e05231a`、実機未確認の旨を明記）。Dex(P4)OK後、Dex(P5)がmainへmerge・pushする。
-- 完了報告(Take2): `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_take2_report.md` / レビュー依頼(Take2): `docs/handoff/P4_CC_to_Dex/cycle_2_ui_enhancements_take2_review_request.md`
+- Cycle: 3（並行してCycle 2 Take3のレビュー待ちあり、下記参照）
+- Status: Airがスマホ版レイアウト崩れの原因（App.jsxのインラインスタイル優先）を特定し、CC向けの実装指示書（P2）を作成完了。
+- Next: CCによるレイアウト修正（P3）待ち。
+
+### Cycle 2 Take3（TimePicker競合修正、Dexレビュー待ち）
+
+- P4 Review: NG for UI Take2 at `9e5126c`。Take3で「編集中は矢印をdisabledにする」方針で競合を解消し、push済み（対象HEADはpush後に追記）。
+- 完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_take3_report.md`
+- レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_ui_enhancements_take3_review_request.md`
+- 注意: Take2・Take3ともこのセッションのBrowserペインが別プロジェクト設定に固定されブラウザ実機確認ができていない。
 
 ## Read First
 
-- `AGENTS.md`
-- `docs/handoff/CURRENT_STATUS.md`
-- `docs/PROJECT_RULES.md`
-- `docs/handoff/WORKFLOW_RULES.md`
-- 今回の指示書: `docs/handoff/P4_Rollback/cycle_2_ui_enhancements_review.md`（Take2必須修正）
-- 完了報告(Take2): `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_take2_report.md`
-- レビュー依頼(Take2): `docs/handoff/P4_CC_to_Dex/cycle_2_ui_enhancements_take2_review_request.md`
-- バックログ: `docs/BACKLOG.md`
+- AGENTS.md
+- docs/handoff/CURRENT_STATUS.md
+- docs/PROJECT_RULES.md
+- docs/handoff/WORKFLOW_RULES.md
+- 今回の指示書: docs/handoff/P2_AirCrew_to_CC/cycle_3_mobile_layout_fix.md
+- Cycle 2 Take3レビュー待ち: docs/handoff/P4_CC_to_Dex/cycle_2_ui_enhancements_take3_review_request.md
+- バックログ: docs/BACKLOG.md
 
 ## Stop Conditions
 
@@ -36,4 +39,4 @@
 - シフト自動生成ロジックを大きく変える
 - 既存の画面やAPIを広範囲に変更する
 - Git conflictが出た
-- `.env`、パスワード、個人情報、本物データを扱う
+- .env、パスワード、個人情報、本物データを扱う
