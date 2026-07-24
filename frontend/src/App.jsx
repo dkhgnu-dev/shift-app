@@ -677,15 +677,24 @@ export default function App() {
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
     const dayAnalyses = generatedResult ? periodDates.map((_, d) => analyzeDay(d)) : [];
 
-    const renderCellNode = (cell) => {
+    const renderCellNode = (cell, emp, empIdx, d) => {
         if (!cell || !cell.shift) return <>－</>;
-        if (cell.shift === '休' || SPECIAL_OFF_LIKE.has(cell.shift)) return <>{cell.shift === '休' ? '休' : cell.shift}</>;
+        const da = dayAnalyses[d];
+        const isOpener = da && da.openerIdx.includes(empIdx);
+        const isCloser = da && da.closerIdx.includes(empIdx);
+
+        let keyBadge = null;
+        if (isOpener && isCloser) keyBadge = <span className="key-icon-badge dual" title="朝鍵・夜鍵担当">☀️🌙</span>;
+        else if (isOpener) keyBadge = <span className="key-icon-badge sun" title="朝鍵担当 (開錠)">☀️</span>;
+        else if (isCloser) keyBadge = <span className="key-icon-badge moon" title="夜鍵担当 (施錠)">🌙</span>;
+
+        if (cell.shift === '休' || SPECIAL_OFF_LIKE.has(cell.shift)) return <>{cell.shift === '休' ? '休' : cell.shift}{keyBadge}</>;
         if (SPECIAL_SHIFTS.includes(cell.shift)) {
-            return <>{cell.shift}<br />{cell.hours ?? DEFAULT_SPECIAL_HOURS}h</>;
+            return <>{cell.shift}<br />{cell.hours ?? DEFAULT_SPECIAL_HOURS}h{keyBadge}</>;
         }
         const shiftText = shiftMaster[cell.shift] || cell.shift;
         const lines = shiftText.includes('～') ? shiftText.split('～') : [shiftText];
-        return lines.length === 2 ? <>{lines[0]}<br />~{lines[1]}</> : <>{cell.shift}</>;
+        return lines.length === 2 ? <>{lines[0]}<br />~{lines[1]}{keyBadge}</> : <>{cell.shift}{keyBadge}</>;
     };
 
     const cellClassName = (emp, cell, empIdx, d) => {
@@ -854,7 +863,7 @@ export default function App() {
                                                         </div>
                                                         <div style={{width: '60px', position: 'relative'}}>
                                                             <div className={cssClass} style={{ pointerEvents: 'none', textAlign: 'center', fontSize: '0.8rem', padding: '6px', borderRadius: '4px', lineHeight: '1.2' }}>
-                                                                {renderCellNode(cell)}
+                                                                {renderCellNode(cell, emp, i, selectedDateIndex)}
                                                             </div>
                                                             <select
                                                                 value={cell.shift || ''}
@@ -930,7 +939,7 @@ export default function App() {
                                                                 return (
                                                                     <td key={d} style={{position: 'relative', width: '50px'}}>
                                                                         <div className={cssClass} style={{ pointerEvents: 'none', textAlign: 'center', fontSize: '0.75rem', padding: '4px', borderRadius: '4px', lineHeight: '1.2', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                                                                            {renderCellNode(cell)}
+                                                                            {renderCellNode(cell, emp, i, d)}
                                                                         </div>
                                                                         <select
                                                                             value={cell.shift || ''}
