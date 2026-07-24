@@ -93,7 +93,7 @@ const INITIAL_DATA = [
 // setH/setMが上書きしてしまう競合があった(Dex Take2差戻し)。disabledのボタンは
 // クリックイベント自体を発火しない(フォーカスも奪わない)ため、
 // 「編集完了(Enter/blur/Escape)してから矢印を押す」という順序を構造的に強制する。
-function TimePicker({ value, onChange }) {
+export function TimePicker({ value, onChange }) {
     const [h, m] = (value && value.includes(':')) ? value.split(':').map(Number) : [9, 0];
     const [isEditing, setIsEditing] = useState(false);
     const [editingText, setEditingText] = useState('');
