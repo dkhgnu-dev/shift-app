@@ -11,9 +11,9 @@
 ## Current State
 
 - Cycle: 2
-- P4 Review: NG for UI enhancements at `99af37d`（Take1）。Take2で4桁直接入力（`0930`->`09:30`、`1500`->`15:00`）を実装済み。
-- Status: CCがTimePickerの4桁直接入力（Take2）を実装。`node test_time_utils.mjs`とビルドは成功。**未commit/未push**（このセッションのBrowserペインが別プロジェクトのdevサーバー設定に固定され実機確認ができなかったため、Dex/Kazumax確認を経てからpushする方針）。
-- Next: Dexへ再レビュー依頼済み（実機未確認の旨を明記）。Dex/Kazumaxの確認後、commit・pushしてCURRENT_STATUSを更新する。
+- P4 Review: NG for UI enhancements at `99af37d`（Take1）。Take2で4桁直接入力（`0930`->`09:30`、`1500`->`15:00`）を実装し、`e05231a`としてair-cc-devへpush済み。
+- Status: CCがTimePickerの4桁直接入力（Take2）を実装・push済み。`node test_time_utils.mjs`とビルドは成功。ただしこのセッションのBrowserペインが別プロジェクトのdevサーバー設定に固定されており、**ブラウザ実機確認は未実施**のままDexレビューに回している。
+- Next: Dexへ再レビュー依頼済み（対象HEAD: `e05231a`、実機未確認の旨を明記）。Dex(P4)OK後、Dex(P5)がmainへmerge・pushする。
 - 完了報告(Take2): `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_take2_report.md` / レビュー依頼(Take2): `docs/handoff/P4_CC_to_Dex/cycle_2_ui_enhancements_take2_review_request.md`
 
 ## Read First
