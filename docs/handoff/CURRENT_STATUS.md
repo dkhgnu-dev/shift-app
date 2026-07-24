@@ -11,9 +11,10 @@
 ## Current State
 
 - Cycle: 2
-- P4 Review: NG for UI enhancements at `99af37d`. Take2 must implement the specified 4-digit direct time input (`0930` -> `09:30`, `1500` -> `15:00`).
-- Status: CCがタイムピッカーハイブリッド化＆☀️/🌙鍵持ちアイコン表示（Kazumaxフィードバック反映済み）を実装完了、air-cc-devへpush済み（v4.15 -> v4.16）。Dexへレビュー依頼(P4)済み。
-- Next: Dexレビュー待ち。完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_report.md` / レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_ui_enhancements_review_request.md`
+- P4 Review: NG for UI enhancements at `99af37d`（Take1）。Take2で4桁直接入力（`0930`->`09:30`、`1500`->`15:00`）を実装済み。
+- Status: CCがTimePickerの4桁直接入力（Take2）を実装。`node test_time_utils.mjs`とビルドは成功。**未commit/未push**（このセッションのBrowserペインが別プロジェクトのdevサーバー設定に固定され実機確認ができなかったため、Dex/Kazumax確認を経てからpushする方針）。
+- Next: Dexへ再レビュー依頼済み（実機未確認の旨を明記）。Dex/Kazumaxの確認後、commit・pushしてCURRENT_STATUSを更新する。
+- 完了報告(Take2): `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_take2_report.md` / レビュー依頼(Take2): `docs/handoff/P4_CC_to_Dex/cycle_2_ui_enhancements_take2_review_request.md`
 
 ## Read First
 
@@ -21,9 +22,9 @@
 - `docs/handoff/CURRENT_STATUS.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- 今回の指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_2_ui_enhancements_instructions.md`
-- 完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_report.md`
-- レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_ui_enhancements_review_request.md`
+- 今回の指示書: `docs/handoff/P4_Rollback/cycle_2_ui_enhancements_review.md`（Take2必須修正）
+- 完了報告(Take2): `docs/handoff/P3_CC_to_Air/cycle_2_ui_enhancements_take2_report.md`
+- レビュー依頼(Take2): `docs/handoff/P4_CC_to_Dex/cycle_2_ui_enhancements_take2_review_request.md`
 - バックログ: `docs/BACKLOG.md`
 
 ## Stop Conditions

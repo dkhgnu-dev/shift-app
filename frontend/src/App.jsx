@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2, Menu, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
-import { computeHourChange, computeMinuteChange, formatTime, isValidSpecialHours, parseStrictNumber } from './timeUtils';
+import { computeHourChange, computeMinuteChange, formatTime, isValidSpecialHours, parseFourDigitTime, parseStrictNumber } from './timeUtils';
 
 const SHIFT_MASTER = {
     '①': '8:15～12:15', '②': '8:15～14:15', '③': '8:15～16:15',
@@ -84,13 +84,13 @@ const INITIAL_DATA = [
     { name: 'N.H.', type: '遅パート', isRS: false, days: 16, shifts: ['⑪'], requests: '', isKeyHolder: false },
 ];
 
-// ぽちぽちタイムピッカー: ▲▼刻み調整 + 時/分の数字タップで手打ち不要に設定
+// ぽちぽちタイムピッカー: ▲▼刻み調整 + 中央表示タップで4桁直打ちに対応。
 // 営業終了時刻として24:00を保持できるようにする（24を0に丸め込まない）。
-// ぽちぽち矢印 ＋ タップでキーボード直打ちのハイブリッドタイムピッカー。
-// 数字ボタン群は廃止し、.time-picker-value をタップするとinputに切り替わる。
+// 矢印は従来通り時±1・分±15の個別ステップを維持し、中央表示だけを
+// 単一のinputに切り替えて「0930」「1500」等の4桁直接入力を受け付ける(Cycle2 Take2)。
 function TimePicker({ value, onChange }) {
     const [h, m] = (value && value.includes(':')) ? value.split(':').map(Number) : [9, 0];
-    const [editingField, setEditingField] = useState(null); // 'h' | 'm' | null
+    const [isEditing, setIsEditing] = useState(false);
     const [editingText, setEditingText] = useState('');
 
     const setH = (nh) => {
@@ -102,50 +102,23 @@ function TimePicker({ value, onChange }) {
         onChange(formatTime(next.h, next.m));
     };
 
-    const startEditing = (field, currentValue) => {
-        setEditingField(field);
-        setEditingText(String(currentValue).padStart(2, '0'));
+    const startEditing = () => {
+        setIsEditing(true);
+        setEditingText(`${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}`);
     };
     const commitEditing = () => {
-        if (editingField === null) return;
-        const n = parseInt(editingText, 10);
-        if (!isNaN(n)) {
-            if (editingField === 'h') setH(n);
-            else setM(n);
+        // parseFourDigitTimeがnull(不正値・空欄)を返した場合は何もせず、
+        // 表示は編集前のvalueへ戻る(Escapeと同じ結果になる)。
+        const parsed = parseFourDigitTime(editingText);
+        if (parsed) {
+            onChange(formatTime(parsed.h, parsed.m));
         }
-        setEditingField(null);
+        setIsEditing(false);
         setEditingText('');
     };
     const cancelEditing = () => {
-        setEditingField(null);
+        setIsEditing(false);
         setEditingText('');
-    };
-
-    const renderValueOrInput = (field, current) => {
-        if (editingField === field) {
-            return (
-                <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={2}
-                    autoFocus
-                    className="time-picker-input"
-                    value={editingText}
-                    onChange={e => setEditingText(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
-                    onBlur={commitEditing}
-                    onKeyDown={e => {
-                        if (e.key === 'Enter') { e.preventDefault(); commitEditing(); }
-                        if (e.key === 'Escape') { e.preventDefault(); cancelEditing(); }
-                    }}
-                    onClick={e => e.target.select()}
-                />
-            );
-        }
-        return (
-            <div className="time-picker-value" onClick={() => startEditing(field, current)} title="タップして数字を直接入力">
-                {String(current).padStart(2, '0')}
-            </div>
-        );
     };
 
     return (
@@ -153,13 +126,31 @@ function TimePicker({ value, onChange }) {
             <div className="time-picker-display">
                 <div className="time-picker-col">
                     <button type="button" className="time-picker-step" onClick={() => setH(h + 1)}><ArrowUp size={14} /></button>
-                    {renderValueOrInput('h', h)}
                     <button type="button" className="time-picker-step" onClick={() => setH(h - 1)}><ArrowDown size={14} /></button>
                 </div>
-                <div className="time-picker-colon">:</div>
+                {isEditing ? (
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={4}
+                        autoFocus
+                        className="time-picker-input"
+                        value={editingText}
+                        onChange={e => setEditingText(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+                        onBlur={commitEditing}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') { e.preventDefault(); commitEditing(); }
+                            if (e.key === 'Escape') { e.preventDefault(); cancelEditing(); }
+                        }}
+                        onFocus={e => e.target.select()}
+                    />
+                ) : (
+                    <div className="time-picker-value" onClick={startEditing} title="タップして「0930」のように4桁で直接入力">
+                        {formatTime(h, m)}
+                    </div>
+                )}
                 <div className="time-picker-col">
                     <button type="button" className="time-picker-step" onClick={() => setM(m + 15)}><ArrowUp size={14} /></button>
-                    {renderValueOrInput('m', m)}
                     <button type="button" className="time-picker-step" onClick={() => setM(m - 15)}><ArrowDown size={14} /></button>
                 </div>
             </div>

@@ -33,6 +33,26 @@ export function formatTime(h, m) {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+// TimePickerの中央表示への直接入力(例: "0930"->09:30, "1500"->15:00, "2400"->24:00)を解釈する。
+// 4桁は HHmm、3桁は Hmm、1〜2桁は時のみ(分は0)として扱う。
+// 24時台は00分以外を認めない(24:30等は不正値としてnullを返す=呼び出し側で編集前の値へ戻す)。
+export function parseFourDigitTime(text, maxHour = MAX_TIME_PICKER_HOUR) {
+    const digits = String(text).replace(/[^0-9]/g, '');
+    if (digits.length === 0) return null;
+
+    const hourStr = digits.length <= 2 ? digits : digits.length === 3 ? digits.slice(0, 1) : digits.slice(0, 2);
+    const minuteStr = digits.length <= 2 ? '0' : digits.length === 3 ? digits.slice(1) : digits.slice(2, 4);
+
+    const h = parseInt(hourStr, 10);
+    const m = parseInt(minuteStr, 10);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+    if (h < 0 || h > maxHour) return null;
+    if (m < 0 || m > 59) return null;
+    if (h === maxHour && m !== 0) return null;
+
+    return { h, m };
+}
+
 // parseFloatは"8abc"のような末尾に不正な文字が付いた値も8として受理してしまうため、
 // 厳密な数値表現(先頭の空白トリムのみ許容)だけを受け付ける。全体が数値でなければNaN。
 export function parseStrictNumber(value) {
