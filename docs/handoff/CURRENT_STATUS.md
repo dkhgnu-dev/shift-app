@@ -11,6 +11,7 @@
 ## Current State
 
 - Cycle: 3（並行してCycle 2 Take3のレビュー待ちあり、下記参照）
+- P4 Review: NG for Cycle 2 UI Take3 at `a0bec36`. Take4 must provide reproducible TimePicker UI-state verification and separate Cycle 3 handoff changes from the Cycle 2 P5 scope.
 - Status: Airがスマホ版レイアウト崩れの原因（App.jsxのインラインスタイル優先）を特定し、CC向けの実装指示書（P2）を作成完了。
 - Next: CCによるレイアウト修正（P3）待ち。
 
