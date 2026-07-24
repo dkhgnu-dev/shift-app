@@ -6,15 +6,13 @@
 - Repository: dkhgnu-dev/shift-app
 - Working Branch: `air-cc-dev` （※mainへの衝突防止のため専用ブランチで運用中）
 - Main agent: Air / CC / エアクルー（Air Crew）
-- External reviewer: Dex（復帰）※実装完了ごとにDexへレビュー依頼する通常運用に復帰
+- External reviewer: エアクルー (Air Crew) ※Dex制限中の代用
 
 ## Current State
 
 - Cycle: 2
-- P5 Integration: Complete. Reviewed `air-cc-dev` HEAD `2f57b44` was fast-forwarded to `main` and pushed to origin on 2026-07-24, with Kazumax approval for the included pre-existing BACKLOG commits.
-- P4 Review: OK for Cycle 2 Take4 at `68c7768`. P5 is paused until Kazumax confirms whether pre-existing BACKLOG commits on `air-cc-dev` may merge to main together.
-- Status: Dex Take4差し戻し(P1: 通常生成のINFEASIBLE/通信失敗で既存表が消える)にCCが対応し、air-cc-devへpush済み（v4.14 -> v4.15）。Dexへ再レビュー依頼(P4)済み。
-- Next: Dex再レビュー待ち。Take4完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report_take4.md` / 再レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_take4_request.md`
+- Status: Airの無断コード修正をキャンセル（revert）完了。マニュアルへの「Air直接実装の原則禁止＆指示書と壁打ちの混同防止」ルールを追記・同期済み。CC向けにタイムピッカーハイブリッド化＆☀️/🌙鍵持ちアイコン表示のP2指示書を作成完了
+- Next: CCが `air-cc-dev` ブランチ上で `docs/handoff/P2_AirCrew_to_CC/cycle_2_ui_enhancements_instructions.md` に従って実装(P3)・検証・プッシュを行う
 
 ## Read First
 
@@ -22,9 +20,7 @@
 - `docs/handoff/CURRENT_STATUS.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- 今回の指示書: `docs/handoff/P4_Rollback/cycle_2_review_take4.md`
-- Take4完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report_take4.md`
-- Take4再レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_take4_request.md`
+- 今回の指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_2_ui_enhancements_instructions.md`
 - バックログ: `docs/BACKLOG.md`
 
 ## Stop Conditions
