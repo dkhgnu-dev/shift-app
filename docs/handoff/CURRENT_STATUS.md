@@ -11,6 +11,7 @@
 ## Current State
 
 - Cycle: 2
+- P4 Review: NG for UI Take2 at `9e5126c`. Take3 must resolve the TimePicker blur-versus-arrow stale-value race and verify Enter/blur/Escape UI behavior.
 - P4 Review: NG for UI enhancements at `99af37d`（Take1）。Take2で4桁直接入力（`0930`->`09:30`、`1500`->`15:00`）を実装し、`e05231a`としてair-cc-devへpush済み。
 - Status: CCがTimePickerの4桁直接入力（Take2）を実装・push済み。`node test_time_utils.mjs`とビルドは成功。ただしこのセッションのBrowserペインが別プロジェクトのdevサーバー設定に固定されており、**ブラウザ実機確認は未実施**のままDexレビューに回している。
 - Next: Dexへ再レビュー依頼済み（対象HEAD: `e05231a`、実機未確認の旨を明記）。Dex(P4)OK後、Dex(P5)がmainへmerge・pushする。
