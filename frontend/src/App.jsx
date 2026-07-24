@@ -766,11 +766,9 @@ export default function App() {
         if (activeTab === 'dashboard') {
             return (
                 <div style={{display: 'flex', gap: '8px', width: isNarrowViewport ? '100%' : 'auto'}}>
-                    {generatedResult && (
-                        <button className="btn outline" style={{flex: isNarrowViewport ? 1 : 'none', justifyContent: 'center'}} onClick={() => fillBlanks()} disabled={isGenerating}>
-                            <Wand2 size={16}/> 空欄自動作成
-                        </button>
-                    )}
+                    <button className="btn outline" style={{flex: isNarrowViewport ? 1 : 'none', justifyContent: 'center'}} onClick={() => fillBlanks()} disabled={isGenerating}>
+                        <Wand2 size={16}/> 空欄自動作成
+                    </button>
                     <button className="btn" style={{flex: isNarrowViewport ? 1 : 'none', justifyContent: 'center'}} onClick={() => generateShift()} disabled={isGenerating}>
                         <Wand2 size={16}/> 最適化シフトを生成
                     </button>
@@ -854,13 +852,6 @@ export default function App() {
                             </div>
                         )}
 
-                        {!generatedResult && !isGenerating && !infeasibleInfo && (
-                            <div className="glass-card" style={{textAlign: 'center', padding: '80px 20px'}}>
-                                <Calendar size={48} color="#CBD5E1" style={{marginBottom:'16px'}}/>
-                                <h2 style={{color: 'var(--text-sub)', fontWeight: 500}}>右上のボタンからシフトを生成してください</h2>
-                            </div>
-                        )}
-
                         {generatedResult && (
                             <>
                                 {generatedResult.isWarningDraft && (
@@ -884,8 +875,10 @@ export default function App() {
                                         ))}
                                     </div>
                                 )}
+                            </>
+                        )}
 
-                                <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '16px'}}>
+                        <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '16px'}}>
                                     <button className="btn outline" onClick={() => setIsMobileView(!isMobileView)}>
                                         {isMobileView ? '💻 PCビューで表示' : '📱 スマホビューで表示'}
                                     </button>
@@ -1032,8 +1025,6 @@ export default function App() {
                                     </div>
                                 </div>
                                 )}
-                            </>
-                        )}
                     </div>
                 )}
 
