@@ -11,8 +11,8 @@
 ## Current State
 
 - Cycle: 2
-- Status: DexがCycle 2 P4レビューを完了し、Take2差し戻し。固定セルを壊すINFEASIBLEフォールバックとTimePickerの24:00不具合がBlocker。
-- Next: Kazumaxが希望休との優先順位・特殊シフトの連勤扱いを判断後、CCがTake2修正。差し戻し: `docs/handoff/P4_Rollback/cycle_2_review_take2.md`
+- Status: Kazumaxの仕様判断（希望休一本化・有休の連勤ハイブリッドルール）確定後、CCがTake2修正を完了しair-cc-devへpush済み（v4.12 -> v4.13）。Dexへ再レビュー依頼(P4)済み。
+- Next: Dex再レビュー待ち。Take2完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report_take2.md` / 再レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_take2_request.md`
 
 ## Read First
 
@@ -20,9 +20,9 @@
 - `docs/handoff/CURRENT_STATUS.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- 今回の指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_2_hybrid_and_shift_features_instructions.md`
-- Cycle 2完了報告（既知の制限事項含む）: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report.md`
-- Cycle 2 P4差し戻し: `docs/handoff/P4_Rollback/cycle_2_review_take2.md`
+- 今回の指示書: `docs/handoff/P4_Rollback/cycle_2_review_take2.md`
+- Take2完了報告: `docs/handoff/P3_CC_to_Air/cycle_2_implementation_report_take2.md`
+- Take2再レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_2_review_take2_request.md`
 - バックログ: `docs/BACKLOG.md`
 
 ## Stop Conditions

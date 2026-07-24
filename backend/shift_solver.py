@@ -56,12 +56,24 @@ def solve_shift(input_data: ShiftInput):
 
     shift_ids = [s.id for s in shifts] + ['OFF']
     num_shifts = len(shift_ids)
+    off_idx = shift_ids.index('OFF')
 
     # 特殊シフト(有休/応援/店長会/研修/勉強会等): 個人の勤務日数には計上するが、
     # 店舗出勤人数・登録販売者カバレッジからは除外する。ソルバーが空欄セルへ
     # 自動的に割り当てることはなく、fixed_assignments経由でのみ設定される。
     special_ids = {s.id for s in shifts if getattr(s, 'is_special', False)}
     special_indices = {shift_ids.index(sid) for sid in special_ids if sid in shift_ids}
+
+    # 有休(法令上の連勤カウント対象)・公休(真の休みとして扱う特殊シフト)の位置
+    yukyu_idx = shift_ids.index('有休') if '有休' in shift_ids else None
+    koukyuu_idx = shift_ids.index('公休') if '公休' in shift_ids else None
+    # 「7日間に最低1日は真の休みが必要」というハード制約で"休み"とみなすシフト
+    rest_indices = {off_idx}
+    if koukyuu_idx is not None:
+        rest_indices.add(koukyuu_idx)
+    # 5連勤/4連勤の「実働」上限カウント対象（有休は休みとして扱い除外。OFF以外の
+    # 通常シフト・応援/店長会/研修/勉強会等は引き続き"勤務"として数える）
+    real_work_indices = [s_idx for s_idx in range(num_shifts) if s_idx != off_idx and s_idx != yukyu_idx]
 
     # 登録販売者 (RS)
     rs_indices = [i for i, e in enumerate(employees) if e.is_registered_seller]
@@ -77,10 +89,42 @@ def solve_shift(input_data: ShiftInput):
             pass
 
     # 「空欄自動作成」用の固定割当（既に手動入力されているセルを求解対象から除外する）
+    # 不正な入力（未知の従業員/シフトID、期間外の日付、同一セルの重複）は黙って捨てず、
+    # warningとして記録する。
+    employee_ids = {e.id for e in employees}
+    validation_warnings = []
     fixed_map = {}
+    seen_fixed_keys = set()
     for fa in input_data.fixed_assignments:
-        if fa.shift_id in shift_ids:
-            fixed_map[(fa.employee_id, fa.day_index)] = shift_ids.index(fa.shift_id)
+        if fa.employee_id not in employee_ids:
+            validation_warnings.append(f"不正な固定割当: 未知の従業員ID「{fa.employee_id}」を無視しました。")
+            continue
+        if fa.day_index < 0 or fa.day_index >= num_days:
+            validation_warnings.append(f"不正な固定割当: 「{fa.employee_id}」の期間外の日付指定(day_index={fa.day_index})を無視しました。")
+            continue
+        if fa.shift_id not in shift_ids:
+            validation_warnings.append(f"不正な固定割当: 「{fa.employee_id}」の未知のシフトID「{fa.shift_id}」を無視しました。")
+            continue
+        key = (fa.employee_id, fa.day_index)
+        if key in seen_fixed_keys:
+            warn_date = start_date + datetime.timedelta(days=fa.day_index)
+            validation_warnings.append(f"不正な固定割当: 「{fa.employee_id}」の{warn_date.month}/{warn_date.day}に重複した固定指定があったため、後の指定を優先しました。")
+        seen_fixed_keys.add(key)
+        fixed_map[key] = shift_ids.index(fa.shift_id)
+
+    # 手動固定と強制希望休が同一セルで衝突した場合は、手動固定（より新しい・明示的な操作）を
+    # 優先する。ただし黙って処理せず、必ずwarningとして残す。
+    conflict_warnings = []
+    for (emp_id, d) in sorted(requested_off):
+        if (emp_id, d) in fixed_map and shift_ids[fixed_map[(emp_id, d)]] != 'OFF':
+            emp_obj = next((e for e in employees if e.id == emp_id), None)
+            emp_label = emp_obj.name if emp_obj else emp_id
+            warn_date = start_date + datetime.timedelta(days=d)
+            fixed_label = shift_ids[fixed_map[(emp_id, d)]]
+            conflict_warnings.append(
+                f"{emp_label}さん: {warn_date.month}/{warn_date.day}は希望休が登録されていますが、"
+                f"手動固定「{fixed_label}」を優先しました。"
+            )
 
     # 変数定義
     x = {}
@@ -101,8 +145,6 @@ def solve_shift(input_data: ShiftInput):
         allowed_s_indices = [shift_ids.index(s_id) for s_id in emp.allowed_shifts if s_id in shift_ids and s_id not in special_ids]
         if not allowed_s_indices:
             allowed_s_indices = [i for i, s_id in enumerate(shift_ids) if s_id != 'OFF' and s_id not in special_ids]
-
-        off_idx = shift_ids.index('OFF')
 
         for d in range(num_days):
             # 1日1シフト
@@ -135,20 +177,20 @@ def solve_shift(input_data: ShiftInput):
 
         if is_full_time:
             # --- 正社員・準社員 ---
-            # 1) 連勤上限: 最大5連勤 (6連勤以上は絶対禁止) ← ハード制約
+            # 1) 連勤上限: 最大5連勤 (6連勤以上は絶対禁止) ← ハード制約（有休は休みとして除外）
             for start_d in range(num_days - 5):
                 model.Add(sum(
                     x[(e_idx, d, s_idx)]
                     for d in range(start_d, start_d + 6)
-                    for s_idx in range(num_shifts) if s_idx != off_idx
+                    for s_idx in real_work_indices
                 ) <= 5)
-            # 2) 5連勤を極力避ける ← ソフト制約
+            # 2) 5連勤を極力避ける ← ソフト制約（有休は休みとして除外）
             for start_d in range(num_days - 4):
                 five_consec = model.NewBoolVar(f'five_consec_{emp.id}_{start_d}')
                 work_5 = sum(
                     x[(e_idx, d, s_idx)]
                     for d in range(start_d, start_d + 5)
-                    for s_idx in range(num_shifts) if s_idx != off_idx
+                    for s_idx in real_work_indices
                 )
                 model.Add(work_5 >= 5).OnlyEnforceIf(five_consec)
                 model.Add(work_5 <= 4).OnlyEnforceIf(five_consec.Not())
@@ -167,20 +209,20 @@ def solve_shift(input_data: ShiftInput):
                 model.Add(sum(non_auto_off_terms) >= 1)
         else:
             # --- パート・アルバイト等 ---
-            # 1) 連勤上限: 最大4连勤 (5連勤以上は絶対禁止) ← ハード制約
+            # 1) 連勤上限: 最大4连勤 (5連勤以上は絶対禁止) ← ハード制約（有休は休みとして除外）
             for start_d in range(num_days - 4):
                 model.Add(sum(
                     x[(e_idx, d, s_idx)]
                     for d in range(start_d, start_d + 5)
-                    for s_idx in range(num_shifts) if s_idx != off_idx
+                    for s_idx in real_work_indices
                 ) <= 4)
-            # 2) 4連勤を極力避ける ← ソフト制約
+            # 2) 4連勤を極力避ける ← ソフト制約（有休は休みとして除外）
             for start_d in range(num_days - 3):
                 four_consec = model.NewBoolVar(f'four_consec_{emp.id}_{start_d}')
                 work_4 = sum(
                     x[(e_idx, d, s_idx)]
                     for d in range(start_d, start_d + 4)
-                    for s_idx in range(num_shifts) if s_idx != off_idx
+                    for s_idx in real_work_indices
                 )
                 model.Add(work_4 >= 4).OnlyEnforceIf(four_consec)
                 model.Add(work_4 <= 3).OnlyEnforceIf(four_consec.Not())
@@ -212,6 +254,19 @@ def solve_shift(input_data: ShiftInput):
                     model.Add(work_4_days == 0).OnlyEnforceIf(four_consec_off)
                     model.Add(work_4_days >= 1).OnlyEnforceIf(four_consec_off.Not())
                     consec_penalty_vars.append(four_consec_off)
+
+        # 【法令ルール・全雇用形態共通】7日間の窓の中で真の休み(OFF/公休)が最低1日必要 ← ハード制約
+        # 有休はこの上限では「出勤扱い」としてカウントする（有休を挟んでも休みなし連続稼働を無制限にはできない）。
+        # 例:「4連勤+有休+4連勤」のように実働の連勤上限(5/4連勤)を個別には満たしていても、
+        # 合計9日間・真の休みなしとなる組み合わせは、この制約により禁止される。
+        for start_d in range(num_days - 6):
+            window = range(start_d, start_d + 7)
+            rest_sum = sum(
+                x[(e_idx, d, s_idx)]
+                for d in window
+                for s_idx in rest_indices
+            )
+            model.Add(rest_sum >= 1)
 
         # 契約日数遵守 (スラック付き)
         working_days = sum(x[(e_idx, d, s_idx)] for d in range(num_days) for s_idx in range(num_shifts) if s_idx != off_idx)
@@ -371,21 +426,28 @@ def solve_shift(input_data: ShiftInput):
             final_values = snapshot()
         # else: フェーズ2が解を返さなかった場合は phase1_snapshot のまま（フォールバック）
 
-    warnings = []
+    warnings = list(validation_warnings) + list(conflict_warnings)
 
     # 絶対失敗しない安全フォールバック（フェーズ1自体が解なしの場合のみ）
+    # 手動固定されたセル（通常シフト・OFF・特殊シフトいずれも）は必ず保持し、
+    # 空欄セルのみデフォルト値で埋める。特殊シフトを空欄へ自動割当することはない。
     if phase1_status not in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
         warnings.append("⚠️ 条件の自動計算が困難だったため基本仮シフトを構築しました。従業員の契約日数や希望休の重複をご確認ください。")
         fallback_shifts = {}
         for emp in employees:
-            allowed = emp.allowed_shifts if emp.allowed_shifts else [s.id for s in shifts if s.id != 'OFF']
-            default_shift = allowed[0] if allowed else (shifts[0].id if shifts else '①')
+            allowed = [s_id for s_id in emp.allowed_shifts if s_id in shift_ids and s_id not in special_ids]
+            if not allowed:
+                allowed = [s.id for s in shifts if s.id != 'OFF' and s.id not in special_ids]
+            default_shift = allowed[0] if allowed else 'OFF'
             emp_s = []
             for d in range(num_days):
-                if (emp.id, d) in requested_off:
+                if (emp.id, d) in fixed_map:
+                    fixed_id = shift_ids[fixed_map[(emp.id, d)]]
+                    emp_s.append('休' if fixed_id == 'OFF' else fixed_id)
+                elif (emp.id, d) in requested_off:
                     emp_s.append('休')
                 else:
-                    emp_s.append(default_shift)
+                    emp_s.append('休' if default_shift == 'OFF' else default_shift)
             fallback_shifts[emp.id] = emp_s
         return {
             "status": "FEASIBLE_WITH_WARNINGS",

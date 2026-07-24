@@ -84,16 +84,20 @@ const INITIAL_DATA = [
 ];
 
 // ぽちぽちタイムピッカー: ▲▼刻み調整 + 時/分の数字タップで手打ち不要に設定
+// 営業終了時刻として24:00を保持できるようにする（24を0に丸め込まない）。
 function TimePicker({ value, onChange }) {
     const [h, m] = (value && value.includes(':')) ? value.split(':').map(Number) : [9, 0];
+    const MAX_HOUR = 24;
     const setH = (nh) => {
-        const nnh = ((nh % 24) + 24) % 24;
-        onChange(`${String(nnh).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+        const nnh = Math.max(0, Math.min(MAX_HOUR, nh));
+        const nnm = nnh === MAX_HOUR ? 0 : m; // 24:00固定（24:30等は存在しない）
+        onChange(`${String(nnh).padStart(2, '0')}:${String(nnm).padStart(2, '0')}`);
     };
     const setM = (nm) => {
+        if (h === MAX_HOUR) return; // 24:00の分は固定
         let nnh = h, nnm = nm;
-        if (nnm >= 60) { nnm -= 60; nnh = (nnh + 1) % 24; }
-        if (nnm < 0) { nnm += 60; nnh = (nnh - 1 + 24) % 24; }
+        if (nnm >= 60) { nnm -= 60; nnh = Math.min(MAX_HOUR, nnh + 1); if (nnh === MAX_HOUR) nnm = 0; }
+        if (nnm < 0) { nnm += 60; nnh = Math.max(0, nnh - 1); }
         onChange(`${String(nnh).padStart(2, '0')}:${String(nnm).padStart(2, '0')}`);
     };
     const HOUR_OPTIONS = Array.from({ length: 19 }, (_, i) => i + 6); // 6時～24時
@@ -334,8 +338,8 @@ export default function App() {
             handleTypeChange('正社員', true);
         }
         setUseCustomTime(false);
-        setCustomStartTime('');
-        setCustomEndTime('');
+        setCustomStartTime('09:00');
+        setCustomEndTime('18:00');
         setShowModal(true);
     };
 
@@ -374,8 +378,30 @@ export default function App() {
             const [start, end] = timeStr.split('～');
             return { id, start_time: start, end_time: end, is_special: false };
         });
-        const specialShifts = SPECIAL_SHIFTS.map(id => ({ id, start_time: '0:00', end_time: '0:00', is_special: true }));
+        // 希望休はバックエンドへ独立シフト種別として送らない。既存のrequests_off(希望休テキスト欄)
+        // 経由のOFF強制ハード制約に一本化し、セル手動固定との二重管理・衝突を構造的に防ぐ。
+        const specialShifts = SPECIAL_SHIFTS.filter(s => s !== '希望休').map(id => ({ id, start_time: '0:00', end_time: '0:00', is_special: true }));
         return [...realShifts, ...specialShifts];
+    };
+
+    // 希望休(セル)⇔従業員の希望休欄(requests)を同期させるためのヘルパー
+    const parseRequestDays = (requestsStr) => {
+        if (!requestsStr) return [];
+        return requestsStr.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+    };
+    const serializeRequestDays = (days) => Array.from(new Set(days)).sort((a, b) => a - b).join(', ');
+    const setEmployeeRequestDay = (idx, dayNumber, shouldInclude) => {
+        setEmployees(prevEmployees => {
+            const emp = prevEmployees[idx];
+            if (!emp) return prevEmployees;
+            const days = parseRequestDays(emp.requests);
+            const alreadyIncluded = days.includes(dayNumber);
+            if (shouldInclude === alreadyIncluded) return prevEmployees; // 変化なし
+            const newDays = shouldInclude ? [...days, dayNumber] : days.filter(dn => dn !== dayNumber);
+            const newEmployees = [...prevEmployees];
+            newEmployees[idx] = { ...emp, requests: serializeRequestDays(newDays) };
+            return newEmployees;
+        });
     };
 
     const buildRequestsOff = (periodDatesForSubmit) => {
@@ -462,10 +488,13 @@ export default function App() {
             employees.forEach((e, idx) => {
                 generatedResult.matrix[idx].forEach((cell, d) => {
                     if (cell && cell.shift) {
+                        // 希望休はバックエンド未登録の独立シフト種別ではないため、OFFとして送る
+                        // （表示上は引き続き「希望休」のまま保護される）
+                        const shiftId = (cell.shift === '休' || cell.shift === '希望休') ? 'OFF' : cell.shift;
                         fixedAssignments.push({
                             employee_id: `emp_${idx}`,
                             day_index: d,
-                            shift_id: cell.shift === '休' ? 'OFF' : cell.shift
+                            shift_id: shiftId
                         });
                     }
                 });
@@ -535,6 +564,16 @@ export default function App() {
             hours: isSpecial ? (prevCell && prevCell.hours ? prevCell.hours : DEFAULT_SPECIAL_HOURS) : undefined
         };
         setGeneratedResult({ ...generatedResult, matrix: newMatrix });
+
+        // 希望休はセルと従業員編集モーダルの「希望休」欄(requests)を同期させ、二重管理・
+        // 衝突を防ぐ（セルで選ぶ/解除する操作が、そのままrequestsへの追加/削除になる）。
+        const dayNumber = d + 1;
+        if (value === '希望休') {
+            setEmployeeRequestDay(i, dayNumber, true);
+        } else if (prevCell && prevCell.shift === '希望休') {
+            setEmployeeRequestDay(i, dayNumber, false);
+        }
+
         if (isSpecial) {
             setSpecialHoursModal({ i, d, hours: newMatrix[i][d].hours });
         }
@@ -543,8 +582,13 @@ export default function App() {
     const applySpecialHours = () => {
         if (!specialHoursModal) return;
         const { i, d, hours } = specialHoursModal;
+        const parsed = parseFloat(hours);
+        if (!Number.isFinite(parsed) || parsed < 0 || parsed > 24) {
+            alert('勤務時間は0〜24の範囲の数値で入力してください。');
+            return;
+        }
         const newMatrix = [...generatedResult.matrix];
-        newMatrix[i][d] = { ...newMatrix[i][d], hours: parseFloat(hours) || 0 };
+        newMatrix[i][d] = { ...newMatrix[i][d], hours: parsed };
         setGeneratedResult({ ...generatedResult, matrix: newMatrix });
         setSpecialHoursModal(null);
     };
@@ -654,7 +698,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.12</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.13</span></div>
                 </div>
             )}
 
@@ -665,7 +709,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.12</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.13</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
