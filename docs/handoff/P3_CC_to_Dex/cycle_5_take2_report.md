@@ -3,7 +3,7 @@
 # P3 完了報告 Take2: Cycle 5 マトリクス表 固定バグ修正 & テスト安定化
 
 - 対象ブランチ: `cc-cycle5`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `0f522cf`（push済み、`f86a626..0f522cf`）
 - 対応した指摘: `docs/handoff/P4_Rollback/cycle_5_take2_request.md`（Dex+デクスクルー P4差戻し）
 
 ## 対応内容
