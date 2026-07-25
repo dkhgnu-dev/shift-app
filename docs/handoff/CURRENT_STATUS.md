@@ -1,5 +1,15 @@
 # CURRENT_STATUS - 友達シフト
 
+## Dex P4 Update (Cycle 5 Take2)
+
+- Review target: `cc-cycle5` / `1567833`
+- Result: **NG - Take3差し戻し**
+- Blocking finding: 1列目の実幅45pxに対し、2列目のsticky位置が`left: 40px`のため、横スクロール後に固定列同士が5px重なる
+- Non-blocking finding: 現在のjsdomテストはDOM構造を保証するが、sticky位置・実幅・月度ラベル幅などCSS配置の回帰は検出しない
+- Next: CC(P3)が`docs/handoff/P4_Rollback/cycle_5_take3_request.md`を読み、Take3を実装・実ブラウザ実測・pushする
+- P4 review: `docs/handoff/P4_Dex_Review/cycle_5_take2_review.md`
+- P5 merge: **未実施**
+
 ## Project
 
 - Name: 友達シフト
