@@ -48,4 +48,24 @@ describe('ダッシュボード: マトリクス表の常時表示と左右ス�
         expect(scrollBySpy).toHaveBeenNthCalledWith(1, { left: -350, behavior: 'smooth' });
         expect(scrollBySpy).toHaveBeenNthCalledWith(2, { left: 350, behavior: 'smooth' });
     });
+
+    // Cycle5 Take2(Dex差戻し): 固定対象は「氏名列(2列目)」であるべきなのに、
+    // Take1では空のドラッグ列(1列目)だけがCSS上left:0で固定されてしまっていた。
+    // jsdomはCSSの実適用(position:sticky等)やレイアウト位置を再現しないため、
+    // ここでは「固定したいDOM位置(2列目)に本当に氏名が乗っているか」という
+    // 構造だけを検証する。実際にスクロールしても視覚的に固定されるかどうかは
+    // ブラウザ実機でのみ確認可能(このセッションでは未実施、報告書に明記)。
+    it('マトリクス表の2列目(固定対象)に氏名が入っており、1列目はドラッグハンドルのみである', () => {
+        render(<App />);
+        const table = document.querySelector('table');
+
+        const headerCells = table.querySelectorAll('thead th');
+        expect(headerCells[0].textContent.trim()).toBe('');
+        expect(headerCells[1].textContent.trim()).toBe('従業員');
+
+        const firstRowCells = table.querySelectorAll('tbody tr')[0].querySelectorAll('td');
+        expect(firstRowCells[0].querySelector('.drag-handle-compact')).not.toBeNull();
+        expect(firstRowCells[0].textContent).not.toContain('K.D.');
+        expect(firstRowCells[1].textContent).toContain('K.D.');
+    });
 });

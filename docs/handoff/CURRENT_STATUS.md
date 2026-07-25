@@ -10,12 +10,11 @@
 
 ## Current State
 
-- Cycle: 5 (Dex P4完了 -> Take2差し戻し)
-- Status: DexとデクスクルーがDIFF・テスト・320/375/768/769/1280px実画面を確認。320～768pxで月度ラベルが幅0になる、空のドラッグ列だけが固定され氏名列が消える、縦スクロールで日付ヘッダーが固定されない、標準テストがタイムアウトする問題を確認したためTake2差し戻し。
-- Next: CCが`docs/handoff/P4_Rollback/cycle_5_take2_request.md`を読み、`cc-cycle5`でTake2修正・検証・pushを行う。完了後にDex P4再レビューへ回す。
-- 完了報告: `docs/handoff/P3_CC_to_Air/cycle_5_report.md`
-- レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_5_review_request.md`
-- P4レビュー: `docs/handoff/P4_Dex_Review/cycle_5_review.md`
+- Cycle: 5 (Take2実装完了、`cc-cycle5`へpush済み -> Dex P4再レビュー待ち)
+- Status: CCがTake2差戻し対応（月度ヘッダーのボタン幅修正、Freeze Panesの列指定修正、table-containerのmax-height/overflow修正、testTimeout延長、v4.22化）を実装。`npm test`を連続2回実行し17件全PASS、`node test_time_utils.mjs`(33件)・`npm run build`も成功。ただしCSS/レイアウトの修正はjsdomでは検証不能なため、実機確認は今回も未実施（セッション環境制約：別プロジェクト固定＋ポート占有）。
+- Next: Dex(P4)が`cc-cycle5`のTake2を再レビューし、OKまたは差し戻しを判断する。OKならDex(P5)がmainへmergeする。**CSS/レイアウトの実機確認を強く推奨。**
+- 完了報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_5_take2_report.md`
+- 前回レビュー: `docs/handoff/P4_Dex_Review/cycle_5_review.md`
 - Take2指示: `docs/handoff/P4_Rollback/cycle_5_take2_request.md`
 - 前サイクル(C4)統合記録: `docs/handoff/P5_Dex_Integration/cycle_4_p5_integration.md`
 
@@ -25,7 +24,7 @@
 - docs/handoff/CURRENT_STATUS.md
 - docs/PROJECT_RULES.md
 - docs/handoff/WORKFLOW_RULES.md
-- 完了報告: docs/handoff/P3_CC_to_Air/cycle_5_report.md
+- 完了報告(Take2): docs/handoff/P3_CC_to_Dex/cycle_5_take2_report.md
 
 ## Stop Conditions
 

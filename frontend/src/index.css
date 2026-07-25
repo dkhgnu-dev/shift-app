@@ -84,16 +84,29 @@ body {
 .infeasible-panel { background: repeating-linear-gradient(135deg, #FEF2F2, #FEF2F2 10px, #FEE2E2 10px, #FEE2E2 20px); border: 2px dashed var(--danger); border-radius: 8px; padding: 16px; }
 .infeasible-title { color: #991B1B; font-weight: 700; display: flex; align-items: center; gap: 8px; font-size: 1rem; }
 
-.table-container { width: 100%; overflow-x: auto; border: 1px solid #E5E7EB; border-radius: 8px; background: white; scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
-.table-container::-webkit-scrollbar { height: 8px; }
+/* Cycle5 Take2: table-containerに明示的なmax-height+overflow:autoを持たせ、
+   このコンテナ自体を縦横スクロールの実体にする。overflow-xだけを指定すると
+   ブラウザがoverflow-yも暗黙にautoへ昇格させ(CSS仕様の既定動作)、
+   table-containerが「高さ無制限のスクロールコンテナ」になってしまい、
+   position:stickyのtop:0がその無意味なコンテナ基準になって効かなくなる
+   (Dex Take2差戻し: 縦スクロールで日付ヘッダーが固定されない不具合の原因)。
+   max-heightで実際に縦スクロールが発生する箱として確定させることで解消する。 */
+.table-container { width: 100%; max-height: 70vh; overflow: auto; border: 1px solid #E5E7EB; border-radius: 8px; background: white; scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
+.table-container::-webkit-scrollbar { height: 8px; width: 8px; }
 .table-container::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 4px; }
 table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: 0.85rem; }
 th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid #E5E7EB; border-right: 1px solid #E5E7EB; min-width: 45px; }
-/* Cycle5: マトリクス表のFreeze Panes。上部ヘッダー行(z:20)・左の氏名列(z:30)・
-   左上角(z:40)の3層で、縦横同時スクロールでも文字が透けないよう不透明背景を必須にする。 */
+/* Cycle5 Take2: マトリクス表のFreeze Panes。
+   DOM構造は 1列目=ドラッグハンドル(40px) / 2列目=氏名(140px) / 3列目以降=日付。
+   Take1では `:first-child` だけを固定していたため、空のドラッグ列だけが
+   left:0で固定され、肝心の氏名列(2列目)が横スクロールで流れてしまっていた
+   (Dex Take2差戻し)。1列目・2列目をそれぞれ正しいleftオフセットで固定し、
+   ヘッダー行の1・2列目はさらに上下(top)も固定して左上角の二重固定にする。
+   不透明背景(#F8FAFC)を全層に付与し、縦横同時スクロールでも背後が透けないようにする。 */
 th { background-color: #F8FAFC; font-weight: 600; color: var(--text-sub); position: sticky; top: 0; z-index: 20; }
-th:first-child, td:first-child { position: sticky; left: 0; background-color: #F8FAFC; z-index: 30; min-width: 140px; text-align: left; padding-left: 16px; font-weight: 500; box-shadow: 2px 0 5px rgba(0,0,0,0.05); border-right: 2px solid #E5E7EB; }
-th:first-child { z-index: 40; }
+td:nth-child(1), th:nth-child(1) { position: sticky; left: 0; background-color: #F8FAFC; z-index: 30; }
+td:nth-child(2), th:nth-child(2) { position: sticky; left: 40px; background-color: #F8FAFC; z-index: 30; min-width: 140px; text-align: left; padding-left: 16px; font-weight: 500; box-shadow: 2px 0 5px rgba(0,0,0,0.05); border-right: 2px solid #E5E7EB; }
+th:nth-child(1), th:nth-child(2) { z-index: 40; }
 .day-label { display: block; font-size: 0.7rem; color: #9CA3AF; margin-top: 2px;}
 .sat { color: #2563EB; } .sun { color: #DC2626; }
 
@@ -168,6 +181,11 @@ th:first-child { z-index: 40; }
   /* Cycle5: 月度ヘッダーだけは狭幅でも縦積みにせず1行を維持する */
   .month-header { flex-direction: row; align-items: center; }
   .month-header-nav { width: 100%; justify-content: center; }
+  /* Cycle5 Take2: 上の `.header .btn { width: 100% }` が月移動ボタン(< >)にも
+     効いてしまい、狭幅でボタン2つがそれぞれ100%幅を主張してラベルの取り分が
+     0になっていた(Dex Take2差戻し: 320〜768pxで月度表示が消える不具合)。
+     月度ヘッダー内のボタンだけは明示的に幅・縮小をもとへ戻す。 */
+  .month-header-nav .btn { width: auto; flex-shrink: 0; }
   .month-header-main { font-size: 1rem; }
   .month-header-sub { font-size: 0.7rem; }
 
