@@ -4,17 +4,18 @@
 
 - Name: 友達シフト
 - Repository: dkhgnu-dev/shift-app
-- Working Branch: cc-cycle5（Cycle 5は作業branchで運用。P4 OK後にDexがmainへmerge。main未merge）
+- Working Branch: main（Cycle 5 P4/P5完了、mainへ統合済み）
 - Main agent: Air / CC / エアクルー（Air Crew）
 - External reviewer: Dex
 
 ## Current State
 
-- Cycle: 5 (Take3 Dex P4 OK -> Dex P5統合待ち)
-- Status: Dexが`aa50aa8`をDIFFレビューし、320/375/768/769/1280pxの実ブラウザで固定列境界を実測。全幅で1列目40px、2列目との境界差0px、横350px・縦420pxスクロール後も固定正常。月度表示、背景、既存タブ、consoleも異常なし。自動テスト17件×2周、時刻33件、build成功。
-- Next: Dex(P5)がmainを`git pull --ff-only`で最新化し、レビュー済みcc-cycle5をmerge/pushする。
+- Cycle: 5 (**完了**)
+- Status: Dex P4 OK後、レビュー済み`cc-cycle5`（P4記録HEAD `6feb61f`）をmainへfast-forward統合。固定列境界は指定5幅すべて0px差、横・縦sticky、月度表示、既存タブ、console、自動テスト、buildを確認済み。v4.23。
+- Next: Kazumax/Airが次サイクルの目的を決める。新規作業は最新mainから別branchを作成する。
 - 完了報告(Take3): `docs/handoff/P3_CC_to_Dex/cycle_5_take3_report.md`
 - P4レビュー: `docs/handoff/P4_Dex_Review/cycle_5_take3_review.md`
+- P5統合記録: `docs/handoff/P5_Dex_Integration/cycle_5_p5_integration.md`
 - Take3指示: `docs/handoff/P4_Rollback/cycle_5_take3_request.md`
 - 前サイクル(C4)統合記録: `docs/handoff/P5_Dex_Integration/cycle_4_p5_integration.md`
 
