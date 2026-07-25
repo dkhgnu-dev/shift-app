@@ -4,20 +4,17 @@
 
 - Name: 友達シフト
 - Repository: dkhgnu-dev/shift-app
-- Working Branch: main（Cycle 4統合完了）
+- Working Branch: main
 - Main agent: Air / CC / エアクルー（Air Crew）
 - External reviewer: Dex
 
 ## Current State
 
-- Cycle: 4 (完了、P4 OK・P5 main統合済み)
-- Status: DexがTake2のDIFF、自動テスト13件、時間処理33件、build、320/375/768/769/1280px実画面を確認。リセット時の生成済みシフト破棄、上位3名だけの鍵持ち表示、v4.20を確認し、`cc-cycle4`をconflictなしでmainへfast-forward統合した。
-- Next: Kazumax/Airが次サイクルの要否と内容を決める。Cycle 4について追加作業なし。
-- 完了報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_4_take2_report.md`
-- 前回レビュー: `docs/handoff/P4_Dex_Review/cycle_4_review.md`
-- Take2レビュー: `docs/handoff/P4_Dex_Review/cycle_4_take2_review.md`
-- Take2指示: `docs/handoff/P4_Rollback/cycle_4_take2_request.md`
-- P5統合記録: `docs/handoff/P5_Dex_Integration/cycle_4_p5_integration.md`
+- Cycle: 5 (P2 指示書完成 -> CC 実装待ち)
+- Status: 持ち越しリストの「項目4：画面固定＆左右スクロールボタン（◀ ▶）」を中核に据えた Cycle 5 開発指示書を正式策定。スマホ版の単日カードビューを完全廃止してマトリクス表（カレンダービュー）への一本化、行・列ヘッダーの固定（Sticky）、及びヘッダー部のデッドスペースと改行解消をCC向けに指示完了。
+- Next: CCが `docs/handoff/P2_AirCrew_to_CC/cycle_5_matrix_scroll_and_mobile_calendar_instructions.md` に従ってP3実装を行い、完成後、DexによるP4コードレビューを進める。
+- 直近P2指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_5_matrix_scroll_and_mobile_calendar_instructions.md`
+- 前サイクル(C4)統合記録: `docs/handoff/P5_Dex_Integration/cycle_4_p5_integration.md`
 
 ## Read First
 
@@ -25,8 +22,7 @@
 - docs/handoff/CURRENT_STATUS.md
 - docs/PROJECT_RULES.md
 - docs/handoff/WORKFLOW_RULES.md
-- 完了報告: docs/handoff/P3_CC_to_Air/cycle_4_report.md
-- 直近統合記録: docs/handoff/P5_Dex_Integration/cycle_2_3_p5_integration.md
+- 直近P2指示書: docs/handoff/P2_AirCrew_to_CC/cycle_5_matrix_scroll_and_mobile_calendar_instructions.md
 
 ## Stop Conditions
 
