@@ -10,9 +10,9 @@
 
 ## Current State
 
-- Cycle: 3 complete
-- Status: Cycle 2 UI機能追加とCycle 3スマホ版UI/UX最適化を、Kazumax承認済みA案に従ってDexが一括P5統合済み。mainは安定版。
-- Next: Kazumaxの次サイクル指示待ち。実装開始時はmainを`git pull --ff-only`で最新化してから作業branchを作る。
+- Cycle: 4 (P2 指示書完成 -> CC 実装待ち)
+- Status: 24名構成のデフォルト化について Stop Conditions（個人情報・実名扱いの回避） を確認。既存のイニシャル設定を活用し、上位3名（K.D.、N.E.、N.K.）に鍵持ち（isKeyHolder: true）をデフォルト付与する変更と、「デフォルトリセットボタン」による即時最新反映機能の実装指示書（P2）を完成。
+- Next: CCが `docs/handoff/P2_AirCrew_to_CC/cycle_4_default_members_reset_instructions.md` を読み、P3実装および自律テストを行う。完了後にDex P4レビューへ回す。
 
 ## Read First
 
