@@ -225,11 +225,16 @@ export default function App() {
     const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
     const [isNarrowViewport, setIsNarrowViewport] = useState(window.innerWidth <= 768);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [selectedDateIndex, setSelectedDateIndex] = useState(0);
 
     // Drag and Drop
     const dragItem = useRef(null);
     const dragOverItem = useRef(null);
+
+    // Cycle5: ダッシュボードのマトリクス表(横スクロール領域)を左右ボタンから操作するためのref。
+    const tableContainerRef = useRef(null);
+    const scrollTableBy = (offset) => {
+        tableContainerRef.current?.scrollBy({ left: offset, behavior: 'smooth' });
+    };
     
     const handleSort = () => {
         if (dragItem.current !== null && dragOverItem.current !== null && dragItem.current !== dragOverItem.current) {
@@ -816,7 +821,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.20</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.21</span></div>
                 </div>
             )}
 
@@ -827,7 +832,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.20</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.21</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -843,16 +848,14 @@ export default function App() {
             <div className="main-content">
                 {activeTab === 'dashboard' && (
                     <div className="tab-content active">
-                        <div className="header">
-                            <div style={{display: 'flex', alignItems: 'center', gap: '16px'}}>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                    <button className="btn outline" style={{padding: '4px 8px'}} onClick={() => changeMonth(-1)}>&lt;</button>
-                                    <div>
-                                        <h1 style={{margin: 0}}>{currentYear}年{currentMonth}月度</h1>
-                                        <div style={{fontSize: '0.8rem', color: 'var(--text-sub)'}}>{formatDateLabel(periodDates[0])}〜{formatDateLabel(periodDates[periodDates.length - 1])} 締め</div>
-                                    </div>
-                                    <button className="btn outline" style={{padding: '4px 8px'}} onClick={() => changeMonth(1)}>&gt;</button>
+                        <div className="header month-header">
+                            <div className="month-header-nav">
+                                <button className="btn outline" style={{padding: '4px 8px', flexShrink: 0}} onClick={() => changeMonth(-1)}>&lt;</button>
+                                <div className="month-header-label">
+                                    <span className="month-header-main">{currentYear}年{currentMonth}月度</span>
+                                    <span className="month-header-sub">({formatDateLabel(periodDates[0])}〜{formatDateLabel(periodDates[periodDates.length - 1])})</span>
                                 </div>
+                                <button className="btn outline" style={{padding: '4px 8px', flexShrink: 0}} onClick={() => changeMonth(1)}>&gt;</button>
                             </div>
                             {!isNarrowViewport && renderActions()}
                         </div>
@@ -901,75 +904,13 @@ export default function App() {
                             </>
                         )}
 
-                        <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '16px'}}>
-                                    <button className="btn outline" onClick={() => setIsMobileView(!isMobileView)}>
-                                        {isMobileView ? '💻 PCビューで表示' : '📱 スマホビューで表示'}
-                                    </button>
-                                </div>
+                        <div className="matrix-scroll-nav">
+                            <button className="btn outline" onClick={() => scrollTableBy(-350)}>◀ 左へスクロール</button>
+                            <button className="btn outline" onClick={() => scrollTableBy(350)}>右へスクロール ▶</button>
+                        </div>
 
-                                {isMobileView ? (
-                                    <div className="glass-card" style={{padding: '16px'}}>
-                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', background: '#F8FAFC', padding: '12px', borderRadius: '8px'}}>
-                                            <button className="btn outline" style={{padding: '6px 12px'}} onClick={() => setSelectedDateIndex(Math.max(0, selectedDateIndex - 1))}>&lt;</button>
-                                            <h3 style={{margin: 0, fontSize: '1.2rem', color: 'var(--primary)'}}>{formatDateLabel(periodDates[selectedDateIndex])} ({dayNames[periodDates[selectedDateIndex].getDay()]})</h3>
-                                            <button className="btn outline" style={{padding: '6px 12px'}} onClick={() => setSelectedDateIndex(Math.min(periodDates.length - 1, selectedDateIndex + 1))}>&gt;</button>
-                                        </div>
-                                        {dayAnalyses[selectedDateIndex] && (
-                                            <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px'}}>
-                                                {dayAnalyses[selectedDateIndex].gaps.length > 0 && (
-                                                    <span className="day-alert-badge" title={dayAnalyses[selectedDateIndex].gaps.map(g => `${minToLabel(g[0])}～${minToLabel(g[1])}`).join(', ')}>❌ 登販不在あり</span>
-                                                )}
-                                                {!dayAnalyses[selectedDateIndex].openerOk && dayAnalyses[selectedDateIndex].minStart !== null && (
-                                                    <span className="day-alert-badge">❌ 朝鍵不在</span>
-                                                )}
-                                                {!dayAnalyses[selectedDateIndex].closerOk && dayAnalyses[selectedDateIndex].maxEnd !== null && (
-                                                    <span className="day-alert-badge">❌ 夜鍵不在</span>
-                                                )}
-                                            </div>
-                                        )}
-                                        <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
-                                            {employees.map((emp, i) => {
-                                                const cell = generatedResult?.matrix?.[i]?.[selectedDateIndex] || null;
-                                                const cssClass = cellClassName(emp, cell, i, selectedDateIndex);
-                                                const stats = computeEmployeeStats(i);
-                                                const isSpecialEditable = cell && SPECIAL_SHIFTS.includes(cell.shift) && !SPECIAL_OFF_LIKE.has(cell.shift);
-
-                                                return (
-                                                    <div key={i} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'white', borderRadius: '8px', border: '1px solid #E5E7EB'}}>
-                                                        <div>
-                                                            <div style={{fontWeight: 600, fontSize: '1rem', color: 'var(--text-main)'}}>{emp.name}</div>
-                                                            <div style={{fontSize: '0.75rem', color: '#6B7280', marginTop: '4px'}}>{emp.isRS ? <span style={{background:'#D1FAE5', color:'#065F46', padding:'2px 4px', borderRadius:'4px', marginRight:'4px'}}>登販</span> : ''}{emp.isKeyHolder ? <span style={{marginRight:'4px'}}>🔑</span> : ''} {emp.type}</div>
-                                                            <div className="staff-stat-badge">{stats.days}日 / {stats.hours.toFixed(1)}h</div>
-                                                        </div>
-                                                        <div style={{width: '60px', position: 'relative'}}>
-                                                            <div className={cssClass} style={{ pointerEvents: 'none', textAlign: 'center', fontSize: '0.8rem', padding: '6px', borderRadius: '4px', lineHeight: '1.2' }}>
-                                                                {renderCellNode(cell, i, selectedDateIndex)}
-                                                            </div>
-                                                            <select
-                                                                value={cell?.shift || ''}
-                                                                style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', appearance: 'none', zIndex: 1}}
-                                                                onChange={(e) => updateCell(i, selectedDateIndex, e.target.value)}
-                                                            >
-                                                                <option value="">－ (未設定)</option>
-                                                                <option value="休">休</option>
-                                                                {emp.shifts.map(s => <option key={s} value={s}>{shiftMaster[s] || s}</option>)}
-                                                                <optgroup label="特殊シフト">
-                                                                    {SPECIAL_SHIFTS.map(sp => <option key={sp} value={sp}>{sp}</option>)}
-                                                                </optgroup>
-                                                            </select>
-                                                            {isSpecialEditable && (
-                                                                <button type="button" className="hours-edit-btn" style={{zIndex: 2}}
-                                                                    onClick={(ev) => { ev.stopPropagation(); setSpecialHoursModal({ i, d: selectedDateIndex, hours: cell.hours ?? DEFAULT_SPECIAL_HOURS }); }}>✎</button>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="glass-card" style={{padding: '16px'}}>
-                                        <div className="table-container">
+                                <div className="glass-card" style={{padding: '16px'}}>
+                                        <div className="table-container" ref={tableContainerRef}>
                                         <table>
                                             <thead>
                                                 <tr>
@@ -1048,7 +989,6 @@ export default function App() {
                                         </table>
                                     </div>
                                 </div>
-                                )}
                     </div>
                 )}
 
