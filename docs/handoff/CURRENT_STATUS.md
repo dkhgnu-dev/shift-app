@@ -10,11 +10,13 @@
 
 ## Current State
 
-- Cycle: 4 (P3完了、`cc-cycle4`へpush済み -> Dex P4レビュー待ち)
-- Status: CCが`INITIAL_DATA`上位3名（K.D.、N.E.、N.K.）への鍵持ち付与、「デフォルトリセット」ボタン、バージョン表記(v4.19)を実装し、`cc-cycle4`ブランチへpush済み（対象HEAD: `417b665`）。`npm test`(12件)・`node test_time_utils.mjs`(33件)・`npm run build`は全て成功。ただしこのセッションのBrowserペインが別プロジェクト設定に固定されており、レスポンシブレイアウトのブラウザ実機確認は未実施。
-- Next: Dex(P4)が`cc-cycle4`をレビューし、OKまたは差し戻しを判断する。OKならDex(P5)がmainへpull --ff-only後にmergeする。
+- Cycle: 4 (Dex P4完了 -> Take2差し戻し)
+- Status: Dexが`7560cdd`までDIFF・自動テスト・320/375/768/769/1280px実画面を確認。レイアウトは問題なし。一方、デフォルトリセット後も古い`generatedResult`が残る整合性不具合と、従業員管理画面で上位3名の鍵持ち表示を確認できない受入条件不足を確認したため、Take2差し戻し。
+- Next: CCが`docs/handoff/P4_Rollback/cycle_4_take2_request.md`を読み、`cc-cycle4`でTake2修正・検証・pushを行う。完了後にDex P4再レビューへ回す。
 - 完了報告: `docs/handoff/P3_CC_to_Air/cycle_4_report.md`
 - レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_4_review_request.md`
+- P4レビュー: `docs/handoff/P4_Dex_Review/cycle_4_review.md`
+- Take2指示: `docs/handoff/P4_Rollback/cycle_4_take2_request.md`
 
 ## Read First
 
