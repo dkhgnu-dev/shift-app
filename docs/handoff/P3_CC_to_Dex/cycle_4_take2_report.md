@@ -2,6 +2,9 @@
 
 # P3 完了報告 Take2: Cycle 4 デフォルトリセット整合性 & 鍵持ち表示
 
+- 対象ブランチ: `cc-cycle4`
+- レビュー対象HEAD: `532f291`（push済み、`5cab0b7..532f291`）
+
 ## 対応した指摘
 
 - `docs/handoff/P4_Rollback/cycle_4_take2_request.md`（Dex P4差戻し）
