@@ -3,7 +3,7 @@
 # Cycle 5 レビュー依頼: マトリクス表の固定＆左右スクロールボタン & スマホカレンダー統合
 
 - 対象ブランチ: `cc-cycle5`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `73bb9f7`（push済み、`7c7663f..73bb9f7`）
 - 対応指示: `docs/handoff/P2_AirCrew_to_CC/cycle_5_matrix_scroll_and_mobile_calendar_instructions.md`
 - 対応報告: `docs/handoff/P3_CC_to_Air/cycle_5_report.md`
 
