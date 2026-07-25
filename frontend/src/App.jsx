@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2, Menu, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
+import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2, Menu, GripVertical, ArrowUp, ArrowDown, RotateCcw } from 'lucide-react';
 import { computeHourChange, computeMinuteChange, formatTime, isValidSpecialHours, parseFourDigitTime, parseStrictNumber } from './timeUtils';
 
 const SHIFT_MASTER = {
@@ -58,9 +58,9 @@ const DEFAULT_DAYS = {
 };
 
 const INITIAL_DATA = [
-    { name: 'K.D.', type: '正社員', isRS: true, days: 23, shifts: ['④', '⑦'], requests: '', isKeyHolder: false },
-    { name: 'N.E.', type: '時間限定社員', isRS: true, days: 23, shifts: ['④'], requests: '', isKeyHolder: false },
-    { name: 'N.K.', type: '正社員', isRS: true, days: 23, shifts: ['④', '⑦'], requests: '', isKeyHolder: false },
+    { name: 'K.D.', type: '正社員', isRS: true, days: 23, shifts: ['④', '⑦'], requests: '', isKeyHolder: true },
+    { name: 'N.E.', type: '時間限定社員', isRS: true, days: 23, shifts: ['④'], requests: '', isKeyHolder: true },
+    { name: 'N.K.', type: '正社員', isRS: true, days: 23, shifts: ['④', '⑦'], requests: '', isKeyHolder: true },
     { name: 'T.S.', type: '準社員', isRS: false, days: 23, shifts: ['④'], requests: '', isKeyHolder: false },
     { name: 'S.M.', type: '準社員', isRS: false, days: 23, shifts: ['④'], requests: '', isKeyHolder: false },
     { name: 'J.R.', type: '準社員', isRS: false, days: 23, shifts: ['⑦'], requests: '', isKeyHolder: false },
@@ -787,6 +787,17 @@ export default function App() {
         if (activeTab === 'employees') {
             return (
                 <div style={{display: 'flex', gap: '8px', width: isNarrowViewport ? '100%' : 'auto'}}>
+                    <button
+                        className="btn btn-secondary"
+                        style={{flex: isNarrowViewport ? 1 : 'none', justifyContent: 'center', backgroundColor: '#F3F4F6', color: '#374151'}}
+                        onClick={() => {
+                            if (window.confirm('現在の従業員リストを破棄し、デフォルトの24名構成（鍵持ち権限等設定済）にリセットしますか？')) {
+                                setEmployees(INITIAL_DATA.map(emp => ({ ...emp, shifts: [...emp.shifts] })));
+                            }
+                        }}
+                    >
+                        <RotateCcw size={16}/> デフォルトリセット
+                    </button>
                     <button className="btn" style={{flex: isNarrowViewport ? 1 : 'none', justifyContent: 'center'}} onClick={() => openModal()}><Plus size={16}/> 新規追加</button>
                 </div>
             );
@@ -802,7 +813,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.18</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.19</span></div>
                 </div>
             )}
 
@@ -813,7 +824,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.18</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.19</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
