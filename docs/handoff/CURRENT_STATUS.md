@@ -10,12 +10,11 @@
 
 ## Current State
 
-- Cycle: 5 (Take3実装完了、`cc-cycle5`へpush済み -> Dex P4再レビュー待ち)
-- Status: Dex P4がTake2をNG(`1567833`)とし、1列目の実幅45px(全セル共通min-width)と2列目`left:40px`の5px重複をTake3差戻し(`1df48c5`)。CCが1列目をwidth/min-width/max-width:40pxで厳密固定し解消、v4.23化。`npm test`連続2回で17件全PASS、`node test_time_utils.mjs`(33件)・`npm run build`も成功。
-- Status(重要): このセッションのBrowserペインが別プロジェクト(`シフト`)に固定されていることを確認（`友達シフト`の`.claude/launch.json`のport:5173指定が無視され、別プロジェクト向けport:5174の設定が起動してしまう）。Kazumax承認のもと、**今回もブラウザ実機での座標実測は未実施**。CSS仕様上の計算根拠のみで対応し、実機確認をDex/Kazumaxに依頼している。
-- Next: Dex(P4)が`cc-cycle5`のTake3をレビューし、実機で320/375/768/769/1280pxの座標を確認する。OKならDex(P5)がmainへmergeする（**main未merge**）。
+- Cycle: 5 (Take3 Dex P4 OK -> Dex P5統合待ち)
+- Status: Dexが`aa50aa8`をDIFFレビューし、320/375/768/769/1280pxの実ブラウザで固定列境界を実測。全幅で1列目40px、2列目との境界差0px、横350px・縦420pxスクロール後も固定正常。月度表示、背景、既存タブ、consoleも異常なし。自動テスト17件×2周、時刻33件、build成功。
+- Next: Dex(P5)がmainを`git pull --ff-only`で最新化し、レビュー済みcc-cycle5をmerge/pushする。
 - 完了報告(Take3): `docs/handoff/P3_CC_to_Dex/cycle_5_take3_report.md`
-- 前回レビュー: `docs/handoff/P4_Dex_Review/cycle_5_take2_review.md`
+- P4レビュー: `docs/handoff/P4_Dex_Review/cycle_5_take3_review.md`
 - Take3指示: `docs/handoff/P4_Rollback/cycle_5_take3_request.md`
 - 前サイクル(C4)統合記録: `docs/handoff/P5_Dex_Integration/cycle_4_p5_integration.md`
 
