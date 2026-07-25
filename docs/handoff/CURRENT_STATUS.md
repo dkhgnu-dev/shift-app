@@ -10,14 +10,11 @@
 
 ## Current State
 
-- Cycle: 5 (**完了**)
-- Status: Dex P4 OK後、レビュー済み`cc-cycle5`（P4記録HEAD `6feb61f`）をmainへfast-forward統合。固定列境界は指定5幅すべて0px差、横・縦sticky、月度表示、既存タブ、console、自動テスト、buildを確認済み。v4.23。
-- Next: Kazumax/Airが次サイクルの目的を決める。新規作業は最新mainから別branchを作成する。
-- 完了報告(Take3): `docs/handoff/P3_CC_to_Dex/cycle_5_take3_report.md`
-- P4レビュー: `docs/handoff/P4_Dex_Review/cycle_5_take3_review.md`
-- P5統合記録: `docs/handoff/P5_Dex_Integration/cycle_5_p5_integration.md`
-- Take3指示: `docs/handoff/P4_Rollback/cycle_5_take3_request.md`
-- 前サイクル(C4)統合記録: `docs/handoff/P5_Dex_Integration/cycle_4_p5_integration.md`
+- Cycle: 6 (P2 指示書完成 -> CC 実装待ち)
+- Status: 左右スクロールボタンを上部から排除し、シフト表の左右の境界切れ目に「半透明フロートボタン（グラスモフィズム設計）」としてオーバーレイ配置するUI改修（及び表示面積最適化）の P2 指示書を策定中。
+- Next: CCが `docs/handoff/P2_AirCrew_to_CC/cycle_6_floating_scroll_buttons_instructions.md` を受領して P3 実装と自律テストを開始。完結後、Dex P4 へ引き継ぎ。
+- 直近P2指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_6_floating_scroll_buttons_instructions.md`
+- 前期(C5)統合報告: `docs/handoff/P5_Dex_Integration/cycle_5_p5_integration.md`
 
 ## Read First
 
