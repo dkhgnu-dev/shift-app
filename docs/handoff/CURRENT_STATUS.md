@@ -10,11 +10,12 @@
 
 ## Current State
 
-- Cycle: 4 (Take2実装完了、`cc-cycle4`へpush済み -> Dex P4再レビュー待ち)
-- Status: CCがTake2差戻し対応（リセット時のgeneratedResult破棄、従業員管理画面の鍵持ち表示、恒久テスト強化、v4.20化）を実装。`npm test`(13件)・`node test_time_utils.mjs`(33件)・`npm run build`は全て成功。レスポンシブレイアウトの実機確認は今回も未実施（前回Dexが320/375/768/769/1280pxを確認済み）。
-- Next: Dex(P4)が`cc-cycle4`のTake2を再レビューし、OKまたは差し戻しを判断する。OKならDex(P5)がmainへmergeする。
+- Cycle: 4 (Take2 Dex P4 OK -> P5 main統合待ち)
+- Status: DexがTake2のDIFF、自動テスト13件、時間処理33件、build、320/375/768/769/1280px実画面を確認。リセット時の生成済みシフト破棄、上位3名だけの鍵持ち表示、v4.20を確認し、P4 OK。
+- Next: Dex(P5)がレビュー済みHEAD `141cd2d` とmerge対象の一致を確認し、mainをpull --ff-only後に`cc-cycle4`をmerge・pushする。
 - 完了報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_4_take2_report.md`
 - 前回レビュー: `docs/handoff/P4_Dex_Review/cycle_4_review.md`
+- Take2レビュー: `docs/handoff/P4_Dex_Review/cycle_4_take2_review.md`
 - Take2指示: `docs/handoff/P4_Rollback/cycle_4_take2_request.md`
 
 ## Read First
