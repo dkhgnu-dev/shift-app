@@ -104,7 +104,11 @@ th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid #E5E7EB;
    ヘッダー行の1・2列目はさらに上下(top)も固定して左上角の二重固定にする。
    不透明背景(#F8FAFC)を全層に付与し、縦横同時スクロールでも背後が透けないようにする。 */
 th { background-color: #F8FAFC; font-weight: 600; color: var(--text-sub); position: sticky; top: 0; z-index: 20; }
-td:nth-child(1), th:nth-child(1) { position: sticky; left: 0; background-color: #F8FAFC; z-index: 30; }
+/* Cycle5 Take3(Dex差戻し): 全セル共通の`min-width: 45px`が1列目にも適用され、
+   実際の描画幅が(インライン指定の40pxではなく)45pxになっていたため、
+   2列目の`left: 40px`との間に5pxの隙間ではなく重複が生じていた。
+   1列目だけはwidth/min-width/max-widthを40pxへ厳密固定し、2列目のleftと一致させる。 */
+td:nth-child(1), th:nth-child(1) { position: sticky; left: 0; background-color: #F8FAFC; z-index: 30; width: 40px; min-width: 40px; max-width: 40px; }
 td:nth-child(2), th:nth-child(2) { position: sticky; left: 40px; background-color: #F8FAFC; z-index: 30; min-width: 140px; text-align: left; padding-left: 16px; font-weight: 500; box-shadow: 2px 0 5px rgba(0,0,0,0.05); border-right: 2px solid #E5E7EB; }
 th:nth-child(1), th:nth-child(2) { z-index: 40; }
 .day-label { display: block; font-size: 0.7rem; color: #9CA3AF; margin-top: 2px;}
