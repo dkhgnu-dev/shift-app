@@ -793,6 +793,9 @@ export default function App() {
                         onClick={() => {
                             if (window.confirm('現在の従業員リストを破棄し、デフォルトの24名構成（鍵持ち権限等設定済）にリセットしますか？')) {
                                 setEmployees(INITIAL_DATA.map(emp => ({ ...emp, shifts: [...emp.shifts] })));
+                                // 従業員構成が変わると生成済みシフトの担当者情報(matrix)が古くなり
+                                // 整合しなくなるため、リセット時は生成結果も一緒に破棄する(Take2)。
+                                setGeneratedResult(null);
                             }
                         }}
                     >
@@ -813,7 +816,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.19</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.20</span></div>
                 </div>
             )}
 
@@ -824,7 +827,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.19</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.20</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -1213,7 +1216,10 @@ export default function App() {
                                                     </div>
                                                     <div style={{fontWeight: 700, fontSize: '1.1rem'}}>{emp.name}</div>
                                                 </div>
-                                                <div>{emp.isRS && <span style={{background: '#D1FAE5', color: '#065F46', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600}}>登販</span>}</div>
+                                                <div style={{display: 'flex', gap: '4px'}}>
+                                                    {emp.isRS && <span style={{background: '#D1FAE5', color: '#065F46', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600}}>登販</span>}
+                                                    {emp.isKeyHolder && <span style={{background: '#FEF3C7', color: '#92400E', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600}}>🔑 鍵持ち</span>}
+                                                </div>
                                             </div>
                                             <div style={{display: 'flex', gap: '8px', marginBottom: '12px'}}>
                                                 <span style={{background: '#F3F4F6', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem'}}>{emp.type}</span>
@@ -1259,7 +1265,10 @@ export default function App() {
                                                 <td style={{width: '40px', textAlign: 'center', color: '#9CA3AF', cursor: 'grab'}}>
                                                     <GripVertical size={16} className="drag-handle" />
                                                 </td>
-                                                <td style={{position: 'static', textAlign: 'left', padding: '16px', fontWeight: 600}}>{emp.name}</td>
+                                                <td style={{position: 'static', textAlign: 'left', padding: '16px', fontWeight: 600}}>
+                                                    {emp.name}
+                                                    {emp.isKeyHolder && <span title="鍵持ち" style={{marginLeft: '6px', background: '#FEF3C7', color: '#92400E', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600}}>🔑 鍵持ち</span>}
+                                                </td>
                                                 <td style={{position: 'static', textAlign: 'left'}}>{emp.type}</td>
                                                 <td style={{position: 'static', textAlign: 'center'}}>
                                                     {emp.isRS ? <span style={{background: '#D1FAE5', color: '#065F46', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600}}>あり</span> : <span style={{color: 'var(--text-sub)'}}>なし</span>}
