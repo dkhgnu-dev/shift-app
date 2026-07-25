@@ -3,7 +3,7 @@
 # Cycle 5 Take3 再レビュー依頼: 固定列の5px重複解消
 
 - 対象ブランチ: `cc-cycle5`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `56bff20`（push済み、`1df48c5..56bff20`）
 - 前回レビュー: `docs/handoff/P4_Dex_Review/cycle_5_take2_review.md`（NG、Take3差戻し `1df48c5`）
 - 対応報告: `docs/handoff/P3_CC_to_Dex/cycle_5_take3_report.md`
 
