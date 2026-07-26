@@ -4,17 +4,19 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `cc-cycle6`
+- Working Branch: `main`
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 6
-- Status: Take2のDex(P4)レビュー完了、P4 OK
-- Review target: `75f23319561b349b1ac0df307d5c62fd8e22de23`
+- Cycle: 6 完了
+- Status: Cycle 6 Take2をP4 OK判定し、Dex(P5)が`main`へfast-forward統合済み
+- Version: v4.25
 - Review: `docs/handoff/P4_Dex_Review/cycle_6_take2_review.md`
-- Next: Dex(P5)が`main`の最新化と競合確認後、`cc-cycle6`を`main`へ統合してpushする
+- Integration: `docs/handoff/P5_Dex_Integration/cycle_6_p5_integration.md`
+- Next: Kazumax / Airが次Cycleを起票する
+- Kazumax確認レベル: 確認不要
 
 ## Verification
 
@@ -31,7 +33,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P4_Dex_Review/cycle_6_take2_review.md`
+- `docs/handoff/P5_Dex_Integration/cycle_6_p5_integration.md`
 
 ## Stop Conditions
 
