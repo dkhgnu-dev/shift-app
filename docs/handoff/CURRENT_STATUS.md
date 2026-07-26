@@ -10,12 +10,12 @@
 
 ## Current State
 
-- Cycle: 6 完了
-- Status: Cycle 6 Take2をP4 OK判定し、Dex(P5)が`main`へfast-forward統合済み
-- Version: v4.25
-- Review: `docs/handoff/P4_Dex_Review/cycle_6_take2_review.md`
-- Integration: `docs/handoff/P5_Dex_Integration/cycle_6_p5_integration.md`
-- Next: Kazumax / Airが次Cycleを起票する
+- Cycle: 7 (P2 指示書完成 -> CC 実装待ち)
+- Status: 画面周囲の過剰な余白をカットしてシフト表表示エリアを最大化し、「デフォルトでは一画面に1ヶ月がピタッとフィット表示（この時フロート矢印は非表示）」「ズームコントローラーで拡大した際に見切れた部分向けにフロートボタンを発動させる」神UI/UX改修の P2指示書 を正式策定。
+- Version: 予定 v4.26
+- Next: CCが `docs/handoff/P2_AirCrew_to_CC/cycle_7_zoom_and_viewport_maximization_instructions.md` を受領して P3実装および自律テストを開始。完了後、DexのP4差分レビューへ回す。
+- 直近P2指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_7_zoom_and_viewport_maximization_instructions.md`
+- 前期(C6)統合記録: `docs/handoff/P5_Dex_Integration/cycle_6_p5_integration.md`
 - Kazumax確認レベル: 確認不要
 
 ## Verification
