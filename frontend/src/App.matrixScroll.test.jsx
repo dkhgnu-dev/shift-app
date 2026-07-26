@@ -14,6 +14,37 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
+// Cycle6 Take2(Dex差戻し): scrollWidth/clientWidth/scrollLeftのdescriptorを
+// HTMLElement.prototypeへ一時的に上書きするヘルパー。try/finallyで必ず元の
+// 状態へ復元し、他テストの実行順序に影響しないようにする。
+// 注意: jsdomではこれらは通常Element.prototype側の継承プロパティであり、
+// HTMLElement.prototype自身は「独自のdescriptorを持たない(undefined)」。
+// 復元時にundefinedをdefinePropertyへ渡すとエラーになるため、
+// 元々自前のdescriptorが無かった場合はdeleteで独自定義を取り除き、
+// 継承元(Element.prototype)のふるまいへ単純に戻す。
+function withMockedScrollGeometry(clientWidth, scrollWidth, fn) {
+    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+    const originalScrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
+    const originalScrollLeft = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollLeft');
+    const restore = (name, descriptor) => {
+        if (descriptor) {
+            Object.defineProperty(HTMLElement.prototype, name, descriptor);
+        } else {
+            delete HTMLElement.prototype[name];
+        }
+    };
+    try {
+        Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: clientWidth });
+        Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, value: scrollWidth });
+        Object.defineProperty(HTMLElement.prototype, 'scrollLeft', { configurable: true, writable: true, value: 0 });
+        fn();
+    } finally {
+        restore('clientWidth', originalClientWidth);
+        restore('scrollWidth', originalScrollWidth);
+        restore('scrollLeft', originalScrollLeft);
+    }
+}
+
 describe('ダッシュボード: マトリクス表の常時表示 (Cycle5)', () => {
     it('スマホ幅相当でも単日カードビューではなく、全員分のマトリクス表(テーブル)が表示される', () => {
         render(<App />);
@@ -58,6 +89,14 @@ describe('ダッシュボード: マトリクス表の常時表示 (Cycle5)', ()
     });
 });
 
+// Cycle6 Take2: `aria-hidden="true"`は@testing-library/domのgetByRoleから
+// 意図通り除外される(アクセシビリティツリーに存在しない要素として扱われる)ため、
+// 非表示状態のボタンはgetByRole(name:...)で見つからない。これは必須修正3が
+// 正しく効いている証拠でもあるが、テストからボタン自体を掴む手段としては
+// querySelectorを使う(表示/非表示どちらの状態でも取得できるように)。
+const leftFloatBtn = () => document.querySelector('.matrix-float-btn-left');
+const rightFloatBtn = () => document.querySelector('.matrix-float-btn-right');
+
 describe('ダッシュボード: 半透明フロート左右スクロールボタン (Cycle6)', () => {
     it('旧: 表上部の大きな文字入りスクロールボタンは撤去済みである', () => {
         render(<App />);
@@ -66,16 +105,25 @@ describe('ダッシュボード: 半透明フロート左右スクロールボ�
         expect(document.querySelector('.matrix-scroll-nav')).toBeNull();
     });
 
-    it('左右のフロートボタンが存在し、クリックするとマトリクス表のコンテナがscrollByで移動する', () => {
+    it('左右のフロートボタンが操作可能な状態のとき、クリックするとマトリクス表のコンテナがscrollByで移動する', () => {
         const scrollBySpy = vi.spyOn(Element.prototype, 'scrollBy').mockImplementation(() => {});
-        render(<App />);
+        // 両方向とも操作可能になるよう、中間スクロール位置(左端でも右端でもない)を疑似再現する。
+        withMockedScrollGeometry(300, 1200, () => {
+            render(<App />);
+            const container = document.querySelector('.table-container');
+            container.scrollLeft = 500;
+            fireEvent.scroll(container);
 
-        fireEvent.click(screen.getByRole('button', { name: '左へスクロール' }));
-        fireEvent.click(screen.getByRole('button', { name: '右へスクロール' }));
+            expect(leftFloatBtn()).not.toBeDisabled();
+            expect(rightFloatBtn()).not.toBeDisabled();
 
-        expect(scrollBySpy).toHaveBeenCalledTimes(2);
-        expect(scrollBySpy).toHaveBeenNthCalledWith(1, { left: -350, behavior: 'smooth' });
-        expect(scrollBySpy).toHaveBeenNthCalledWith(2, { left: 350, behavior: 'smooth' });
+            fireEvent.click(leftFloatBtn());
+            fireEvent.click(rightFloatBtn());
+
+            expect(scrollBySpy).toHaveBeenCalledTimes(2);
+            expect(scrollBySpy).toHaveBeenNthCalledWith(1, { left: -350, behavior: 'smooth' });
+            expect(scrollBySpy).toHaveBeenNthCalledWith(2, { left: 350, behavior: 'smooth' });
+        });
     });
 
     // jsdomは実レイアウトを計算しないため(scrollWidth/clientWidthは既定で0)、
@@ -83,25 +131,58 @@ describe('ダッシュボード: 半透明フロート左右スクロールボ�
     // 隠れている/もう左端まで見えている」状態を疑似的に再現し、フロートボタンの
     // 表示・非表示切り替えロジック自体を検証する。実際のピクセル位置での
     // 見え方はブラウザ実機でのみ確認可能(このセッションでは未実施)。
-    it('横スクロールで見えていない方向のボタンだけが表示され、端に達すると同じ側が非表示になる', () => {
-        Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 300 });
-        Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, value: 1200 });
-        Object.defineProperty(HTMLElement.prototype, 'scrollLeft', { configurable: true, writable: true, value: 0 });
+    it('横スクロールで見えていない方向のボタンだけが操作可能になり、端に達すると同じ側が無効化される', () => {
+        withMockedScrollGeometry(300, 1200, () => {
+            render(<App />);
+            const container = document.querySelector('.table-container');
 
-        render(<App />);
-        const container = document.querySelector('.table-container');
-        const leftBtn = screen.getByRole('button', { name: '左へスクロール' });
-        const rightBtn = screen.getByRole('button', { name: '右へスクロール' });
+            // 初期状態(左端): 左は無効化、右(まだ隠れているシフト)だけ操作可能
+            expect(leftFloatBtn()).toBeDisabled();
+            expect(rightFloatBtn()).not.toBeDisabled();
 
-        // 初期状態(左端): 左は隠す、右(まだ隠れているシフト)だけ見せる
-        expect(leftBtn.style.opacity).toBe('0');
-        expect(rightBtn.style.opacity).toBe('1');
+            // 右端まで到達(scrollLeft + clientWidth === scrollWidth)したとみなす
+            container.scrollLeft = 900;
+            fireEvent.scroll(container);
 
-        // 右端まで到達(scrollLeft + clientWidth === scrollWidth)したとみなす
-        container.scrollLeft = 900;
-        fireEvent.scroll(container);
+            expect(leftFloatBtn()).not.toBeDisabled();
+            expect(rightFloatBtn()).toBeDisabled();
+        });
+    });
 
-        expect(leftBtn.style.opacity).toBe('1');
-        expect(rightBtn.style.opacity).toBe('0');
+    // Cycle6 Take2(Dex差戻し必須修正3): 無効化された側はdisabled属性により、
+    // ポインター操作・Tabフォーカス・Enter/Space実行のいずれも不可能であり、
+    // aria-hiddenで支援技術からも除外されていることを確認する。
+    it('無効化されたボタンはTabフォーカス対象から外れ、支援技術から隠される', () => {
+        withMockedScrollGeometry(300, 1200, () => {
+            render(<App />);
+            const leftBtn = leftFloatBtn();
+
+            expect(leftBtn).toBeDisabled();
+            expect(leftBtn).toHaveAttribute('tabindex', '-1');
+            expect(leftBtn).toHaveAttribute('aria-hidden', 'true');
+        });
+    });
+
+    // Cycle6 Take2(Dex差戻し必須修正2): ダッシュボードは`activeTab`で条件付き描画され、
+    // 他タブへ移動すると`table-container`ごとアンマウントされる。戻ったときに
+    // 新しいDOM(scrollLeft=0)を再計測せず、離脱前の古い表示状態のままにならないことを確認する。
+    it('横スクロール後に他タブへ移動しダッシュボードへ戻ると、新しい表を再計測して端状態が正しく戻る', () => {
+        withMockedScrollGeometry(300, 1200, () => {
+            render(<App />);
+            const container = document.querySelector('.table-container');
+            container.scrollLeft = 900;
+            fireEvent.scroll(container);
+            expect(leftFloatBtn()).not.toBeDisabled();
+
+            fireEvent.click(screen.getByText('従業員管理'));
+            expect(document.querySelector('.table-container')).toBeNull();
+
+            fireEvent.click(screen.getByText('全体シフト表'));
+
+            // 再マウントされた新しいtable-containerはscrollLeft=0からスタートするため、
+            // 左は再び無効化され、右だけが操作可能に戻ること。
+            expect(leftFloatBtn()).toBeDisabled();
+            expect(rightFloatBtn()).not.toBeDisabled();
+        });
     });
 });

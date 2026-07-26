@@ -743,11 +743,17 @@ export default function App() {
 
     // Cycle6: 表の幅(日数)や行数が変わるとスクロール可否も変わるため、都度再判定する。
     useEffect(() => {
+        // Cycle6 Take2(Dex差戻し): ダッシュボードは`activeTab`で条件付き描画されており、
+        // 他タブへ移動すると`table-container`ごとアンマウントされ、戻ると新しいDOM
+        // (scrollLeft=0)として再マウントされる。`activeTab`を依存に含めないと、
+        // 離脱前の古いボタン表示状態が復帰後も残ってしまっていた(Dex実機確認で発覚)。
+        // refのアタッチはReactのコミット後・エフェクト実行前に完了しているため、
+        // 通常のuseEffectで確実に新しいtable-containerを計測できる。
         updateScrollButtons();
         window.addEventListener('resize', updateScrollButtons);
         return () => window.removeEventListener('resize', updateScrollButtons);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [periodDates.length, employees.length, generatedResult]);
+    }, [periodDates.length, employees.length, generatedResult, activeTab]);
 
     // 鍵持ちアイコン: 朝一番の開錠担当は☀️(オレンジ)、夜最後の施錠担当は🌙(パープル)。
     // 両方兼ねる日は☀️🌙を表示する。
@@ -840,7 +846,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.24</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.25</span></div>
                 </div>
             )}
 
@@ -851,7 +857,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.24</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.25</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -1003,11 +1009,16 @@ export default function App() {
                                             </tbody>
                                         </table>
                                     </div>
+                                    {/* Cycle6 Take2(Dex差戻し): 非表示側はdisabled+aria-hiddenで、
+                                        ポインター操作・Tabフォーカス・Enter/Space実行・支援技術への露出を
+                                        すべて防ぐ(opacity:0の見た目だけでは操作可能なままだった)。 */}
                                     <button
                                         type="button"
                                         className="matrix-float-btn matrix-float-btn-left"
-                                        style={{ opacity: canScrollLeft ? 1 : 0, pointerEvents: canScrollLeft ? 'auto' : 'none' }}
                                         onClick={() => scrollTableBy(-350)}
+                                        disabled={!canScrollLeft}
+                                        tabIndex={canScrollLeft ? 0 : -1}
+                                        aria-hidden={!canScrollLeft}
                                         aria-label="左へスクロール"
                                     >
                                         <ChevronLeft size={24} />
@@ -1015,8 +1026,10 @@ export default function App() {
                                     <button
                                         type="button"
                                         className="matrix-float-btn matrix-float-btn-right"
-                                        style={{ opacity: canScrollRight ? 1 : 0, pointerEvents: canScrollRight ? 'auto' : 'none' }}
                                         onClick={() => scrollTableBy(350)}
+                                        disabled={!canScrollRight}
+                                        tabIndex={canScrollRight ? 0 : -1}
+                                        aria-hidden={!canScrollRight}
                                         aria-label="右へスクロール"
                                     >
                                         <ChevronRight size={24} />

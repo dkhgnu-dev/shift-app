@@ -10,12 +10,11 @@
 
 ## Current State
 
-- Cycle: 6 (Dex P4 NG -> Take2修正待ち)
-- Status: Dexが`bdc4d5a`をDIFF・実ブラウザレビュー。320pxで左右ボタンが37px重なり左へ戻れない、別タブ復帰後に端状態が古い、透明ボタンがキーボード操作可能、テストのprototype上書き未復元を確認。
-- Next: CC(P3)が`docs/handoff/P4_Rollback/cycle_6_take2_request.md`を読み、v4.25 Take2を実装・検証して`cc-cycle6`へpushする。
-- 完了報告: `docs/handoff/P3_CC_to_Air/cycle_6_report.md`
-- レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_6_review_request.md`
-- P4レビュー: `docs/handoff/P4_Dex_Review/cycle_6_review.md`
+- Cycle: 6 (Take2実装完了、`cc-cycle6`へpush済み -> Dex P4再レビュー待ち)
+- Status: CCが左右ボタンの動的クランプ配置（重複ゼロ）、タブ復帰時の再計算、disabled/aria-hiddenによるアクセシビリティ対応、テストのprototype復元修正、v4.25化を実装。`npm test`を連続2回実行し21件全PASS、`node test_time_utils.mjs`(33件)・`npm run build`も成功。実ブラウザでの座標実測は今回も未実施（セッション環境制約：別プロジェクト固定）。
+- Next: Dex(P4)が`cc-cycle6`のTake2をレビューし、実機で320/375/768/769/1280pxの座標を確認する。OKならDex(P5)がmainへmergeする（**main未merge**）。
+- 完了報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_6_take2_report.md`
+- 前回レビュー: `docs/handoff/P4_Dex_Review/cycle_6_review.md`
 - Take2指示: `docs/handoff/P4_Rollback/cycle_6_take2_request.md`
 - 前期(C5)統合報告: `docs/handoff/P5_Dex_Integration/cycle_5_p5_integration.md`
 
@@ -25,7 +24,7 @@
 - docs/handoff/CURRENT_STATUS.md
 - docs/PROJECT_RULES.md
 - docs/handoff/WORKFLOW_RULES.md
-- 完了報告: docs/handoff/P3_CC_to_Air/cycle_6_report.md
+- 完了報告(Take2): docs/handoff/P3_CC_to_Dex/cycle_6_take2_report.md
 
 ## Stop Conditions
 
