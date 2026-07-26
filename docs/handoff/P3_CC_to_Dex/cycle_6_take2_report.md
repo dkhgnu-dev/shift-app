@@ -3,7 +3,7 @@
 # P3 完了報告 Take2: Cycle 6 フロートボタン重複解消・タブ復帰再計算・アクセシビリティ・テスト隔離
 
 - 対象ブランチ: `cc-cycle6`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `fc5e90a`（push済み、`2ec953e..fc5e90a`）
 - 対応した指摘: `docs/handoff/P4_Rollback/cycle_6_take2_request.md`（Dex差戻しcommit: `2ec953e`）
 
 ## 対応内容
