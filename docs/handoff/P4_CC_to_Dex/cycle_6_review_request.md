@@ -3,7 +3,7 @@
 # Cycle 6 レビュー依頼: 左右スクロールボタンの半透明フロート化 & 表示領域最大化
 
 - 対象ブランチ: `cc-cycle6`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `8e727c0`（push済み、`b1c842b..8e727c0`）
 - 対応指示: `docs/handoff/P2_AirCrew_to_CC/cycle_6_floating_scroll_buttons_instructions.md`
 - 対応報告: `docs/handoff/P3_CC_to_Air/cycle_6_report.md`
 
