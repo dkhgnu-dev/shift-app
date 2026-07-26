@@ -4,16 +4,17 @@
 
 - Name: 友達シフト
 - Repository: dkhgnu-dev/shift-app
-- Working Branch: main（Cycle 5 P4/P5完了、mainへ統合済み）
+- Working Branch: cc-cycle6（Cycle 6は作業branchで運用。P4 OK後にDexがmainへmerge）
 - Main agent: Air / CC / エアクルー（Air Crew）
 - External reviewer: Dex
 
 ## Current State
 
-- Cycle: 6 (P2 指示書完成 -> CC 実装待ち)
-- Status: 左右スクロールボタンを上部から排除し、シフト表の左右の境界切れ目に「半透明フロートボタン（グラスモフィズム設計）」としてオーバーレイ配置するUI改修（及び表示面積最適化）の P2 指示書を策定中。
-- Next: CCが `docs/handoff/P2_AirCrew_to_CC/cycle_6_floating_scroll_buttons_instructions.md` を受領して P3 実装と自律テストを開始。完結後、Dex P4 へ引き継ぎ。
-- 直近P2指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_6_floating_scroll_buttons_instructions.md`
+- Cycle: 6 (P3完了、`cc-cycle6`へpush済み -> Dex P4レビュー待ち)
+- Status: CCが上部の旧スクロールボタン撤去、半透明フロート左右ボタン（グラスモフィズム）、scrollLeft連動の表示制御、v4.24化を実装。`npm test`を連続2回実行し19件全PASS、`node test_time_utils.mjs`(33件)・`npm run build`も成功。CSS/レイアウトの実機確認は今回も未実施（セッション環境制約：別プロジェクト固定）。
+- Next: Dex(P4)が`cc-cycle6`をレビューし、実機で320/375/768/769/1280pxの見た目を確認する。OKならDex(P5)がmainへmergeする。
+- 完了報告: `docs/handoff/P3_CC_to_Air/cycle_6_report.md`
+- レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_6_review_request.md`
 - 前期(C5)統合報告: `docs/handoff/P5_Dex_Integration/cycle_5_p5_integration.md`
 
 ## Read First
@@ -22,7 +23,7 @@
 - docs/handoff/CURRENT_STATUS.md
 - docs/PROJECT_RULES.md
 - docs/handoff/WORKFLOW_RULES.md
-- 完了報告(Take3): docs/handoff/P3_CC_to_Dex/cycle_5_take3_report.md
+- 完了報告: docs/handoff/P3_CC_to_Air/cycle_6_report.md
 
 ## Stop Conditions
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2, Menu, GripVertical, ArrowUp, ArrowDown, RotateCcw } from 'lucide-react';
+import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2, Menu, GripVertical, ArrowUp, ArrowDown, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { computeHourChange, computeMinuteChange, formatTime, isValidSpecialHours, parseFourDigitTime, parseStrictNumber } from './timeUtils';
 
 const SHIFT_MASTER = {
@@ -234,6 +234,17 @@ export default function App() {
     const tableContainerRef = useRef(null);
     const scrollTableBy = (offset) => {
         tableContainerRef.current?.scrollBy({ left: offset, behavior: 'smooth' });
+    };
+
+    // Cycle6: 上部の大きな矢印ボタンを廃止し、表の左右の切れ目にフロートする半透明ボタンへ変更。
+    // scrollLeftが既に端に達している方向のボタンはフェードアウトさせる(「隠れている方向にだけ導く」仕様)。
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
+    const updateScrollButtons = () => {
+        const el = tableContainerRef.current;
+        if (!el) return;
+        setCanScrollLeft(el.scrollLeft > 0);
+        setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
     };
     
     const handleSort = () => {
@@ -730,6 +741,14 @@ export default function App() {
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
     const dayAnalyses = generatedResult ? periodDates.map((_, d) => analyzeDay(d)) : [];
 
+    // Cycle6: 表の幅(日数)や行数が変わるとスクロール可否も変わるため、都度再判定する。
+    useEffect(() => {
+        updateScrollButtons();
+        window.addEventListener('resize', updateScrollButtons);
+        return () => window.removeEventListener('resize', updateScrollButtons);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [periodDates.length, employees.length, generatedResult]);
+
     // 鍵持ちアイコン: 朝一番の開錠担当は☀️(オレンジ)、夜最後の施錠担当は🌙(パープル)。
     // 両方兼ねる日は☀️🌙を表示する。
     const keyHolderIcon = (empIdx, d) => {
@@ -821,7 +840,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.23</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.24</span></div>
                 </div>
             )}
 
@@ -832,7 +851,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.23</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.24</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -904,13 +923,9 @@ export default function App() {
                             </>
                         )}
 
-                        <div className="matrix-scroll-nav">
-                            <button className="btn outline" onClick={() => scrollTableBy(-350)}>◀ 左へスクロール</button>
-                            <button className="btn outline" onClick={() => scrollTableBy(350)}>右へスクロール ▶</button>
-                        </div>
-
                                 <div className="glass-card" style={{padding: '16px'}}>
-                                        <div className="table-container" ref={tableContainerRef}>
+                                    <div className="matrix-scroll-wrapper">
+                                        <div className="table-container" ref={tableContainerRef} onScroll={updateScrollButtons}>
                                         <table>
                                             <thead>
                                                 <tr>
@@ -988,6 +1003,25 @@ export default function App() {
                                             </tbody>
                                         </table>
                                     </div>
+                                    <button
+                                        type="button"
+                                        className="matrix-float-btn matrix-float-btn-left"
+                                        style={{ opacity: canScrollLeft ? 1 : 0, pointerEvents: canScrollLeft ? 'auto' : 'none' }}
+                                        onClick={() => scrollTableBy(-350)}
+                                        aria-label="左へスクロール"
+                                    >
+                                        <ChevronLeft size={24} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="matrix-float-btn matrix-float-btn-right"
+                                        style={{ opacity: canScrollRight ? 1 : 0, pointerEvents: canScrollRight ? 'auto' : 'none' }}
+                                        onClick={() => scrollTableBy(350)}
+                                        aria-label="右へスクロール"
+                                    >
+                                        <ChevronRight size={24} />
+                                    </button>
+                                </div>
                                 </div>
                     </div>
                 )}
