@@ -10,11 +10,13 @@
 
 ## Current State
 
-- Cycle: 6 (P3完了、`cc-cycle6`へpush済み -> Dex P4レビュー待ち)
-- Status: CCが上部の旧スクロールボタン撤去、半透明フロート左右ボタン（グラスモフィズム）、scrollLeft連動の表示制御、v4.24化を実装。`npm test`を連続2回実行し19件全PASS、`node test_time_utils.mjs`(33件)・`npm run build`も成功。CSS/レイアウトの実機確認は今回も未実施（セッション環境制約：別プロジェクト固定）。
-- Next: Dex(P4)が`cc-cycle6`をレビューし、実機で320/375/768/769/1280pxの見た目を確認する。OKならDex(P5)がmainへmergeする。
+- Cycle: 6 (Dex P4 NG -> Take2修正待ち)
+- Status: Dexが`bdc4d5a`をDIFF・実ブラウザレビュー。320pxで左右ボタンが37px重なり左へ戻れない、別タブ復帰後に端状態が古い、透明ボタンがキーボード操作可能、テストのprototype上書き未復元を確認。
+- Next: CC(P3)が`docs/handoff/P4_Rollback/cycle_6_take2_request.md`を読み、v4.25 Take2を実装・検証して`cc-cycle6`へpushする。
 - 完了報告: `docs/handoff/P3_CC_to_Air/cycle_6_report.md`
 - レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_6_review_request.md`
+- P4レビュー: `docs/handoff/P4_Dex_Review/cycle_6_review.md`
+- Take2指示: `docs/handoff/P4_Rollback/cycle_6_take2_request.md`
 - 前期(C5)統合報告: `docs/handoff/P5_Dex_Integration/cycle_5_p5_integration.md`
 
 ## Read First
