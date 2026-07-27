@@ -11,9 +11,9 @@
 ## Current State
 
 - Cycle: 7 (P2 指示書完成 -> CC 実装待ち)
-- Status: 画面周囲の過剰な余白をカットしてシフト表表示エリアを最大化し、「デフォルトでは一画面に1ヶ月がピタッとフィット表示（この時フロート矢印は非表示）」「ズームコントローラーで拡大した際に見切れた部分向けにフロートボタンを発動させる」神UI/UX改修の P2指示書 を正式策定。
+- Status: スマホ版（768px未満）の左固定列の約半分割譲問題を解消するため、「左固定列を100〜110pxへ圧縮・ドラッグハンドル全削除・サブ情報を名前セルタップの軽量ポップオーバー/ドロワーへ集約」「スマホ時はフロートボタン全カットでスワイプ特化」及び「PC版の一画面フィット・ズーム連動フロートスクロール」の完全極上の P2指示書 を策定完了。
 - Version: 予定 v4.26
-- Next: CCが `docs/handoff/P2_AirCrew_to_CC/cycle_7_zoom_and_viewport_maximization_instructions.md` を受領して P3実装および自律テストを開始。完了後、DexのP4差分レビューへ回す。
+- Next: CCが `docs/handoff/P2_AirCrew_to_CC/cycle_7_zoom_and_viewport_maximization_instructions.md` を受領して P3実装・テストに突入。完了後、DexのP4差分レビューへ回す。
 - 直近P2指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_7_zoom_and_viewport_maximization_instructions.md`
 - 前期(C6)統合記録: `docs/handoff/P5_Dex_Integration/cycle_6_p5_integration.md`
 - Kazumax確認レベル: 確認不要
