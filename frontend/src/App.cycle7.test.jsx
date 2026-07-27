@@ -11,15 +11,15 @@ function setViewportWidth(width) {
     Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: width });
 }
 
-// Cycle7 Take2(Dex差戻し): scrollWidth/clientWidthのdescriptorを一時的に
-// 上書きするヘルパー。Cycle6 Take2の反省を踏まえ、元々自前のdescriptorが
-// 無い場合(jsdomではElement.prototype側からの継承)はdeleteで復元する。
-//
-// scrollWidthは実ブラウザのzoom挙動を模して「naturalWidth(zoom無適用の実寸) ×
-// <table>のstyle.zoom値」を返すgetterにしている。単純な固定値にすると、
-// computeFitZoom()が2回目以降に呼ばれた際(zoomLevelが既に変化した後)の
-// 逆算が壊れてしまうため。
-function withMockedScrollGeometry(clientWidth, naturalWidth, fn) {
+// Cycle7 Take3(Dex差戻し): Take2までのモックは「scrollWidth = naturalWidth ×
+// 現在のzoom」という前提だったが、これは実ブラウザの挙動と一致しておらず
+// (table.scrollWidthをzoom適用後の値として扱えない、min-width:100%の影響も
+// あるため)、不具合を検出できなかった。Take3では、実ブラウザに合わせて
+// scrollWidth(自然幅)を「zoomに関係なく一定の値」としてモックする。
+// clientWidthは`setClientWidth`でテスト中に変更できるようにし、resizeイベント
+// による再計算をシミュレートできるようにしている。
+// descriptorは従来どおりtry/finallyで復元する。
+function withMockedScrollGeometry(initialClientWidth, naturalWidth, fn) {
     const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
     const originalScrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
     const restore = (name, descriptor) => {
@@ -29,18 +29,17 @@ function withMockedScrollGeometry(clientWidth, naturalWidth, fn) {
             delete HTMLElement.prototype[name];
         }
     };
+    let currentClientWidth = initialClientWidth;
     try {
-        Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: clientWidth });
+        Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+            configurable: true,
+            get() { return currentClientWidth; },
+        });
         Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
             configurable: true,
-            get() {
-                const table = this.tagName === 'TABLE' ? this : this.querySelector?.('table');
-                const zoomStyle = table?.style?.zoom;
-                const fraction = zoomStyle ? parseFloat(zoomStyle) / 100 : 1;
-                return naturalWidth * fraction;
-            },
+            get() { return naturalWidth; },
         });
-        fn();
+        fn({ setClientWidth: (w) => { currentClientWidth = w; } });
     } finally {
         restore('clientWidth', originalClientWidth);
         restore('scrollWidth', originalScrollWidth);
@@ -204,43 +203,72 @@ describe('スマホでの行ドラッグ無効化 (Cycle7 Take2)', () => {
 // Cycle7 Take2(Dex差戻し必須修正1): 「画面にフィット」は実寸計算に基づく。
 // jsdomは実レイアウトを計算しないため、scrollWidth/clientWidthを直接
 // 上書きして「コンテナよりオーバーフローしている」状態を疑似再現する。
-describe('PCズームコントロールと実寸フィット (Cycle7 Take2)', () => {
+describe('PCズームコントロールと実寸フィット (Cycle7 Take3)', () => {
     it('拡大・縮小ボタンで表示中のズーム率が変化する', () => {
-        render(<App />);
-        expect(document.querySelector('.zoom-controls')).not.toBeNull();
-        expect(screen.getByText('100%')).toBeInTheDocument();
+        // naturalWidth(自然幅)=800、コンテナ幅=1200(オーバーフローなし)なので、
+        // 初期フィット倍率は100%のまま。
+        withMockedScrollGeometry(1200, 800, () => {
+            render(<App />);
+            expect(document.querySelector('.zoom-controls')).not.toBeNull();
+            expect(screen.getByText('100%')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: '拡大' }));
-        expect(screen.getByText('110%')).toBeInTheDocument();
+            fireEvent.click(screen.getByRole('button', { name: '拡大' }));
+            expect(screen.getByText('110%')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: '拡大' }));
-        expect(screen.getByText('120%')).toBeInTheDocument();
+            fireEvent.click(screen.getByRole('button', { name: '拡大' }));
+            expect(screen.getByText('120%')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: '縮小' }));
-        expect(screen.getByText('110%')).toBeInTheDocument();
+            fireEvent.click(screen.getByRole('button', { name: '縮小' }));
+            expect(screen.getByText('110%')).toBeInTheDocument();
+        });
     });
 
-    it('初期表示時点で実寸に基づき自動フィットする(1600px相当の内容が800pxのコンテナに収まる50%へ)', () => {
-        // naturalWidth(zoom無適用時の実寸)=1600px、コンテナ幅=800px。
-        withMockedScrollGeometry(800, 1600, () => {
+    it('初期表示時点で自然幅とコンテナ幅からフィット倍率を自動計算する(自然幅2000pxがコンテナ幅1000pxに収まる50%へ)', () => {
+        withMockedScrollGeometry(1000, 2000, () => {
             render(<App />);
             expect(screen.getByText('50%')).toBeInTheDocument();
         });
     });
 
-    it('拡大後に「画面にフィット」を押すと、単純な100%リセットではなく拡大後の実寸から再計算して収まる倍率(83%)へ戻る', () => {
-        // naturalWidth=1200px、コンテナ幅=1000px。初期フィット倍率は floor(1000/1200*100)=83%。
-        withMockedScrollGeometry(1000, 1200, () => {
+    // Cycle7 Take3(Dex差戻し必須修正): フィット済みの状態で再度「画面にフィット」を
+    // 押しても倍率が変わらないこと(Take2の不具合: 55%→50%へ縮んでしまっていた)。
+    it('フィット済みの状態で「画面にフィット」を押しても倍率は変わらない', () => {
+        withMockedScrollGeometry(1000, 2000, () => {
             render(<App />);
-            expect(screen.getByText('83%')).toBeInTheDocument();
-
-            fireEvent.click(screen.getByRole('button', { name: '拡大' }));
-            expect(screen.getByText('93%')).toBeInTheDocument();
+            expect(screen.getByText('50%')).toBeInTheDocument();
 
             fireEvent.click(screen.getByRole('button', { name: '画面にフィット' }));
-            // 単純にsetZoomLevel(100)へ戻すなら100%になってしまうが、実寸から
-            // 再計算するため、オーバーフローしない83%へ戻ることを確認する。
-            expect(screen.getByText('83%')).toBeInTheDocument();
+            expect(screen.getByText('50%')).toBeInTheDocument();
+        });
+    });
+
+    it('拡大後に「画面にフィット」を押すと、初期と同じフィット倍率へ戻る', () => {
+        withMockedScrollGeometry(1000, 2000, () => {
+            render(<App />);
+            expect(screen.getByText('50%')).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('button', { name: '拡大' }));
+            expect(screen.getByText('60%')).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('button', { name: '画面にフィット' }));
+            expect(screen.getByText('50%')).toBeInTheDocument();
+        });
+    });
+
+    // Cycle7 Take3(Dex差戻し必須修正): コンテナ幅(画面幅)が広がった場合は、
+    // 収まる範囲でフィット倍率が上がること(Take2の不具合: 広げても倍率が下がっていた)。
+    it('コンテナが広がるとresizeでフィット倍率が上がり、狭く戻すと元の倍率へ戻る', () => {
+        withMockedScrollGeometry(1000, 2000, ({ setClientWidth }) => {
+            render(<App />);
+            expect(screen.getByText('50%')).toBeInTheDocument();
+
+            setClientWidth(1500);
+            fireEvent(window, new Event('resize'));
+            expect(screen.getByText('75%')).toBeInTheDocument();
+
+            setClientWidth(1000);
+            fireEvent(window, new Event('resize'));
+            expect(screen.getByText('50%')).toBeInTheDocument();
         });
     });
 });

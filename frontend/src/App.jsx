@@ -351,19 +351,24 @@ export default function App() {
     const zoomIn = () => setZoomLevel((z) => Math.min(ZOOM_MAX, z + ZOOM_STEP));
     const zoomOut = () => setZoomLevel((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP));
 
-    // Cycle7 Take2(Dex差戻し): 「画面にフィット」は単純にsetZoomLevel(100)へ
-    // 戻すだけでは、100%でもオーバーフローする画面幅(例:1280px)で全月表示に
-    // ならない。table.scrollWidthは現在のzoom適用後の値なので、現在のzoom比率で
-    // 逆算して「zoom無適用(100%相当)の実寸幅」を求め、コンテナ幅に収まる倍率を
-    // 計算する。これを初期表示・resize・タブ復帰・対象期間や従業員数の変更後にも
-    // 再計算して適用する(zoomLevel自体は依存に含めない。含めると自分自身の
-    // 更新で無限ループする)。
+    // Cycle7 Take3(Dex差戻し): Take2では現在のzoom比率で`table.scrollWidth`を
+    // 除算して自然幅を逆算していたが、実ブラウザでは`table.scrollWidth`をCSS
+    // zoom適用後の値として単純に扱えない(かつ`table { min-width: 100% }`の影響で
+    // 広いコンテナではレイアウト幅自体が広がる)ため、この逆算は自然幅を過大評価し、
+    // 「フィット済みのまま操作すると縮む」「コンテナを広げても倍率が下がる」という
+    // 不具合を引き起こしていた(Dex実機確認で発覚)。
+    // 対策として、測定の瞬間だけ`zoom`を100%へ戻してから`scrollWidth`を読み、
+    // 直後に元のzoomへ戻す。これにより現在の倍率に依存しない「本当の自然幅」を
+    // 都度直接測定でき、逆算・推測が一切不要になる(React state更新を介さない
+    // 同期的なDOMスタイルの読み書きのため、ちらつきは発生しない)。
     const computeFitZoom = () => {
         const container = tableContainerRef.current;
         const table = container?.querySelector('table');
         if (!container || !table || !container.clientWidth) return 100;
-        const currentZoomFraction = zoomLevel / 100;
-        const naturalWidth = table.scrollWidth / (currentZoomFraction || 1);
+        const previousZoom = table.style.zoom;
+        table.style.zoom = '100%';
+        const naturalWidth = table.scrollWidth;
+        table.style.zoom = previousZoom;
         if (!naturalWidth) return 100;
         const fit = Math.floor((container.clientWidth / naturalWidth) * 100);
         return Math.max(ZOOM_MIN, Math.min(100, fit));
@@ -913,7 +918,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.27</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.28</span></div>
                 </div>
             )}
 
@@ -924,7 +929,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.27</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.28</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
