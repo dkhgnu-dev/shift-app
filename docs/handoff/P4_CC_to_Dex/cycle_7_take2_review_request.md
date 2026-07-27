@@ -3,7 +3,7 @@
 # Cycle 7 Take2 再レビュー依頼: 実寸フィット・アクセシビリティ・スマホドラッグ無効化
 
 - 対象ブランチ: `cc-cycle7`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `435466a`（push済み、`d193a3b..435466a`）
 - 前回レビュー: `docs/handoff/P4_Dex_Review/cycle_7_review.md`（NG、Reviewed HEAD: `a63ce06`）
 - 対応報告: `docs/handoff/P3_CC_to_Dex/cycle_7_take2_report.md`
 
