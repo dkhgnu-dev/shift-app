@@ -10,31 +10,33 @@
 
 ## Current State
 
-- Cycle: 7 Take3実装完了、`cc-cycle7`へpush済み -> Dex P4再レビュー待ち
-- Status: CCが`computeFitZoom()`を「現在zoomからの逆算」方式から「測定時だけzoomを100%へ戻して直接scrollWidthを読む」方式へ変更。`main`未統合。
-- Next: Dex(P4)が`cc-cycle7`のTake3をレビューし、実機で320/375/768/769/1280px、およびresize往復（1280↔1600px）を確認する。OKならDex(P5)がmainへmergeする。
-- 完了報告(Take3): `docs/handoff/P3_CC_to_Dex/cycle_7_take3_report.md`
-- レビュー依頼(Take3): `docs/handoff/P4_CC_to_Dex/cycle_7_take3_review_request.md`
-- 前回レビュー: `docs/handoff/P4_Dex_Review/cycle_7_take2_review.md`
-- Take3 instructions: `docs/handoff/P4_Rollback/cycle_7_take3_request.md`
-- Kazumax確認レベル: 必須確認（実機未確認のため）
+- Cycle: 7 Take4差し戻し
+- Status: Take3のDex(P4)再レビューNG。`main`未統合
+- Reviewed HEAD: `4e67e31b36a7410967a17f3c43558bbb3cbc75d9`
+- Review: `docs/handoff/P4_Dex_Review/cycle_7_take3_review.md`
+- Take4 instructions: `docs/handoff/P4_Rollback/cycle_7_take4_request.md`
+- Next: CC(P3)がzoom復元保証と例外テストを修正し、`cc-cycle7`へpushしてDexへP4再レビューを依頼する
+- Kazumax確認レベル: 確認不要
 
-## Resolved In Take2
+## Blocking Findings
 
-- 氏名セル・詳細ダイアログのキーボード操作とフォーカス管理
-- スマホでの行ドラッグ無効化
+- 一時的に`zoom=100%`へ変更した後、例外時に元のzoomへ戻す`try/finally`がない。
+- テストが100%測定と例外時復元を確認していない。
 
-## Resolved In Take3
+## Passed In Take3
 
-- フィット倍率算出方法（zoom逆算 → 測定時100%復元方式へ変更）
-- 恒久テストのモック前提（scrollWidth = naturalWidth × zoom → zoom非依存の一定値へ変更）
+- 1280px初期55%、再フィット55%
+- 手動65%から再フィット55%
+- resize 1280 -> 1600 -> 1280pxで55 -> 74 -> 55%
+- 320 / 375 / 768 / 769 / 1280px回帰
+- アクセシビリティ、スマホ`draggable`
 
 ## Verification
 
-- frontend test: 38/38 PASS（連続2回、新規/修正5件含む）
+- frontend test: 38/38 PASS
 - time utils: 33/33 PASS
 - frontend build: PASS
-- 実ブラウザ: **未実施**（セッション環境制約：別プロジェクト固定）
+- ブラウザconsole warning/error: 0件
 
 ## Read First
 
@@ -43,7 +45,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- 完了報告(Take3): `docs/handoff/P3_CC_to_Dex/cycle_7_take3_report.md`
+- `docs/handoff/P4_Rollback/cycle_7_take4_request.md`
 
 ## Stop Conditions
 
