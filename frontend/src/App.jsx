@@ -361,19 +361,33 @@ export default function App() {
     // 直後に元のzoomへ戻す。これにより現在の倍率に依存しない「本当の自然幅」を
     // 都度直接測定でき、逆算・推測が一切不要になる(React state更新を介さない
     // 同期的なDOMスタイルの読み書きのため、ちらつきは発生しない)。
+    //
+    // Cycle7 Take4(Dex差戻し): 測定中(`scrollWidth`読み取り含む)に例外が
+    // 発生した場合でも、必ず元のzoomへ復元する(`try/finally`)。また、
+    // 測定できない/失敗した場合はnullを返し、呼び出し側はその場合
+    // `setZoomLevel`を呼ばない設計にする。closureに残った古いzoomLevelを
+    // フォールバック値として適用しないため、失敗時は現在の表示状態を保持する。
     const computeFitZoom = () => {
         const container = tableContainerRef.current;
         const table = container?.querySelector('table');
-        if (!container || !table || !container.clientWidth) return 100;
+        if (!container || !table || !container.clientWidth) return null;
         const previousZoom = table.style.zoom;
-        table.style.zoom = '100%';
-        const naturalWidth = table.scrollWidth;
-        table.style.zoom = previousZoom;
-        if (!naturalWidth) return 100;
-        const fit = Math.floor((container.clientWidth / naturalWidth) * 100);
-        return Math.max(ZOOM_MIN, Math.min(100, fit));
+        try {
+            table.style.zoom = '100%';
+            const naturalWidth = table.scrollWidth;
+            if (!naturalWidth) return null;
+            const fit = Math.floor((container.clientWidth / naturalWidth) * 100);
+            return Math.max(ZOOM_MIN, Math.min(100, fit));
+        } catch {
+            return null;
+        } finally {
+            table.style.zoom = previousZoom;
+        }
     };
-    const zoomFit = () => setZoomLevel(computeFitZoom());
+    const zoomFit = () => {
+        const fit = computeFitZoom();
+        if (fit !== null) setZoomLevel(fit);
+    };
 
     // 自由時間指定（従業員編集モーダル用）
     const [useCustomTime, setUseCustomTime] = useState(false);
@@ -809,7 +823,19 @@ export default function App() {
         // 通常のuseEffectで確実に新しいtable-containerを計測できる。
         const recalc = () => {
             if (!isMobileView) {
-                setZoomLevel(computeFitZoom());
+                const fit = computeFitZoom();
+                // Cycle7 Take4: 測定失敗時は倍率stateを変更しない(古いclosure値を
+                // フォールバックとして適用しない)。ただし、算出したfitが直前の
+                // zoomLevelと同値だった場合、Reactはstate更新をbailoutして
+                // 再レンダーせず、zoomLevel依存の別effect(updateScrollButtons呼び出し)
+                // が発火しない。タブ復帰直後にfitが偶然直前と同値になるケースで、
+                // オーバーフロー状態(canScrollLeft/Right)が新しいtable-containerに対して
+                // 再計測されず古いままになる回帰が発生したため、fitの変化有無に関わらず
+                // 必ずupdateScrollButtons()を呼び直す。
+                if (fit !== null) {
+                    setZoomLevel(fit);
+                }
+                updateScrollButtons();
             } else {
                 updateScrollButtons();
             }
@@ -918,7 +944,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.28</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.29</span></div>
                 </div>
             )}
 
@@ -929,7 +955,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.28</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.29</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>

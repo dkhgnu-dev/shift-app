@@ -272,3 +272,83 @@ describe('PCズームコントロールと実寸フィット (Cycle7 Take3)', ()
         });
     });
 });
+
+// Cycle7 Take4(Dex差戻し必須修正): 測定中に例外が起きても必ず元のzoomへ復元し、
+// 測定失敗時は現在の倍率stateを変更しないことを検証する。
+describe('zoom復元保証と例外経路 (Cycle7 Take4)', () => {
+    it('scrollWidth測定の瞬間、対象tableのzoomは一時的に100%になっている', () => {
+        let zoomDuringMeasurement = null;
+        const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+        const originalScrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
+        try {
+            Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 1000 });
+            Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
+                configurable: true,
+                get() {
+                    if (this.tagName === 'TABLE' && zoomDuringMeasurement === null) {
+                        zoomDuringMeasurement = this.style.zoom;
+                    }
+                    return 2000;
+                },
+            });
+            render(<App />);
+        } finally {
+            if (originalClientWidth) Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth);
+            else delete HTMLElement.prototype.clientWidth;
+            if (originalScrollWidth) Object.defineProperty(HTMLElement.prototype, 'scrollWidth', originalScrollWidth);
+            else delete HTMLElement.prototype.scrollWidth;
+        }
+        expect(zoomDuringMeasurement).toBe('100%');
+    });
+
+    it('測定成功後、tableのzoomは100%に固定されたままにならず、算出した倍率が適用される', () => {
+        withMockedScrollGeometry(1000, 2000, () => {
+            render(<App />);
+            const table = document.querySelector('table');
+            expect(table.style.zoom).toBe('50%');
+            expect(table.style.zoom).not.toBe('100%');
+        });
+    });
+
+    it('scrollWidth測定が例外を投げても、元のzoomへ復元され、表示倍率は変更されない', () => {
+        withMockedScrollGeometry(1000, 2000, () => {
+            render(<App />);
+            expect(screen.getByText('50%')).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('button', { name: '拡大' }));
+            expect(screen.getByText('60%')).toBeInTheDocument();
+
+            // scrollWidthの取得を例外に差し替えた状態で「画面にフィット」を押す。
+            const previousDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
+            Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
+                configurable: true,
+                get() { throw new Error('scrollWidth測定失敗(テスト用)'); },
+            });
+            try {
+                fireEvent.click(screen.getByRole('button', { name: '画面にフィット' }));
+            } finally {
+                Object.defineProperty(HTMLElement.prototype, 'scrollWidth', previousDescriptor);
+            }
+
+            // 測定失敗時は表示倍率を変更しない(60%のまま)。
+            expect(screen.getByText('60%')).toBeInTheDocument();
+            // tableのzoomも測定前の60%へ復元されている(100%に固定されたままではない)。
+            const table = document.querySelector('table');
+            expect(table.style.zoom).toBe('60%');
+        });
+    });
+
+    it('withMockedScrollGeometryはコールバック内で例外が起きてもprototype descriptorを復元する', () => {
+        const originalScrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
+        const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+
+        expect(() => {
+            withMockedScrollGeometry(1000, 2000, () => {
+                throw new Error('テスト用の意図的な例外');
+            });
+        }).toThrow('テスト用の意図的な例外');
+
+        expect(Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth')).toEqual(originalScrollWidth);
+        expect(Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth')).toEqual(originalClientWidth);
+    });
+});
