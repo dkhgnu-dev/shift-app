@@ -13,6 +13,7 @@
 - Cycle: 7 Take5対応済み・Dex(P4)再レビュー待ち
 - Status: CC(P3)がTake5対応を完了し`cc-cycle7`へpush。`main`未統合
 - Reviewed HEAD (Take4, NG): `c042557e3cfd70ad6819a06d57244509a7847cc5`
+- Take5 HEAD: `ca48025`（push済み、`d392ecb..ca48025`）
 - Take5 report: `docs/handoff/P3_CC_to_Dex/cycle_7_take5_report.md`
 - Take5 review request: `docs/handoff/P4_CC_to_Dex/cycle_7_take5_review_request.md`
 - Next: Dex(P4)がTake5の書き込み順序スパイ方式テストをレビューする

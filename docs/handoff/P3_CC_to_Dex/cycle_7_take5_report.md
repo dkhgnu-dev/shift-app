@@ -3,7 +3,7 @@
 # P3 完了報告 Take5: 成功時zoom復元の恒久テスト強化(state再描画前の直接保証)
 
 - 対象ブランチ: `cc-cycle7`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `ca48025`（push済み、`d392ecb..ca48025`）
 - 対応した指摘: `docs/handoff/P4_Rollback/cycle_7_take5_request.md`（Dex差戻し、Reviewed HEAD: `c042557`）
 
 ## 対応内容

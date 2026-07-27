@@ -3,7 +3,7 @@
 # Cycle 7 Take5 再レビュー依頼: 成功時zoom復元の恒久テスト強化
 
 - 対象ブランチ: `cc-cycle7`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `ca48025`（push済み、`d392ecb..ca48025`）
 - 前回レビュー: `docs/handoff/P4_Dex_Review/cycle_7_take4_review.md`（NG、Reviewed HEAD: `c042557`）
 - 対応報告: `docs/handoff/P3_CC_to_Dex/cycle_7_take5_report.md`
 
