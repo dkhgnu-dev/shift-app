@@ -88,16 +88,21 @@ body {
 /* Cycle7: 氏名セルはタップ/クリックで詳細ポップオーバーを開けることを示すカーソル。
    テキストはデフォルトでは折り返し、狭幅では下記メディアクエリでellipsis制限する。 */
 .name-col { cursor: pointer; }
+.name-col:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .name-cell-text { font-weight: 600; }
 
 /* Cycle7: PCのズームコントロール(+/-/100%フィット)。スマホでは非表示。 */
-.zoom-controls { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-bottom: 8px; }
-.zoom-controls .btn { padding: 6px 10px; }
+.zoom-controls { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-bottom: 8px; max-width: 100%; }
+.zoom-controls .btn { padding: 6px 10px; white-space: nowrap; }
 .zoom-level-label { font-size: 0.85rem; color: var(--text-sub); min-width: 40px; text-align: center; }
 
 /* Modal */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(2px); }
 .modal { background: white; padding: 32px; border-radius: 16px; width: 100%; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); animation: slideUp 0.3s ease; max-height: 90vh; overflow-y: auto;}
+/* Cycle7 Take2: 詳細ダイアログの閉じるボタンをネイティブbuttonにし(キーボード操作可能)、
+   見た目は従来のアイコンのみのXと変わらないようボタン装飾を消す。 */
+.modal-close-btn { background: none; border: none; padding: 4px; cursor: pointer; color: var(--text-sub); display: flex; align-items: center; }
+.modal-close-btn:hover { color: var(--text-main); }
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; color: var(--text-sub); }

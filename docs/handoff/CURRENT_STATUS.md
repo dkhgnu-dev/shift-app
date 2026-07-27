@@ -10,27 +10,21 @@
 
 ## Current State
 
-- Cycle: 7 Take2差し戻し
-- Status: Dex(P4)レビューNG。`main`未統合
-- Reviewed HEAD: `a63ce06914faaecc7df55c7380a280a577e5c324`
-- Review: `docs/handoff/P4_Dex_Review/cycle_7_review.md`
+- Cycle: 7 Take2実装完了、`cc-cycle7`へpush済み -> Dex P4再レビュー待ち
+- Status: CCが実寸計算による「画面にフィット」・氏名セル/詳細ダイアログのアクセシビリティ・スマホでの行ドラッグ無効化を実装。`main`未統合。
+- Next: Dex(P4)が`cc-cycle7`のTake2をレビューし、実機で320/375/768/769/1280pxを確認する。OKならDex(P5)がmainへmergeする。
+- 完了報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_7_take2_report.md`
+- レビュー依頼(Take2): `docs/handoff/P4_CC_to_Dex/cycle_7_take2_review_request.md`
+- 前回レビュー: `docs/handoff/P4_Dex_Review/cycle_7_review.md`
 - Take2 instructions: `docs/handoff/P4_Rollback/cycle_7_take2_request.md`
-- Next: CC(P3)が3件を修正し、`cc-cycle7`へpushしてDexへP4再レビューを依頼する
-- Kazumax確認レベル: 確認不要
-
-## Blocking Findings
-
-1. PCの「100%フィット」が100%へ戻すだけで、1280pxでも全月表示にならない。
-2. 氏名セルと詳細ダイアログをキーボード操作できない。
-3. スマホでドラッグ列を隠しても行が`draggable=true`のまま。
+- Kazumax確認レベル: 必須確認（実機未確認のため）
 
 ## Verification
 
-- frontend test: 27/27 PASS
+- frontend test: 36/36 PASS（連続2回、新規9件含む）
 - time utils: 33/33 PASS
 - frontend build: PASS
-- 実ブラウザ: 320 / 375 / 768 / 769 / 1280px確認
-- ブラウザconsole warning/error: 0件
+- 実ブラウザ: **未実施**（セッション環境制約：別プロジェクト固定）
 
 ## Read First
 
@@ -39,7 +33,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P4_Rollback/cycle_7_take2_request.md`
+- 完了報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_7_take2_report.md`
 
 ## Stop Conditions
 
