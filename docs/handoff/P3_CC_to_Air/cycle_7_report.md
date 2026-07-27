@@ -3,7 +3,7 @@
 # P3 完了報告: Cycle 7 スマホ左固定列極限圧縮・詳細ポップオーバー・PCズーム統合
 
 - 対象ブランチ: `cc-cycle7`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `b40af74`（push済み、`4957829..b40af74`）
 - 対応指示: `docs/handoff/P2_AirCrew_to_CC/cycle_7_zoom_and_viewport_maximization_instructions.md`
 
 ## 実装内容
