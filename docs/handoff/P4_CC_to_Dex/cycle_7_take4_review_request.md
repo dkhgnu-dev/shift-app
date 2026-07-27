@@ -3,7 +3,7 @@
 # Cycle 7 Take4 再レビュー依頼: zoom復元保証と例外経路テスト
 
 - 対象ブランチ: `cc-cycle7`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `6692026`（push済み、`f78c75b..6692026`）
 - 前回レビュー: `docs/handoff/P4_Dex_Review/cycle_7_take3_review.md`（NG、Reviewed HEAD: `4e67e31`）
 - 対応報告: `docs/handoff/P3_CC_to_Dex/cycle_7_take4_report.md`
 
