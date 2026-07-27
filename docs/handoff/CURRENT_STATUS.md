@@ -10,34 +10,34 @@
 
 ## Current State
 
-- Cycle: 7 Take4実装完了、`cc-cycle7`へpush済み -> Dex P4再レビュー待ち
-- Status: CCが`computeFitZoom()`のtry/finally化(zoom復元保証)、例外経路の恒久テストを実装。修正過程で、null返却化により顕在化した既存回帰(タブ復帰時にオーバーフロー状態が再計測されない)を発見し合わせて修正。`main`未統合。
-- Next: Dex(P4)が`cc-cycle7`のTake4をレビューし、実機で320/375/768/769/1280px、resize往復、console warning/errorを確認する。OKならDex(P5)がmainへmergeする。
-- 完了報告(Take4): `docs/handoff/P3_CC_to_Dex/cycle_7_take4_report.md`
-- レビュー依頼(Take4): `docs/handoff/P4_CC_to_Dex/cycle_7_take4_review_request.md`
-- 前回レビュー: `docs/handoff/P4_Dex_Review/cycle_7_take3_review.md`
-- Take4 instructions: `docs/handoff/P4_Rollback/cycle_7_take4_request.md`
-- Kazumax確認レベル: 必須確認（実機未確認のため）
+- Cycle: 7 Take5差し戻し
+- Status: Take4のDex(P4)再レビューNG。`main`未統合
+- Reviewed HEAD: `c042557e3cfd70ad6819a06d57244509a7847cc5`
+- Review: `docs/handoff/P4_Dex_Review/cycle_7_take4_review.md`
+- Take5 instructions: `docs/handoff/P4_Rollback/cycle_7_take5_request.md`
+- Next: CC(P3)が成功時zoom復元を直接保証する恒久テストだけを修正し、`cc-cycle7`へpushしてDexへP4再レビューを依頼する
+- Kazumax確認レベル: 確認不要
 
-## Passed In Take3
+## Blocking Finding
 
-- 1280px初期55%、再フィット55%
-- 手動65%から再フィット55%
+- 成功時のzoom復元テストがReact再描画後の最終値しか見ておらず、`finally`の復元を削除しても通る可能性がある。
+
+## Passed In Take4
+
+- 製品コードの`try/catch/finally`と測定失敗時state保持
+- 例外時zoom復元・表示倍率不変・descriptor復元テスト
+- タブ復帰時のオーバーフロー再計測
+- 1280px初期/再フィット55%
 - resize 1280 -> 1600 -> 1280pxで55 -> 74 -> 55%
 - 320 / 375 / 768 / 769 / 1280px回帰
-- アクセシビリティ、スマホ`draggable`
-
-## Resolved In Take4
-
-- `computeFitZoom()`のtry/finally化（測定失敗・例外時もzoom復元）
-- 副次的に発見した回帰: タブ復帰時にfitが直前と同値だとReactのstate bailoutで`updateScrollButtons()`が呼ばれない問題を修正
+- ブラウザconsole warning/error 0件
 
 ## Verification
 
-- frontend test: 42/42 PASS（連続2回、新規4件含む）
+- frontend test: 42/42 PASS（2回）
 - time utils: 33/33 PASS
 - frontend build: PASS
-- 実ブラウザ: **未実施**（セッション環境制約：別プロジェクト固定）
+- `git diff --check`: PASS
 
 ## Read First
 
@@ -46,7 +46,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- 完了報告(Take4): `docs/handoff/P3_CC_to_Dex/cycle_7_take4_report.md`
+- `docs/handoff/P4_Rollback/cycle_7_take5_request.md`
 
 ## Stop Conditions
 
