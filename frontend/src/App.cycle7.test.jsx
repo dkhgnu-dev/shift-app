@@ -301,12 +301,47 @@ describe('zoom復元保証と例外経路 (Cycle7 Take4)', () => {
         expect(zoomDuringMeasurement).toBe('100%');
     });
 
-    it('測定成功後、tableのzoomは100%に固定されたままにならず、算出した倍率が適用される', () => {
+    // Cycle7 Take5(Dex差戻し必須修正): 上記の旧テストは、render()完了後(=Reactが
+    // setZoomLevelの結果を再描画し終えた後)のtable.style.zoomという「最終値」しか
+    // 見ていなかった。そのため、computeFitZoom内の`finally`による復元を削除しても、
+    // 直後にReactが新しいzoomLevelで再描画する際に同じ値へ上書きされてしまい、
+    // このテストは(誤って)成功し続けてしまう可能性があった(Dex指摘)。
+    // 「Stateの再描画を待たずに、computeFitZoom自身が同期的にzoomを元へ戻している」
+    // ことを直接証明するため、`table.style.zoom`への書き込みをスパイして、
+    // 実際に書き込まれた値の「順序」を検証する。
+    it('測定成功時、Reactの再描画を待たずcomputeFitZoom内で同期的にzoomが測定前の値へ復元される(state再描画前の直接保証)', () => {
         withMockedScrollGeometry(1000, 2000, () => {
             render(<App />);
+            expect(screen.getByText('50%')).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('button', { name: '拡大' }));
+            expect(screen.getByText('60%')).toBeInTheDocument();
+
             const table = document.querySelector('table');
-            expect(table.style.zoom).toBe('50%');
-            expect(table.style.zoom).not.toBe('100%');
+            const zoomWrites = [];
+            const styleProto = Object.getPrototypeOf(table.style);
+            const originalZoomDescriptor = Object.getOwnPropertyDescriptor(styleProto, 'zoom');
+            Object.defineProperty(table.style, 'zoom', {
+                configurable: true,
+                get() { return originalZoomDescriptor.get.call(table.style); },
+                set(value) {
+                    zoomWrites.push(value);
+                    originalZoomDescriptor.set.call(table.style, value);
+                },
+            });
+
+            try {
+                fireEvent.click(screen.getByRole('button', { name: '画面にフィット' }));
+            } finally {
+                delete table.style.zoom; // インスタンス側の上書きを外し、prototypeの挙動へ戻す
+            }
+
+            // computeFitZoom内で「100%へ変更」→「測定前の60%へ同期的に復元」の順で
+            // 書き込まれ、その後にReactの再描画で最終的なフィット倍率(50%)が
+            // 書き込まれる。finallyでの復元が無ければ真ん中の'60%'は記録されず、
+            // ['100%', '50%']のような並びになるため、この検証は復元処理そのものを
+            // 直接証明する(最終値だけを見る旧テストでは検出できなかった観点)。
+            expect(zoomWrites).toEqual(['100%', '60%', '50%']);
         });
     });
 
