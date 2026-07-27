@@ -3,7 +3,7 @@
 # P3 完了報告 Take3: Cycle 7 フィット倍率算出方法の修正
 
 - 対象ブランチ: `cc-cycle7`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `6802e0f`（push済み、`b1a993e..6802e0f`）
 - 対応した指摘: `docs/handoff/P4_Rollback/cycle_7_take3_request.md`（Dex差戻し、Reviewed HEAD: `233a1ff`）
 
 ## 対応内容
