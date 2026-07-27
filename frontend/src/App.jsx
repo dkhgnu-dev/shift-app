@@ -321,6 +321,74 @@ export default function App() {
     // 特殊シフト(有休等)の勤務時間編集モーダル
     const [specialHoursModal, setSpecialHoursModal] = useState(null); // { i, d, hours } | null
 
+    // Cycle7: スマホでは氏名セルのサブ情報(属性・累積実績)を常時非表示にする代わりに、
+    // 氏名セルタップで詳細ポップオーバーを表示する。
+    const [selectedEmployeeForDetail, setSelectedEmployeeForDetail] = useState(null); // 従業員index | null
+    // Cycle7 Take2(Dex差戻し): ダイアログを閉じたとき、開いた起動元(氏名セル)へ
+    // フォーカスを戻すために、開いた瞬間のトリガー要素を保持しておく。
+    const employeeDetailTriggerRef = useRef(null);
+    const employeeDetailCloseBtnRef = useRef(null);
+    const openEmployeeDetail = (i, triggerEl) => {
+        employeeDetailTriggerRef.current = triggerEl;
+        setSelectedEmployeeForDetail(i);
+    };
+    const closeEmployeeDetail = () => {
+        setSelectedEmployeeForDetail(null);
+        employeeDetailTriggerRef.current?.focus();
+    };
+    // ダイアログが開いたら、まず閉じるボタンへフォーカスを移す(必須修正2)。
+    useEffect(() => {
+        if (selectedEmployeeForDetail !== null) {
+            employeeDetailCloseBtnRef.current?.focus();
+        }
+    }, [selectedEmployeeForDetail]);
+
+    // Cycle7: PC版のズームコントロール(スマホでは常に100%固定・zoom未適用)。
+    const ZOOM_STEP = 10;
+    const ZOOM_MIN = 50;
+    const ZOOM_MAX = 150;
+    const [zoomLevel, setZoomLevel] = useState(100);
+    const zoomIn = () => setZoomLevel((z) => Math.min(ZOOM_MAX, z + ZOOM_STEP));
+    const zoomOut = () => setZoomLevel((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP));
+
+    // Cycle7 Take3(Dex差戻し): Take2では現在のzoom比率で`table.scrollWidth`を
+    // 除算して自然幅を逆算していたが、実ブラウザでは`table.scrollWidth`をCSS
+    // zoom適用後の値として単純に扱えない(かつ`table { min-width: 100% }`の影響で
+    // 広いコンテナではレイアウト幅自体が広がる)ため、この逆算は自然幅を過大評価し、
+    // 「フィット済みのまま操作すると縮む」「コンテナを広げても倍率が下がる」という
+    // 不具合を引き起こしていた(Dex実機確認で発覚)。
+    // 対策として、測定の瞬間だけ`zoom`を100%へ戻してから`scrollWidth`を読み、
+    // 直後に元のzoomへ戻す。これにより現在の倍率に依存しない「本当の自然幅」を
+    // 都度直接測定でき、逆算・推測が一切不要になる(React state更新を介さない
+    // 同期的なDOMスタイルの読み書きのため、ちらつきは発生しない)。
+    //
+    // Cycle7 Take4(Dex差戻し): 測定中(`scrollWidth`読み取り含む)に例外が
+    // 発生した場合でも、必ず元のzoomへ復元する(`try/finally`)。また、
+    // 測定できない/失敗した場合はnullを返し、呼び出し側はその場合
+    // `setZoomLevel`を呼ばない設計にする。closureに残った古いzoomLevelを
+    // フォールバック値として適用しないため、失敗時は現在の表示状態を保持する。
+    const computeFitZoom = () => {
+        const container = tableContainerRef.current;
+        const table = container?.querySelector('table');
+        if (!container || !table || !container.clientWidth) return null;
+        const previousZoom = table.style.zoom;
+        try {
+            table.style.zoom = '100%';
+            const naturalWidth = table.scrollWidth;
+            if (!naturalWidth) return null;
+            const fit = Math.floor((container.clientWidth / naturalWidth) * 100);
+            return Math.max(ZOOM_MIN, Math.min(100, fit));
+        } catch {
+            return null;
+        } finally {
+            table.style.zoom = previousZoom;
+        }
+    };
+    const zoomFit = () => {
+        const fit = computeFitZoom();
+        if (fit !== null) setZoomLevel(fit);
+    };
+
     // 自由時間指定（従業員編集モーダル用）
     const [useCustomTime, setUseCustomTime] = useState(false);
     const [customStartTime, setCustomStartTime] = useState('09:00');
@@ -742,6 +810,10 @@ export default function App() {
     const dayAnalyses = generatedResult ? periodDates.map((_, d) => analyzeDay(d)) : [];
 
     // Cycle6: 表の幅(日数)や行数が変わるとスクロール可否も変わるため、都度再判定する。
+    // Cycle7 Take2(Dex差戻し): 「初期表示・resize・タブ復帰・対象期間や従業員数の
+    // 変更後」にフィット倍率を再計算して適用する(zoomLevelが変わると下のeffectが
+    // 追随してオーバーフロー状態も再判定する)。zoomLevel自体はこのeffectの依存に
+    // 含めない(自分でzoomLevelを更新するため、含めると無限ループになる)。
     useEffect(() => {
         // Cycle6 Take2(Dex差戻し): ダッシュボードは`activeTab`で条件付き描画されており、
         // 他タブへ移動すると`table-container`ごとアンマウントされ、戻ると新しいDOM
@@ -749,11 +821,37 @@ export default function App() {
         // 離脱前の古いボタン表示状態が復帰後も残ってしまっていた(Dex実機確認で発覚)。
         // refのアタッチはReactのコミット後・エフェクト実行前に完了しているため、
         // 通常のuseEffectで確実に新しいtable-containerを計測できる。
-        updateScrollButtons();
-        window.addEventListener('resize', updateScrollButtons);
-        return () => window.removeEventListener('resize', updateScrollButtons);
+        const recalc = () => {
+            if (!isMobileView) {
+                const fit = computeFitZoom();
+                // Cycle7 Take4: 測定失敗時は倍率stateを変更しない(古いclosure値を
+                // フォールバックとして適用しない)。ただし、算出したfitが直前の
+                // zoomLevelと同値だった場合、Reactはstate更新をbailoutして
+                // 再レンダーせず、zoomLevel依存の別effect(updateScrollButtons呼び出し)
+                // が発火しない。タブ復帰直後にfitが偶然直前と同値になるケースで、
+                // オーバーフロー状態(canScrollLeft/Right)が新しいtable-containerに対して
+                // 再計測されず古いままになる回帰が発生したため、fitの変化有無に関わらず
+                // 必ずupdateScrollButtons()を呼び直す。
+                if (fit !== null) {
+                    setZoomLevel(fit);
+                }
+                updateScrollButtons();
+            } else {
+                updateScrollButtons();
+            }
+        };
+        recalc();
+        window.addEventListener('resize', recalc);
+        return () => window.removeEventListener('resize', recalc);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [periodDates.length, employees.length, generatedResult, activeTab]);
+    }, [periodDates.length, employees.length, generatedResult, activeTab, isMobileView]);
+
+    // zoomLevelが変わるたび(手動+/-、フィットボタン、上のeffectによる自動フィット)
+    // オーバーフロー状態を再計測する。
+    useEffect(() => {
+        updateScrollButtons();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [zoomLevel]);
 
     // 鍵持ちアイコン: 朝一番の開錠担当は☀️(オレンジ)、夜最後の施錠担当は🌙(パープル)。
     // 両方兼ねる日は☀️🌙を表示する。
@@ -846,7 +944,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.25</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.29</span></div>
                 </div>
             )}
 
@@ -857,7 +955,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.25</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.29</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -929,14 +1027,23 @@ export default function App() {
                             </>
                         )}
 
-                                <div className="glass-card" style={{padding: '16px'}}>
+                                {!isMobileView && (
+                                    <div className="zoom-controls">
+                                        <button type="button" className="btn outline" onClick={zoomOut} disabled={zoomLevel <= ZOOM_MIN} aria-label="縮小">➖</button>
+                                        <span className="zoom-level-label">{zoomLevel}%</span>
+                                        <button type="button" className="btn outline" onClick={zoomIn} disabled={zoomLevel >= ZOOM_MAX} aria-label="拡大">➕</button>
+                                        <button type="button" className="btn outline" onClick={zoomFit}>画面にフィット</button>
+                                    </div>
+                                )}
+
+                                <div className="glass-card matrix-glass-card" style={{padding: '16px'}}>
                                     <div className="matrix-scroll-wrapper">
                                         <div className="table-container" ref={tableContainerRef} onScroll={updateScrollButtons}>
-                                        <table>
+                                        <table style={{ zoom: isMobileView ? '100%' : `${zoomLevel}%` }}>
                                             <thead>
                                                 <tr>
-                                                    <th style={{width: '40px'}}></th>
-                                                    <th>従業員</th>
+                                                    <th className="drag-col" style={{width: '40px'}}></th>
+                                                    <th className="name-col">{isMobileView ? '氏名' : '従業員'}</th>
                                                     {periodDates.map((d, i) => {
                                                         const dow = d.getDay();
                                                         const cls = dow === 0 ? 'sun' : dow === 6 ? 'sat' : '';
@@ -958,21 +1065,37 @@ export default function App() {
                                                 {employees.map((emp, i) => {
                                                     const shortType = emp.type.replace('パート', 'パ').replace('ロング', 'L').substring(0,4);
                                                     return (
-                                                        <tr 
+                                                        <tr
                                                             key={i}
-                                                            draggable 
-                                                            onDragStart={() => dragItem.current = i} 
-                                                            onDragEnter={() => dragOverItem.current = i} 
-                                                            onDragEnd={handleSort} 
+                                                            draggable={!isMobileView}
+                                                            onDragStart={() => dragItem.current = i}
+                                                            onDragEnter={() => dragOverItem.current = i}
+                                                            onDragEnd={handleSort}
                                                             onDragOver={(e) => e.preventDefault()}
                                                         >
-                                                            <td style={{width: '40px', textAlign: 'center', color: '#9CA3AF'}}>
+                                                            <td className="drag-col" style={{width: '40px', textAlign: 'center', color: '#9CA3AF'}}>
                                                                 <span className="drag-handle-compact">⋮⋮</span>
                                                             </td>
-                                                            <td>
-                                                                <div style={{fontWeight:600}}>{emp.name}</div>
-                                                                <div style={{fontSize:'0.7rem', color:'#9CA3AF'}}>{emp.isRS ? '登販/' : ''}{emp.isKeyHolder ? '🔑/' : ''}{shortType}</div>
-                                                                <div className="staff-stat-badge">{(() => { const st = computeEmployeeStats(i); return `${st.days}日 / ${st.hours.toFixed(1)}h`; })()}</div>
+                                                            <td
+                                                                className="name-col"
+                                                                role="button"
+                                                                tabIndex={0}
+                                                                aria-haspopup="dialog"
+                                                                onClick={(e) => openEmployeeDetail(i, e.currentTarget)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                                        e.preventDefault();
+                                                                        openEmployeeDetail(i, e.currentTarget);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <div className="name-cell-text">{emp.name}</div>
+                                                                {!isMobileView && (
+                                                                    <>
+                                                                        <div style={{fontSize:'0.7rem', color:'#9CA3AF'}}>{emp.isRS ? '登販/' : ''}{emp.isKeyHolder ? '🔑/' : ''}{shortType}</div>
+                                                                        <div className="staff-stat-badge">{(() => { const st = computeEmployeeStats(i); return `${st.days}日 / ${st.hours.toFixed(1)}h`; })()}</div>
+                                                                    </>
+                                                                )}
                                                             </td>
                                                             {periodDates.map((_, d) => {
                                                                 const cell = generatedResult?.matrix?.[i]?.[d] || null;
@@ -1449,6 +1572,55 @@ export default function App() {
                     </div>
                 </div>
             )}
+
+            {/* Cycle7: 氏名セルタップで開く従業員詳細ポップオーバー(スマホでサブ情報を常時非表示にした代替) */}
+            {selectedEmployeeForDetail !== null && employees[selectedEmployeeForDetail] && (() => {
+                const emp = employees[selectedEmployeeForDetail];
+                const stats = computeEmployeeStats(selectedEmployeeForDetail);
+                return (
+                    <div
+                        className="modal-overlay"
+                        onClick={closeEmployeeDetail}
+                        onKeyDown={(e) => { if (e.key === 'Escape') closeEmployeeDetail(); }}
+                    >
+                        <div
+                            className="modal employee-detail-card"
+                            style={{maxWidth: '360px'}}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="employee-detail-title"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
+                                <h2 id="employee-detail-title" style={{fontSize: '1.1rem'}}>👤 {emp.name}</h2>
+                                <button
+                                    type="button"
+                                    className="modal-close-btn"
+                                    aria-label="閉じる"
+                                    ref={employeeDetailCloseBtnRef}
+                                    onClick={closeEmployeeDetail}
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                            <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px'}}>
+                                <span className="shift-cell normal">{emp.type}</span>
+                                {emp.isRS && <span className="shift-cell rs">登販</span>}
+                                {emp.isKeyHolder && <span className="shift-cell normal">🔑 鍵持ち</span>}
+                            </div>
+                            <div style={{marginBottom: '8px'}}>
+                                🕒 出勤日数: <strong>{stats.days}日</strong> / 累積勤務時間: <strong>{stats.hours.toFixed(1)}時間</strong>
+                            </div>
+                            {emp.requests && (
+                                <div style={{color: '#DC2626', fontSize: '0.9rem'}}>📅 希望休: {emp.requests}</div>
+                            )}
+                            <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: '20px'}}>
+                                <button className="btn outline" onClick={closeEmployeeDetail}>閉じる</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {isGenerating && (
                 <div className="loading-overlay">

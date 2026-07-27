@@ -85,9 +85,24 @@ body {
 .btn.outline:hover { background: rgba(79, 70, 229, 0.05); }
 .glass-card { background: var(--glass-bg); backdrop-filter: blur(16px); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.03); margin-bottom: 24px; }
 
+/* Cycle7: 氏名セルはタップ/クリックで詳細ポップオーバーを開けることを示すカーソル。
+   テキストはデフォルトでは折り返し、狭幅では下記メディアクエリでellipsis制限する。 */
+.name-col { cursor: pointer; }
+.name-col:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.name-cell-text { font-weight: 600; }
+
+/* Cycle7: PCのズームコントロール(+/-/100%フィット)。スマホでは非表示。 */
+.zoom-controls { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-bottom: 8px; max-width: 100%; }
+.zoom-controls .btn { padding: 6px 10px; white-space: nowrap; }
+.zoom-level-label { font-size: 0.85rem; color: var(--text-sub); min-width: 40px; text-align: center; }
+
 /* Modal */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(2px); }
 .modal { background: white; padding: 32px; border-radius: 16px; width: 100%; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); animation: slideUp 0.3s ease; max-height: 90vh; overflow-y: auto;}
+/* Cycle7 Take2: 詳細ダイアログの閉じるボタンをネイティブbuttonにし(キーボード操作可能)、
+   見た目は従来のアイコンのみのXと変わらないようボタン装飾を消す。 */
+.modal-close-btn { background: none; border: none; padding: 4px; cursor: pointer; color: var(--text-sub); display: flex; align-items: center; }
+.modal-close-btn:hover { color: var(--text-main); }
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; color: var(--text-sub); }
@@ -216,11 +231,32 @@ th:nth-child(1), th:nth-child(2) { z-index: 40; }
   .month-header-main { font-size: 1rem; }
   .month-header-sub { font-size: 0.7rem; }
 
-  /* Cycle6 Take2: 狭幅ではボタンを一回り小さくし、右ボタン占有幅を踏まえて
-     左ボタンの位置を動的にクランプする(320pxでも矩形重複が生じない値)。 */
-  .matrix-float-btn { width: 36px; height: 36px; }
-  .matrix-float-btn-right { right: 8px; }
-  .matrix-float-btn-left { left: min(188px, calc(100% - 36px - 8px - 36px - 8px)); }
+  /* Cycle7: スマホは指スワイプでの横スクロールが主役のため、フロートスクロール
+     ボタンは(オーバーフロー状況に関わらず)常時完全非表示にする。
+     Cycle6 Take2まではここでサイズ・位置を狭幅向けに再計算していたが、
+     非表示にするため配置調整自体が不要になった。 */
+  .matrix-float-btn { display: none !important; }
+
+  /* Cycle7: 左固定列(ドラッグハンドル)を完全非表示にし、氏名列をleft:0・
+     105px幅へ圧縮する。nth-childはdisplay:noneの要素も含めて数えるため、
+     ドラッグ列を消しても氏名列は引き続き2列目として正しく指定できる。 */
+  .drag-col { display: none; }
+  td.name-col, th.name-col {
+    left: 0 !important;
+    width: 105px !important; min-width: 105px !important; max-width: 105px !important;
+    padding-left: 8px !important;
+  }
+  .name-cell-text {
+    font-size: 0.82rem; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 95px;
+  }
+
+  /* Cycle7: 狭いシフトセルでも開始/終了時刻(2段構成)が崩れないよう調整 */
+  .shift-cell { line-height: 1.15 !important; font-size: 0.76rem !important; padding: 2px 3px !important; }
+
+  /* Cycle7: マトリクス表を囲むカードの余白を切り詰め、表示エリアを最大化する */
+  .matrix-glass-card { padding: 8px !important; }
 
   .modal { padding: 16px; margin: 16px; width: calc(100% - 32px); max-height: calc(100dvh - 32px); }
   .time-picker-step { width: 34px; height: 34px; }
