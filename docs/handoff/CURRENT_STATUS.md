@@ -4,27 +4,26 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `main`
+- Working Branch: `cc-cycle7`（Cycle 7は作業branchで運用。P4 OK後にDexがmainへmerge）
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 7 (P2 指示書完成 -> CC 実装待ち)
-- Status: スマホ版（768px未満）の左固定列の約半分割譲問題を解消するため、「左固定列を100〜110pxへ圧縮・ドラッグハンドル全削除・サブ情報を名前セルタップの軽量ポップオーバー/ドロワーへ集約」「スマホ時はフロートボタン全カットでスワイプ特化」及び「PC版の一画面フィット・ズーム連動フロートスクロール」の完全極上の P2指示書 を策定完了。
-- Version: 予定 v4.26
-- Next: CCが `docs/handoff/P2_AirCrew_to_CC/cycle_7_zoom_and_viewport_maximization_instructions.md` を受領して P3実装・テストに突入。完了後、DexのP4差分レビューへ回す。
-- 直近P2指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_7_zoom_and_viewport_maximization_instructions.md`
+- Cycle: 7 (P3完了、`cc-cycle7`へpush済み -> Dex P4レビュー待ち)
+- Status: CCがスマホ左固定列の極限圧縮（ドラッグ列非表示・氏名105px）、氏名タップの詳細ポップオーバー、PC専用ズームコントロール、スマホでのフロートボタン完全非表示、v4.26化を実装。`npm test`を連続2回実行し27件全PASS、`node test_time_utils.mjs`(33件)・`npm run build`も成功。実機での座標・見た目確認は今回も未実施（セッション環境制約：別プロジェクト固定）。
+- Version: v4.26
+- Next: Dex(P4)が`cc-cycle7`をレビューし、実機で320/375/768/769/1280pxの見た目・座標を確認する。OKならDex(P5)がmainへmergeする。
+- 完了報告: `docs/handoff/P3_CC_to_Air/cycle_7_report.md`
+- レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_7_review_request.md`
 - 前期(C6)統合記録: `docs/handoff/P5_Dex_Integration/cycle_6_p5_integration.md`
-- Kazumax確認レベル: 確認不要
 
 ## Verification
 
-- frontend test: 21/21 PASS（連続2回）
+- frontend test: 27/27 PASS（連続2回、新規6件含む）
 - time utils: 33/33 PASS
 - frontend build: PASS
-- 実ブラウザ: 320 / 375 / 768 / 769 / 1280px PASS
-- ブラウザconsole warning/error: 0件
+- 実ブラウザ: **未実施**（セッション環境制約。Dex/Kazumaxへ実機確認を依頼）
 
 ## Read First
 
@@ -33,7 +32,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P5_Dex_Integration/cycle_6_p5_integration.md`
+- 完了報告: `docs/handoff/P3_CC_to_Air/cycle_7_report.md`
 
 ## Stop Conditions
 
