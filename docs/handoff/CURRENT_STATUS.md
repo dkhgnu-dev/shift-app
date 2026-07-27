@@ -10,21 +10,33 @@
 
 ## Current State
 
-- Cycle: 7 Take2実装完了、`cc-cycle7`へpush済み -> Dex P4再レビュー待ち
-- Status: CCが実寸計算による「画面にフィット」・氏名セル/詳細ダイアログのアクセシビリティ・スマホでの行ドラッグ無効化を実装。`main`未統合。
-- Next: Dex(P4)が`cc-cycle7`のTake2をレビューし、実機で320/375/768/769/1280pxを確認する。OKならDex(P5)がmainへmergeする。
-- 完了報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_7_take2_report.md`
-- レビュー依頼(Take2): `docs/handoff/P4_CC_to_Dex/cycle_7_take2_review_request.md`
-- 前回レビュー: `docs/handoff/P4_Dex_Review/cycle_7_review.md`
-- Take2 instructions: `docs/handoff/P4_Rollback/cycle_7_take2_request.md`
-- Kazumax確認レベル: 必須確認（実機未確認のため）
+- Cycle: 7 Take3差し戻し
+- Status: Take2のDex(P4)再レビューNG。`main`未統合
+- Reviewed HEAD: `233a1ffee35e5a3d0c4e6cc922f894ff87283738`
+- Review: `docs/handoff/P4_Dex_Review/cycle_7_take2_review.md`
+- Take3 instructions: `docs/handoff/P4_Rollback/cycle_7_take3_request.md`
+- Next: CC(P3)がフィット倍率計算と恒久テストを修正し、`cc-cycle7`へpushしてDexへP4再レビューを依頼する
+- Kazumax確認レベル: 確認不要
+
+## Blocking Finding
+
+- 実ブラウザの`table.scrollWidth`はCSS zoom後の値ではなく、現在倍率で割る計算が誤り。
+- 1280pxでフィット済み55%からボタン操作すると50%へ縮小。
+- 1280pxから1600pxへ広げると55%から54%へ縮小。
+
+## Resolved In Take2
+
+- 氏名セル・詳細ダイアログのキーボード操作とフォーカス管理
+- スマホでの行ドラッグ無効化
 
 ## Verification
 
-- frontend test: 36/36 PASS（連続2回、新規9件含む）
+- frontend test: 36/36 PASS
 - time utils: 33/33 PASS
 - frontend build: PASS
-- 実ブラウザ: **未実施**（セッション環境制約：別プロジェクト固定）
+- 実ブラウザ: 320 / 375 / 768 / 769 / 1280px確認
+- resize: 1280 -> 1600pxで不具合再現
+- ブラウザconsole warning/error: 0件
 
 ## Read First
 
@@ -33,13 +45,13 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- 完了報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_7_take2_report.md`
+- `docs/handoff/P4_Rollback/cycle_7_take3_request.md`
 
 ## Stop Conditions
 
 以下の場合は推測で進めず、人間へ確認する。
 
 - DB、保存形式、既存データ、削除、上書きに触れる
-- シフト自動生成ロジックを大きく変更する
+- シフト自動生成ロジックを変更する
 - Git conflictが発生する
 - `.env`、パスワード、個人情報、本物データを扱う
