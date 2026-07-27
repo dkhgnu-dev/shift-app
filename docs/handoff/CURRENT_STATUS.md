@@ -10,31 +10,27 @@
 
 ## Current State
 
-- Cycle: 7 Take5対応済み・Dex(P4)再レビュー待ち
-- Status: CC(P3)がTake5対応を完了し`cc-cycle7`へpush。`main`未統合
-- Reviewed HEAD (Take4, NG): `c042557e3cfd70ad6819a06d57244509a7847cc5`
-- Take5 HEAD: `ca48025`（push済み、`d392ecb..ca48025`）
-- Take5 report: `docs/handoff/P3_CC_to_Dex/cycle_7_take5_report.md`
-- Take5 review request: `docs/handoff/P4_CC_to_Dex/cycle_7_take5_review_request.md`
-- Next: Dex(P4)がTake5の書き込み順序スパイ方式テストをレビューする
+- Cycle: 7 Take5 P4レビューOK
+- Status: Take5で成功時zoom復元の恒久テストを強化し、Dex(P4)承認。`main`統合待ち
+- Reviewed HEAD: `5acaab1`
+- Review: `docs/handoff/P4_Dex_Review/cycle_7_take5_review.md`
+- Next: Dex(P5)が最新版mainを取得し、`cc-cycle7`をmerge/pushする
 - Kazumax確認レベル: 確認不要
 
-## Blocking Finding (Take4 → Take5で対応)
+## Passed
 
-- 成功時のzoom復元テストがReact再描画後の最終値しか見ておらず、`finally`の復元を削除しても通る可能性がある。
-  → Take5で`table.style.zoom`書き込み順序(`['100%','60%','50%']`)を直接検証する方式へ置き換えて対応。
-
-## Passed In Take5
-
-- 製品コードの`try/catch/finally`と測定失敗時state保持（Take4から変更なし）
-- 成功時zoom復元がstate再描画前に同期的に実行されることを書き込み順序スパイで直接検証
-- 例外時zoom復元・表示倍率不変・descriptor復元テスト（Take4から変更なし）
-- タブ復帰時のオーバーフロー再計測（Take4から変更なし）
-- `App.jsx`は無変更、Versionは`v4.29`のまま
+- スマホ左固定列圧縮と従業員詳細ポップオーバー
+- PCズーム、画面フィット、左右フロートボタン
+- 成功時・例外時のzoom復元保証
+- タブ復帰時のオーバーフロー再計測
+- 1280px初期/再フィット55%
+- resize 1280 -> 1600 -> 1280pxで55 -> 74 -> 55%
+- 320 / 375 / 768 / 769 / 1280px回帰
+- ブラウザconsole warning/error 0件
 
 ## Verification
 
-- frontend test: 42/42 PASS（2回）
+- frontend test: 42/42 PASS
 - time utils: 33/33 PASS
 - frontend build: PASS
 - `git diff --check`: PASS
@@ -46,7 +42,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P4_CC_to_Dex/cycle_7_take5_review_request.md`
+- `docs/handoff/P4_Dex_Review/cycle_7_take5_review.md`
 
 ## Stop Conditions
 
