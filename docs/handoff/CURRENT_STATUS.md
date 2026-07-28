@@ -10,14 +10,16 @@
 
 ## Current State
 
-- Cycle: 8 Take2 進行中 (Dex P2事前再監査完了 -> CC P3実装待ち)
-- Status: AirのTake2再計画をDexとデクスクルーが事前監査し、`targetHours`の保存契約、既存データ互換、目標だけの編集時のシフト保持、バックエンド非影響、必ず終了する希望休抽選、不足通知、恒久テストを確定した。
-- Version: v4.30（固定、Take2承認と統合まで維持）
-- Next: CC(P3)が `docs/handoff/P2_Dex_to_CC/cycle_8_take2_target_hours_and_random_holidays_instructions.md` に従って実装・検証し、`docs/handoff/P3_CC_to_Dex/cycle_8_take2_report.md` を作成する。
+- Cycle: 8 Take2 P3完了・Dex(P4)レビュー待ち
+- Status: CC(P3)が`targetHours`の保存契約再設計、`契約日数×8h`廃止、希望休抽選のFisher-Yates再実装(抽選終了保証・不足通知)を実装。CCクルーによるセルフレビュー実施済み(指摘1件採用)。`main`未統合
+- Version: v4.30（変更なし、Take2承認と統合まで維持）
+- Next: Dex(P4)が`cc-cycle8`の差分をレビューする
+- Cycle8 Take2 HEAD: push後に追記します
+- P3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take2_report.md`
 - Air Blueprint: `docs/handoff/P1_Air_Blueprint/cycle_8_take2_target_hours_replan.md`
 - Dex P2: `docs/handoff/P2_Dex_to_CC/cycle_8_take2_target_hours_and_random_holidays_instructions.md`
-- P4 review: `docs/handoff/P4_Dex_Review/cycle_8_review.md`
-- Kazumax確認レベル: 現時点では確認不要
+- Take1 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_review.md`
+- Kazumax確認レベル: 必須確認（実機未確認のため）
 
 ## P2 Confirmed Rules
 
@@ -29,14 +31,14 @@
 - 確定シフトを保持し、実際の空き不足だけを明示通知する。
 - CCクルー利用は推奨。使用結果または不使用理由をP3報告に記録する。
 
-## Verification Baseline
+## Verification (Take2)
 
-- Take1 `git diff --check`: PASS
-- Take1 frontend full test: 47/48（1件timeout、Take2で是正対象）
-- Take1 Cycle 8単独 test: 6/6 PASS
-- Take1 time utils: 33/33 PASS
-- Take1 frontend build: PASS
-- Take1 browser 1280px / 375px: 基本操作、表示、Console 0件をDexが確認済み
+- frontend test: 61/61 PASS（2回連続、Take1のtimeout 47/48は再現せず解消）
+- time utils: 33/33 PASS
+- frontend build: PASS
+- `git diff --check`: PASS
+- CCクルー補助レビュー: 使用。7観点中1件採用(`normalizeStoredTargetHours`の下限チェック漏れを修正)
+- ブラウザ実機確認: 未実施（Browserペインが別プロジェクトに固定される既知の制約）
 
 ## Read First
 
@@ -45,7 +47,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P2_Dex_to_CC/cycle_8_take2_target_hours_and_random_holidays_instructions.md`
+- `docs/handoff/P3_CC_to_Dex/cycle_8_take2_report.md`
 
 ## Stop Conditions
 

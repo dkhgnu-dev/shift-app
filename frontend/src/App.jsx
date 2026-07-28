@@ -51,6 +51,19 @@ const safeParse = (raw, fallback) => {
     }
 };
 
+// Cycle8 Take2: targetHours(月間目標計上時間)の保存契約。number | null のみ許可。
+// 読み込み時は既存データ互換のため、無い/null/空文字/0/負数/非有限値/上限超過を
+// すべて黙って未設定(null)へ正規化する(新規入力時のエラー表示とは別扱い)。
+const TARGET_HOURS_MIN = 0.5;
+const TARGET_HOURS_MAX = 744;
+const normalizeStoredTargetHours = (raw) => {
+    if (raw === null || raw === undefined || raw === '') return null;
+    const parsed = parseStrictNumber(raw);
+    if (!Number.isFinite(parsed)) return null;
+    if (parsed < TARGET_HOURS_MIN || parsed > TARGET_HOURS_MAX) return null;
+    return parsed;
+};
+
 const DEFAULT_DAYS = {
     '正社員': 23, '時間限定社員': 23, '準社員': 23,
     '早パート': 16, '中パート': 16, '遅パート': 16, 
@@ -165,7 +178,11 @@ export function TimePicker({ value, onChange }) {
 
 export default function App() {
     const [activeTab, setActiveTab] = useState('dashboard');
-    const [employees, setEmployees] = useState(() => safeParse(localStorage.getItem('shift_employees'), INITIAL_DATA));
+    const [employees, setEmployees] = useState(() => {
+        const loaded = safeParse(localStorage.getItem('shift_employees'), INITIAL_DATA);
+        // Cycle8 Take2: 既存データ(targetHoursが無い/不正値)を安全に補完する。他項目は変更しない。
+        return loaded.map(emp => ({ ...emp, targetHours: normalizeStoredTargetHours(emp.targetHours) }));
+    });
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedResult, setGeneratedResult] = useState(() => safeParse(localStorage.getItem('shift_generatedResult'), null));
     // INFEASIBLE時(通常出力を停止した場合)の違反一覧。表は更新せず、この情報だけを表示する。
@@ -316,6 +333,7 @@ export default function App() {
     const [empIsKeyHolder, setEmpIsKeyHolder] = useState(false);
     const [empDays, setEmpDays] = useState(23);
     const [empRequests, setEmpRequests] = useState('');
+    const [empTargetHours, setEmpTargetHours] = useState(''); // Cycle8 Take2: 文字列で保持し、空欄=未設定
     const [selectedShifts, setSelectedShifts] = useState(['④', '⑦']);
 
     // 特殊シフト(有休等)の勤務時間編集モーダル
@@ -449,6 +467,7 @@ export default function App() {
             setEmpIsKeyHolder(!!emp.isKeyHolder);
             setEmpDays(emp.days);
             setEmpRequests(emp.requests || '');
+            setEmpTargetHours(typeof emp.targetHours === 'number' && Number.isFinite(emp.targetHours) ? String(emp.targetHours) : '');
             setSelectedShifts([...emp.shifts]);
         } else {
             setEditingIndex(null);
@@ -456,6 +475,7 @@ export default function App() {
             setEmpRS(false);
             setEmpIsKeyHolder(false);
             setEmpRequests('');
+            setEmpTargetHours('');
             handleTypeChange('正社員', true);
         }
         setUseCustomTime(false);
@@ -464,7 +484,35 @@ export default function App() {
         setShowModal(true);
     };
 
+    // Cycle8 Take2: 生成条件(氏名/雇用区分/資格/鍵/契約日数/希望休/勤務可能シフト)が
+    // 変化した場合だけgeneratedResultを破棄する。targetHoursだけの変更では保持する。
+    const isGenerationRelevantChange = (oldEmp, newEmp) => {
+        if (!oldEmp) return true; // 新規追加相当
+        if (oldEmp.name !== newEmp.name) return true;
+        if (oldEmp.type !== newEmp.type) return true;
+        if (oldEmp.isRS !== newEmp.isRS) return true;
+        if (!!oldEmp.isKeyHolder !== !!newEmp.isKeyHolder) return true;
+        if (oldEmp.days !== newEmp.days) return true;
+        if ((oldEmp.requests || '') !== (newEmp.requests || '')) return true;
+        const oldShifts = oldEmp.shifts || [];
+        const newShifts = newEmp.shifts || [];
+        if (oldShifts.length !== newShifts.length) return true;
+        if (oldShifts.some((s, idx) => s !== newShifts[idx])) return true;
+        return false;
+    };
+
     const saveEmployee = () => {
+        const rawTargetHours = empTargetHours.trim();
+        let targetHours = null;
+        if (rawTargetHours !== '') {
+            const parsed = parseStrictNumber(rawTargetHours);
+            if (!Number.isFinite(parsed) || parsed < TARGET_HOURS_MIN || parsed > TARGET_HOURS_MAX) {
+                alert(`月間目標計上時間は${TARGET_HOURS_MIN}〜${TARGET_HOURS_MAX}の範囲の数値で入力してください（空欄で未設定にできます）。`);
+                return;
+            }
+            targetHours = parsed;
+        }
+
         const emp = {
             name: empName || '名称未設定',
             type: empType,
@@ -472,15 +520,19 @@ export default function App() {
             isKeyHolder: empIsKeyHolder,
             days: parseInt(empDays, 10),
             shifts: [...selectedShifts],
-            requests: empRequests
+            requests: empRequests,
+            targetHours
         };
+        const previousEmp = editingIndex !== null ? employees[editingIndex] : null;
         const newData = [...employees];
         if (editingIndex !== null) newData[editingIndex] = emp;
         else newData.push(emp);
-        
+
         setEmployees(newData);
         setShowModal(false);
-        setGeneratedResult(null); // Reset result since data changed
+        if (isGenerationRelevantChange(previousEmp, emp)) {
+            setGeneratedResult(null); // 生成条件が変わった場合だけ結果を破棄する
+        }
     };
 
     const deleteEmployee = (index) => {
@@ -809,9 +861,22 @@ export default function App() {
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
     const dayAnalyses = generatedResult ? periodDates.map((_, d) => analyzeDay(d)) : [];
 
-    // Cycle8: 検証用テストジェネレーター。既存の確定シフト(希望休/休以外)は保持したまま、
+    // Cycle8 Take2: 空きセルを先に列挙し、Fisher-Yatesで一度だけシャッフルしてから
+    // 先頭N件を採用することで、乱数運に左右されず抽選を必ず終了させる。
+    const shuffleArray = (arr) => {
+        const result = [...arr];
+        for (let idx = result.length - 1; idx > 0; idx--) {
+            const j = Math.floor(Math.random() * (idx + 1));
+            [result[idx], result[j]] = [result[j], result[idx]];
+        }
+        return result;
+    };
+
+    // Cycle8/Take2: 検証用テストジェネレーター。既存の確定シフト(希望休/休以外)は保持したまま、
     // 「希望休」「休」セルだけをクリアし、正社員系は2〜4日・パート/アルバイト系は5〜8日を
-    // ランダムに再配置する。1日に集中しすぎないよう簡易な上限(maxPerDay)で分散させる。
+    // ランダムに再配置する。maxPerDayは「優先条件」であり、上限未満の空き日を使い切ったら
+    // 残りの空き日も候補にするため、空きが十分にあれば必ず目標数を満たす。空きセル自体が
+    // 必要数未満の場合だけ、配置可能数までを反映し不足として1件にまとめて通知する。
     const randomizeHolidayRequests = () => {
         if (!window.confirm('現在の各従業員の「休」設定をクリアして、テスト用のリアルな希望休（「休」）を自動で散りばめますか？')) {
             return;
@@ -830,41 +895,60 @@ export default function App() {
 
         const dayLoadCount = new Array(dayCount).fill(0);
         const maxPerDay = Math.max(1, Math.ceil(employees.length * 0.4));
+        const shortages = [];
 
         const newEmployees = employees.map((emp, i) => {
             const min = isStandardStaff(emp.type) ? 2 : 5;
             const max = isStandardStaff(emp.type) ? 4 : 8;
-            const count = Math.min(Math.floor(Math.random() * (max - min + 1)) + min, dayCount);
-            const chosen = new Set();
-            let guard = 0;
-            while (chosen.size < count && guard < dayCount * 20) {
-                guard++;
-                const candidateDay = Math.floor(Math.random() * dayCount);
-                if (chosen.has(candidateDay)) continue;
-                const existingCell = newMatrix[i][candidateDay];
-                if (existingCell && existingCell.shift) continue; // 確定シフトが既にある日は避ける
-                if (dayLoadCount[candidateDay] >= maxPerDay && Math.random() < 0.7) continue; // 混雑日は緩めに回避
-                chosen.add(candidateDay);
+            const desiredCount = Math.min(Math.floor(Math.random() * (max - min + 1)) + min, dayCount);
+
+            const availableDays = [];
+            for (let d = 0; d < dayCount; d++) {
+                if (!(newMatrix[i][d] && newMatrix[i][d].shift)) availableDays.push(d);
             }
-            chosen.forEach(d => {
+            const underCap = availableDays.filter(d => dayLoadCount[d] < maxPerDay);
+            const atOrOverCap = availableDays.filter(d => dayLoadCount[d] >= maxPerDay);
+            const orderedCandidates = [...shuffleArray(underCap), ...shuffleArray(atOrOverCap)];
+            const chosenDays = orderedCandidates.slice(0, desiredCount);
+
+            chosenDays.forEach(d => {
                 newMatrix[i][d] = { shift: '希望休', isError: false, isFixed: true };
                 dayLoadCount[d] += 1;
             });
-            return { ...emp, requests: serializeRequestDays(Array.from(chosen).map(d => d + 1)) };
+
+            if (chosenDays.length < desiredCount) {
+                shortages.push({ name: emp.name, targetDays: desiredCount, actualDays: chosenDays.length });
+            }
+
+            // requestsは同じ行のマトリクスに実在する「希望休」セルから再構築し、常に完全一致させる
+            const requestDaysFromMatrix = [];
+            for (let d = 0; d < dayCount; d++) {
+                if (newMatrix[i][d] && newMatrix[i][d].shift === '希望休') requestDaysFromMatrix.push(d + 1);
+            }
+            return { ...emp, requests: serializeRequestDays(requestDaysFromMatrix) };
         });
 
         setGeneratedResult(prev => ({ ...(prev || {}), matrix: newMatrix }));
         setEmployees(newEmployees);
+
+        if (shortages.length > 0) {
+            const lines = shortages.map(s => `・${s.name}: 目標${s.targetDays}日 → 実際${s.actualDays}日`);
+            window.alert(`希望休の配置数が一部不足しました（既存確定シフトを保護したため空き日が不足）。\n\n${lines.join('\n')}`);
+        }
     };
 
-    // Cycle8: 累積実績と契約日数(days)から想定される目標時間(1日あたり8h換算の目安)との
-    // 過不足を判定する。シフト自動生成ロジックや保存データ形式には触れない、表示専用の計算。
+    // Cycle8 Take2: 目標計上時間(targetHours、従業員ごとの任意入力・null=未設定)と
+    // 累積実績(休憩控除前のシフト時間合計)の差分を判定する。法定労働時間・給与・
+    // 残業判定ではなく、あくまで「目標計上時間との差分」の目安表示。
+    // 契約日数×8hという推測値は使わない(Take1差戻し対応)。
     const OVERTIME_DIFF_THRESHOLD = 2.0;
-    const HOURS_PER_CONTRACT_DAY = 8;
     const computeOvertimeDiff = (i) => {
         const emp = employees[i];
         const stats = computeEmployeeStats(i);
-        const targetHours = (emp?.days || 0) * HOURS_PER_CONTRACT_DAY;
+        const targetHours = emp?.targetHours;
+        if (typeof targetHours !== 'number' || !Number.isFinite(targetHours)) {
+            return { targetHours: null, diff: null, status: 'unset' };
+        }
         const diff = stats.hours - targetHours;
         let status = 'ok';
         if (diff > OVERTIME_DIFF_THRESHOLD) status = 'over';
@@ -875,20 +959,26 @@ export default function App() {
     const OVERTIME_DIFF_STYLES = {
         over: { color: '#DC2626', background: '#FEF2F2' },
         under: { color: '#2563EB', background: '#EFF6FF' },
-        ok: { color: '#059669', background: 'transparent' }
+        ok: { color: '#059669', background: 'transparent' },
+        unset: { color: '#6B7280', background: '#F3F4F6' }
+    };
+
+    // PC/スマホ双方で同じ判定関数・同じ文言を使う(表示先だけがsizeで変わる)。
+    const formatOvertimeDiffLabel = (diffInfo) => {
+        if (diffInfo.status === 'unset') return '目標未設定';
+        if (diffInfo.status === 'over') return `+${diffInfo.diff.toFixed(1)}h (超過⚠️)`;
+        if (diffInfo.status === 'under') return `${diffInfo.diff.toFixed(1)}h (不足)`;
+        return `±${Math.abs(diffInfo.diff).toFixed(1)}h (標準)`;
     };
 
     const renderOvertimeDiffTag = (i, size = 'small') => {
-        const { diff, status } = computeOvertimeDiff(i);
-        const sign = diff >= 0 ? '+' : '';
-        const label = status === 'over' ? `${sign}${diff.toFixed(1)}h (超過⚠️)`
-            : status === 'under' ? `${diff.toFixed(1)}h (不足)`
-            : `±${Math.abs(diff).toFixed(1)}h (標準)`;
-        const c = OVERTIME_DIFF_STYLES[status];
+        const diffInfo = computeOvertimeDiff(i);
+        const label = formatOvertimeDiffLabel(diffInfo);
+        const c = OVERTIME_DIFF_STYLES[diffInfo.status];
         if (size === 'large') {
             return (
                 <div style={{marginTop: '10px', padding: '10px 12px', borderRadius: '8px', background: c.background === 'transparent' ? '#F9FAFB' : c.background, color: c.color, fontWeight: 700, fontSize: '0.95rem'}}>
-                    【月間目標との差分・残業判定】 {label}
+                    【目標計上時間との差分】 {label}
                 </div>
             );
         }
@@ -1018,7 +1108,7 @@ export default function App() {
                         style={{flex: isNarrowViewport ? 1 : 'none', justifyContent: 'center', backgroundColor: '#F3F4F6', color: '#374151'}}
                         onClick={() => {
                             if (window.confirm('現在の従業員リストを破棄し、デフォルトの24名構成（鍵持ち権限等設定済）にリセットしますか？')) {
-                                setEmployees(INITIAL_DATA.map(emp => ({ ...emp, shifts: [...emp.shifts] })));
+                                setEmployees(INITIAL_DATA.map(emp => ({ ...emp, shifts: [...emp.shifts], targetHours: null })));
                                 // 従業員構成が変わると生成済みシフトの担当者情報(matrix)が古くなり
                                 // 整合しなくなるため、リセット時は生成結果も一緒に破棄する(Take2)。
                                 setGeneratedResult(null);
@@ -1546,6 +1636,23 @@ export default function App() {
                         <div className="form-group" style={{marginTop: '24px'}}>
                             <label>契約日数 (月間)</label>
                             <input type="number" className="form-control" value={empDays} onChange={e => setEmpDays(e.target.value)}/>
+                        </div>
+
+                        <div className="form-group">
+                            <label>月間目標計上時間 (h・任意)</label>
+                            <input
+                                type="number"
+                                step="0.5"
+                                min="0.5"
+                                max="744"
+                                className="form-control"
+                                value={empTargetHours}
+                                onChange={e => setEmpTargetHours(e.target.value)}
+                                placeholder="未設定"
+                            />
+                            <div style={{fontSize: '0.8rem', color: 'var(--text-sub)', marginTop: '4px'}}>
+                                ※16日から翌月15日までの目安。通常シフトの拘束時間と特殊勤務の計上時間を合計し、休憩時間は控除しません。空欄で未設定にできます。
+                            </div>
                         </div>
 
                         <div className="form-group">
