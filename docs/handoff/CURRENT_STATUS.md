@@ -10,12 +10,12 @@
 
 ## Current State
 
-- Cycle: 7 完了
-- Status: Take5までの修正をDex(P4)承認後、Dex(P5)が`main`へ統合
-- Merge commit: `6b8a8a7`
-- Review: `docs/handoff/P4_Dex_Review/cycle_7_take5_review.md`
-- Integration: `docs/handoff/P5_Dex_Integration/cycle_7_main_integration.md`
-- Next: 次CycleのAir設計またはKazumaxの要望待ち
+- Cycle: 8 (P2 指示書完成 -> CC 実装待ち)
+- Status: 2段ロケット作戦の第1弾として、「希望休ランダム自動打ち込み（テスト検証加速機能）」および「残業・不足時間のリアルタイム過不足差分メーター（カラー警告付・スマホはタップドロワー内に大配分）」を当時一撃合体搭載する Cycle 8 の P2開発指示書 を発行策定。
+- Version: 予定 v4.30
+- Next: CCが `docs/handoff/P2_AirCrew_to_CC/cycle_8_random_holidays_and_overtime_badge_instructions.md` に従って P3実装と全自動テストを行い、完成後、Dex の P4 差分コードレビューへ送付する。
+- 直近P2指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_8_random_holidays_and_overtime_badge_instructions.md`
+- 前期(C7)統合記録: `docs/handoff/P5_Dex_Integration/cycle_7_main_integration.md`
 - Kazumax確認レベル: 確認不要
 
 ## Completed In Cycle 7
