@@ -809,6 +809,96 @@ export default function App() {
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
     const dayAnalyses = generatedResult ? periodDates.map((_, d) => analyzeDay(d)) : [];
 
+    // Cycle8: 検証用テストジェネレーター。既存の確定シフト(希望休/休以外)は保持したまま、
+    // 「希望休」「休」セルだけをクリアし、正社員系は2〜4日・パート/アルバイト系は5〜8日を
+    // ランダムに再配置する。1日に集中しすぎないよう簡易な上限(maxPerDay)で分散させる。
+    const randomizeHolidayRequests = () => {
+        if (!window.confirm('現在の各従業員の「休」設定をクリアして、テスト用のリアルな希望休（「休」）を自動で散りばめますか？')) {
+            return;
+        }
+        const dayCount = periodDates.length;
+        const isStandardStaff = (type) => (type || '').includes('社員');
+        let currentMatrix = generatedResult ? generatedResult.matrix : null;
+        if (!currentMatrix) {
+            currentMatrix = employees.map(() => periodDates.map(() => ({})));
+        }
+        // 既存の希望休/休セルだけをクリアし、それ以外の確定シフトは維持する
+        const newMatrix = currentMatrix.map(row => row.map(cell => {
+            if (cell && (cell.shift === '希望休' || cell.shift === '休')) return {};
+            return cell;
+        }));
+
+        const dayLoadCount = new Array(dayCount).fill(0);
+        const maxPerDay = Math.max(1, Math.ceil(employees.length * 0.4));
+
+        const newEmployees = employees.map((emp, i) => {
+            const min = isStandardStaff(emp.type) ? 2 : 5;
+            const max = isStandardStaff(emp.type) ? 4 : 8;
+            const count = Math.min(Math.floor(Math.random() * (max - min + 1)) + min, dayCount);
+            const chosen = new Set();
+            let guard = 0;
+            while (chosen.size < count && guard < dayCount * 20) {
+                guard++;
+                const candidateDay = Math.floor(Math.random() * dayCount);
+                if (chosen.has(candidateDay)) continue;
+                const existingCell = newMatrix[i][candidateDay];
+                if (existingCell && existingCell.shift) continue; // 確定シフトが既にある日は避ける
+                if (dayLoadCount[candidateDay] >= maxPerDay && Math.random() < 0.7) continue; // 混雑日は緩めに回避
+                chosen.add(candidateDay);
+            }
+            chosen.forEach(d => {
+                newMatrix[i][d] = { shift: '希望休', isError: false, isFixed: true };
+                dayLoadCount[d] += 1;
+            });
+            return { ...emp, requests: serializeRequestDays(Array.from(chosen).map(d => d + 1)) };
+        });
+
+        setGeneratedResult(prev => ({ ...(prev || {}), matrix: newMatrix }));
+        setEmployees(newEmployees);
+    };
+
+    // Cycle8: 累積実績と契約日数(days)から想定される目標時間(1日あたり8h換算の目安)との
+    // 過不足を判定する。シフト自動生成ロジックや保存データ形式には触れない、表示専用の計算。
+    const OVERTIME_DIFF_THRESHOLD = 2.0;
+    const HOURS_PER_CONTRACT_DAY = 8;
+    const computeOvertimeDiff = (i) => {
+        const emp = employees[i];
+        const stats = computeEmployeeStats(i);
+        const targetHours = (emp?.days || 0) * HOURS_PER_CONTRACT_DAY;
+        const diff = stats.hours - targetHours;
+        let status = 'ok';
+        if (diff > OVERTIME_DIFF_THRESHOLD) status = 'over';
+        else if (diff < -OVERTIME_DIFF_THRESHOLD) status = 'under';
+        return { targetHours, diff, status };
+    };
+
+    const OVERTIME_DIFF_STYLES = {
+        over: { color: '#DC2626', background: '#FEF2F2' },
+        under: { color: '#2563EB', background: '#EFF6FF' },
+        ok: { color: '#059669', background: 'transparent' }
+    };
+
+    const renderOvertimeDiffTag = (i, size = 'small') => {
+        const { diff, status } = computeOvertimeDiff(i);
+        const sign = diff >= 0 ? '+' : '';
+        const label = status === 'over' ? `${sign}${diff.toFixed(1)}h (超過⚠️)`
+            : status === 'under' ? `${diff.toFixed(1)}h (不足)`
+            : `±${Math.abs(diff).toFixed(1)}h (標準)`;
+        const c = OVERTIME_DIFF_STYLES[status];
+        if (size === 'large') {
+            return (
+                <div style={{marginTop: '10px', padding: '10px 12px', borderRadius: '8px', background: c.background === 'transparent' ? '#F9FAFB' : c.background, color: c.color, fontWeight: 700, fontSize: '0.95rem'}}>
+                    【月間目標との差分・残業判定】 {label}
+                </div>
+            );
+        }
+        return (
+            <span style={{fontSize: '0.7rem', color: c.color, background: c.background, padding: '1px 4px', borderRadius: '4px', marginLeft: '4px'}}>
+                ({label})
+            </span>
+        );
+    };
+
     // Cycle6: 表の幅(日数)や行数が変わるとスクロール可否も変わるため、都度再判定する。
     // Cycle7 Take2(Dex差戻し): 「初期表示・resize・タブ復帰・対象期間や従業員数の
     // 変更後」にフィット倍率を再計算して適用する(zoomLevelが変わると下のeffectが
@@ -902,7 +992,15 @@ export default function App() {
     const renderActions = () => {
         if (activeTab === 'dashboard') {
             return (
-                <div style={{display: 'flex', gap: '8px', width: isNarrowViewport ? '100%' : 'auto'}}>
+                <div style={{display: 'flex', gap: '8px', width: isNarrowViewport ? '100%' : 'auto', flexWrap: 'wrap'}}>
+                    <button
+                        className="btn"
+                        style={{flex: isNarrowViewport ? 1 : 'none', justifyContent: 'center', minWidth: isNarrowViewport ? 'auto' : '160px', background: 'linear-gradient(135deg, #7C3AED, #1E3A8A)', color: '#fff', border: 'none'}}
+                        onClick={randomizeHolidayRequests}
+                        disabled={isGenerating}
+                    >
+                        🎲 希望休ランダム入力
+                    </button>
                     <button className="btn outline" style={{flex: isNarrowViewport ? 1 : 'none', justifyContent: 'center'}} onClick={() => fillBlanks()} disabled={isGenerating}>
                         <Wand2 size={16}/> 空欄自動作成
                     </button>
@@ -944,7 +1042,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.29</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.30</span></div>
                 </div>
             )}
 
@@ -955,7 +1053,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.29</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.30</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -1093,7 +1191,7 @@ export default function App() {
                                                                 {!isMobileView && (
                                                                     <>
                                                                         <div style={{fontSize:'0.7rem', color:'#9CA3AF'}}>{emp.isRS ? '登販/' : ''}{emp.isKeyHolder ? '🔑/' : ''}{shortType}</div>
-                                                                        <div className="staff-stat-badge">{(() => { const st = computeEmployeeStats(i); return `${st.days}日 / ${st.hours.toFixed(1)}h`; })()}</div>
+                                                                        <div className="staff-stat-badge">{(() => { const st = computeEmployeeStats(i); return `${st.days}日 / ${st.hours.toFixed(1)}h`; })()}{renderOvertimeDiffTag(i, 'small')}</div>
                                                                     </>
                                                                 )}
                                                             </td>
@@ -1611,6 +1709,7 @@ export default function App() {
                             <div style={{marginBottom: '8px'}}>
                                 🕒 出勤日数: <strong>{stats.days}日</strong> / 累積勤務時間: <strong>{stats.hours.toFixed(1)}時間</strong>
                             </div>
+                            {renderOvertimeDiffTag(selectedEmployeeForDetail, 'large')}
                             {emp.requests && (
                                 <div style={{color: '#DC2626', fontSize: '0.9rem'}}>📅 希望休: {emp.requests}</div>
                             )}

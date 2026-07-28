@@ -4,19 +4,30 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `main`
+- Working Branch: `cc-cycle8`
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 8 (P2 指示書完成 -> CC 実装待ち)
-- Status: 2段ロケット作戦の第1弾として、「希望休ランダム自動打ち込み（テスト検証加速機能）」および「残業・不足時間のリアルタイム過不足差分メーター（カラー警告付・スマホはタップドロワー内に大配分）」を当時一撃合体搭載する Cycle 8 の P2開発指示書 を発行策定。
-- Version: 予定 v4.30
-- Next: CCが `docs/handoff/P2_AirCrew_to_CC/cycle_8_random_holidays_and_overtime_badge_instructions.md` に従って P3実装と全自動テストを行い、完成後、Dex の P4 差分コードレビューへ送付する。
-- 直近P2指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_8_random_holidays_and_overtime_badge_instructions.md`
+- Cycle: 8 P3完了・Dex(P4)差分レビュー待ち
+- Status: 「希望休ランダム自動入力ボタン」および「残業・不足時間のリアルタイム過不足カラー警告メーター」をCC(P3)が実装。`main`未統合
+- Version: v4.30
+- Next: Dex(P4)が`cc-cycle8`の差分をレビューする
+- P3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_report.md`
+- 対応P2指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_8_random_holidays_and_overtime_badge_instructions.md`
 - 前期(C7)統合記録: `docs/handoff/P5_Dex_Integration/cycle_7_main_integration.md`
-- Kazumax確認レベル: 確認不要
+- Kazumax確認レベル: 必須確認（実機未確認、目標時間の算出方法に独自近似を採用のため）
+
+## Passed In Cycle 8 (P3)
+
+- 🎲希望休ランダム入力ボタン（確認ダイアログ、正社員系2〜4日/パート系5〜8日、確定シフト保護、簡易分散）
+- 📊残業・不足時間のリアルタイム過不足カラー警告（PC:インラインタグ、スマホ:ポップオーバー内のみ）
+- Version `v4.30`
+
+## Blocking Points For Dex Review
+
+- 目標時間の算出方法: 実データに時間ベースの目標フィールドがないため「契約日数×8h」の近似値を独自採用（要判断）
 
 ## Completed In Cycle 7
 
@@ -30,12 +41,11 @@
 
 ## Verification
 
-- frontend test: 42/42 PASS
+- frontend test: 48/48 PASS（2回）
 - time utils: 33/33 PASS
 - frontend build: PASS
-- 320 / 375 / 768 / 769 / 1280px: PASS
-- resize 1280 -> 1600 -> 1280px: 55% -> 74% -> 55%
-- ブラウザconsole warning/error: 0件
+- `git diff --check`: PASS
+- ブラウザconsole warning/error: 実機未確認（Browserペインが別プロジェクトに固定される既知の制約）
 
 ## Read First
 
@@ -44,6 +54,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
+- `docs/handoff/P3_CC_to_Dex/cycle_8_report.md`
 
 ## Stop Conditions
 
