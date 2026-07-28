@@ -14,7 +14,7 @@
 - Status: CC(P3)が`targetHours`の保存契約再設計、`契約日数×8h`廃止、希望休抽選のFisher-Yates再実装(抽選終了保証・不足通知)を実装。CCクルーによるセルフレビュー実施済み(指摘1件採用)。`main`未統合
 - Version: v4.30（変更なし、Take2承認と統合まで維持）
 - Next: Dex(P4)が`cc-cycle8`の差分をレビューする
-- Cycle8 Take2 HEAD: push後に追記します
+- Cycle8 Take2 HEAD: `35a0335`（push済み、`a5fadb7..35a0335`）
 - P3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take2_report.md`
 - Air Blueprint: `docs/handoff/P1_Air_Blueprint/cycle_8_take2_target_hours_replan.md`
 - Dex P2: `docs/handoff/P2_Dex_to_CC/cycle_8_take2_target_hours_and_random_holidays_instructions.md`

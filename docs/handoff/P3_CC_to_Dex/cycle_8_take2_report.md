@@ -3,7 +3,7 @@
 # P3 完了報告 Take2: 月間目標計上時間の再設計と希望休ランダム入力の抽選終了保証
 
 - 対象ブランチ: `cc-cycle8`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `35a0335`（push済み、`a5fadb7..35a0335`）
 - 対応した指示書: `docs/handoff/P2_Dex_to_CC/cycle_8_take2_target_hours_and_random_holidays_instructions.md`（Dex P2最終指示、Air草案 `docs/handoff/P1_Air_Blueprint/cycle_8_take2_target_hours_replan.md` を統合済み）
 - 前回レビュー: `docs/handoff/P4_Dex_Review/cycle_8_review.md`（NG、Take1 HEAD: `eab0059`）
 
