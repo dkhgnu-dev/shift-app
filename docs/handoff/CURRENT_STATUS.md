@@ -10,32 +10,33 @@
 
 ## Current State
 
-- Cycle: 8 Take2 進行中 (Air P1 仕様再整理完了 -> Dex P2 事前再監査待ち)
-- Status: Air(P1/P2草案)が目標時間保存項目（`targetHours`）追加と「未設定」表示、休憩時間を控除しない配置時間差分名称変更、空きセル不足通知、タイムアウト根絶と必須確認事項を `cycle_8_take2_target_hours_replan.md` として完全策定。保存データ構造変更（危険領域）を含むため、Dex(P2)の事前再監査と最終CC向け指示書作成へ引き継ぐ。
+- Cycle: 8 Take2 進行中 (Dex P2事前再監査完了 -> CC P3実装待ち)
+- Status: AirのTake2再計画をDexとデクスクルーが事前監査し、`targetHours`の保存契約、既存データ互換、目標だけの編集時のシフト保持、バックエンド非影響、必ず終了する希望休抽選、不足通知、恒久テストを確定した。
 - Version: v4.30（固定、Take2承認と統合まで維持）
-- Next: Dex(P2)が `docs/handoff/P1_Air_Blueprint/cycle_8_take2_target_hours_replan.md` を事前監査し、安全を保てる最終指示書（P2_Dex_to_CC）を作成して CC に流す。
-- Air Blueprint (Take2): `docs/handoff/P1_Air_Blueprint/cycle_8_take2_target_hours_replan.md`
-- Replan request: `docs/handoff/P4_Rollback/cycle_8_take2_air_replan_request.md`
+- Next: CC(P3)が `docs/handoff/P2_Dex_to_CC/cycle_8_take2_target_hours_and_random_holidays_instructions.md` に従って実装・検証し、`docs/handoff/P3_CC_to_Dex/cycle_8_take2_report.md` を作成する。
+- Air Blueprint: `docs/handoff/P1_Air_Blueprint/cycle_8_take2_target_hours_replan.md`
+- Dex P2: `docs/handoff/P2_Dex_to_CC/cycle_8_take2_target_hours_and_random_holidays_instructions.md`
 - P4 review: `docs/handoff/P4_Dex_Review/cycle_8_review.md`
 - Kazumax確認レベル: 現時点では確認不要
 
-## P4 Blocking Findings
+## P2 Confirmed Rules
 
-- `契約日数 × 8h`は短時間勤務者に合わず、実績側も休憩込み経過時間なので「残業判定」として不正確
-- 確定シフトで空きが少ない場合、希望休日数を満たせなくても通知せず正常終了する
-- 全フロントテストでは超過表示テストがtimeoutし47/48
-- 確定シフト保持、希望休と`requests`同期、空き不足、±2h境界の恒久テストが不足
+- 月間目標計上時間は従業員ごとの任意入力 `targetHours` とし、未設定を許す。
+- 既存データや初期名簿へ推測値を埋めない。
+- `targetHours` はlocalStorage内のフロントエンド項目とし、バックエンドpayloadへ送らない。
+- 法的な「残業」ではなく、特殊勤務も含む「目標計上時間との差分」と表示する。
+- 希望休は空き日の列挙・シャッフル方式とし、乱数運による不足をなくす。
+- 確定シフトを保持し、実際の空き不足だけを明示通知する。
+- CCクルー利用は推奨。使用結果または不使用理由をP3報告に記録する。
 
-## Verification
+## Verification Baseline
 
-- `git diff --check`: PASS
-- frontend test: 47/48（全件同時実行で1件timeout）
-- Cycle 8テスト単独: 6/6 PASS
-- time utils: 33/33 PASS
-- frontend build: PASS
-- 1280px実機: 希望休142件、各人2〜8日、1日最大8人、反映・操作正常
-- 375px実機: 氏名列105px、差分カードは詳細内のみ、横はみ出しなし
-- Browser console warning/error: 0件
+- Take1 `git diff --check`: PASS
+- Take1 frontend full test: 47/48（1件timeout、Take2で是正対象）
+- Take1 Cycle 8単独 test: 6/6 PASS
+- Take1 time utils: 33/33 PASS
+- Take1 frontend build: PASS
+- Take1 browser 1280px / 375px: 基本操作、表示、Console 0件をDexが確認済み
 
 ## Read First
 
@@ -44,15 +45,14 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P4_Dex_Review/cycle_8_review.md`
-- `docs/handoff/P4_Rollback/cycle_8_take2_air_replan_request.md`
+- `docs/handoff/P2_Dex_to_CC/cycle_8_take2_target_hours_and_random_holidays_instructions.md`
 
 ## Stop Conditions
 
 以下の場合は推測で進めず、人間へ確認する。
 
-- 月間目標時間・休憩時間の業務定義が決まっていない
-- DB、保存形式、既存データ、削除、上書きに触れる
-- シフト自動生成ロジックを変更する
-- Git conflictが発生する
+- 月間目標配置時間を給与・法定労働時間・残業判定へ使う必要が生じた
+- バックエンドAPI、DB、保存形式の破壊的変更が必要になった
+- シフト自動生成ロジックを変更する必要が生じた
+- Git conflictが発生した
 - `.env`、パスワード、個人情報、本物データを扱う
