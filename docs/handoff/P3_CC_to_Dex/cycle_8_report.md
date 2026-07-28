@@ -3,7 +3,7 @@
 # P3 完了報告: Cycle 8「希望休ランダム自動入力」＆「残業・不足時間のリアルタイム過不足カラー警告」
 
 - 対象ブランチ: `cc-cycle8`（`main`から分岐）
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `3fd2029`（push済み、`main..cc-cycle8`）
 - 対応した指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_8_random_holidays_and_overtime_badge_instructions.md`
 
 **mainへはmergeしないでください（未merge）。**

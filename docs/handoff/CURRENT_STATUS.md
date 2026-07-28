@@ -14,6 +14,7 @@
 - Status: 「希望休ランダム自動入力ボタン」および「残業・不足時間のリアルタイム過不足カラー警告メーター」をCC(P3)が実装。`main`未統合
 - Version: v4.30
 - Next: Dex(P4)が`cc-cycle8`の差分をレビューする
+- Cycle8 HEAD: `3fd2029`（push済み、`main..cc-cycle8`）
 - P3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_report.md`
 - 対応P2指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_8_random_holidays_and_overtime_badge_instructions.md`
 - 前期(C7)統合記録: `docs/handoff/P5_Dex_Integration/cycle_7_main_integration.md`
