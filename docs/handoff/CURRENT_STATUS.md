@@ -10,16 +10,13 @@
 
 ## Current State
 
-- Cycle: 8 P4 NG・Air(P1)仕様再整理待ち
-- Status: 希望休ランダム入力と残業・不足時間表示をレビューし、時間基準・空き不足時処理・恒久テストに未解決事項あり
-- Version: v4.30（未承認、`main`未統合）
-- Next: Air(P1)が月間目標時間・休憩時間・目標未設定時・希望休不足時の仕様を再整理する
-- Review target: `origin/main` `4ce3e74` .. `origin/cc-cycle8` `eab0059`
-- Implementation commit: `3fd2029`
-- P4 review: `docs/handoff/P4_Dex_Review/cycle_8_review.md`
+- Cycle: 8 Take2 進行中 (Air P1 仕様再整理完了 -> Dex P2 事前再監査待ち)
+- Status: Air(P1/P2草案)が目標時間保存項目（`targetHours`）追加と「未設定」表示、休憩時間を控除しない配置時間差分名称変更、空きセル不足通知、タイムアウト根絶と必須確認事項を `cycle_8_take2_target_hours_replan.md` として完全策定。保存データ構造変更（危険領域）を含むため、Dex(P2)の事前再監査と最終CC向け指示書作成へ引き継ぐ。
+- Version: v4.30（固定、Take2承認と統合まで維持）
+- Next: Dex(P2)が `docs/handoff/P1_Air_Blueprint/cycle_8_take2_target_hours_replan.md` を事前監査し、安全を保てる最終指示書（P2_Dex_to_CC）を作成して CC に流す。
+- Air Blueprint (Take2): `docs/handoff/P1_Air_Blueprint/cycle_8_take2_target_hours_replan.md`
 - Replan request: `docs/handoff/P4_Rollback/cycle_8_take2_air_replan_request.md`
-- P3 report: `docs/handoff/P3_CC_to_Dex/cycle_8_report.md`
-- P2 instructions: `docs/handoff/P2_AirCrew_to_CC/cycle_8_random_holidays_and_overtime_badge_instructions.md`
+- P4 review: `docs/handoff/P4_Dex_Review/cycle_8_review.md`
 - Kazumax確認レベル: 現時点では確認不要
 
 ## P4 Blocking Findings
