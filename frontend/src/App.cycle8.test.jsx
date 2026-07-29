@@ -140,6 +140,51 @@ describe('目標計上時間との差分表示 (Cycle8 Take2)', () => {
         expect(rows[4].querySelector('.staff-stat-badge').textContent).toMatch(/不足/);
     });
 
+    it('スマホ詳細でも、不足・標準・超過の代表値がPCと同じ判定・文言になる', () => {
+        const employees = [
+            { name: 'mobileStandard', type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: 100 },
+            { name: 'mobileOver', type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: 100 },
+            { name: 'mobileUnder', type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: 100 },
+        ];
+        const cellsFor = (hoursList) => hoursList.map(h => ({ shift: '有休', hours: h, isFixed: true }));
+        const matrix = [
+            cellsFor([100]), // 100h - 100h = 0 (標準)
+            cellsFor([24, 24, 24, 24, 6.1]), // 102.1h - 100h = +2.1 (超過)
+            cellsFor([24, 24, 24, 24, 1.9]), // 97.9h - 100h = -2.1 (不足)
+        ];
+        window.localStorage.setItem('shift_employees', JSON.stringify(employees));
+        window.localStorage.setItem('shift_generatedResult', JSON.stringify({ matrix, hasError: false, warnings: [], isWarningDraft: false, violations: [] }));
+
+        // まずPC幅で各行のバッジ判定を記録する
+        setViewportWidth(1280);
+        const { unmount } = render(<App />);
+        const table = document.querySelector('table');
+        const pcRows = table.querySelectorAll('tbody tr');
+        const pcLabels = [
+            pcRows[0].querySelector('.staff-stat-badge').textContent,
+            pcRows[1].querySelector('.staff-stat-badge').textContent,
+            pcRows[2].querySelector('.staff-stat-badge').textContent,
+        ];
+        expect(pcLabels[0]).toMatch(/標準/);
+        expect(pcLabels[1]).toMatch(/超過/);
+        expect(pcLabels[2]).toMatch(/不足/);
+        unmount();
+
+        // 同じデータをスマホ幅で開き、ポップオーバー内の判定・文言がPCと一致することを確認する
+        setViewportWidth(375);
+        render(<App />);
+        fireEvent.click(screen.getAllByText('mobileStandard')[0]);
+        expect(screen.getByText(/標準/)).toBeInTheDocument();
+        fireEvent.click(screen.getAllByRole('button', { name: '閉じる' })[0]);
+
+        fireEvent.click(screen.getAllByText('mobileOver')[0]);
+        expect(screen.getByText(/超過/)).toBeInTheDocument();
+        fireEvent.click(screen.getAllByRole('button', { name: '閉じる' })[0]);
+
+        fireEvent.click(screen.getAllByText('mobileUnder')[0]);
+        expect(screen.getByText(/不足/)).toBeInTheDocument();
+    });
+
     it('特殊勤務の既定計上時間(8h)も差分計算へ合算される', () => {
         const employees = [
             { name: 'defaultHoursCheck', type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: 8 },
@@ -337,24 +382,29 @@ describe('希望休ランダム入力の空きセル保護・抽選終了保証�
         });
     });
 
-    it('マトリクスの希望休とemployees[].requestsが完全一致する', () => {
+    it('マトリクスの希望休とemployees[].requestsの日番号配列が完全一致する(件数だけでなく中身も比較)', () => {
         vi.spyOn(window, 'confirm').mockReturnValue(true);
         render(<App />);
         fireEvent.click(screen.getByRole('button', { name: /希望休ランダム入力/ }));
 
         const table = document.querySelector('table');
         const matrixRow = table.querySelectorAll('tbody tr')[0];
-        const matrixCount = Array.from(matrixRow.querySelectorAll('select')).filter(s => s.value === '希望休').length;
+        const selects = Array.from(matrixRow.querySelectorAll('select'));
+        const matrixDays = selects
+            .map((s, d) => ({ value: s.value, day: d + 1 }))
+            .filter(x => x.value === '希望休')
+            .map(x => x.day)
+            .sort((a, b) => a - b);
 
         fireEvent.click(screen.getByText('従業員管理'));
         const empRows = document.querySelectorAll('table tbody tr');
         const match = empRows[0].textContent.match(/希望休:\s*([\d,\s]+)/);
-        const requestsCount = match[1].split(',').filter(s => s.trim() !== '').length;
+        const requestDays = match[1].split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)).sort((a, b) => a - b);
 
-        expect(requestsCount).toBe(matrixCount);
+        expect(requestDays).toEqual(matrixDays); // 件数一致ではなく、日番号の配列そのものが一致すること
     });
 
-    it('空きセル自体が必要数未満の場合だけ、配置可能数までを反映し不足者・目標・実配置数を1件の通知にまとめる', () => {
+    it('空きセル自体が必要数未満の場合だけ、配置可能数までを反映し不足者・目標・実配置数を1件の通知にまとめる(空き0件の全欠経路)', () => {
         const dayCount = 31;
         const fullyBookedRow = Array.from({ length: dayCount }, () => ({ shift: '④', isError: false, isFixed: false }));
         const employees = [
@@ -379,6 +429,51 @@ describe('希望休ランダム入力の空きセル保護・抽選終了保証�
         expect(message).toMatch(/目標4日/);
         expect(message).toMatch(/実際0日/);
         expect(message).not.toMatch(/空き十分花子/); // 不足していない従業員は通知に含めない
+    });
+
+    it('空きセルが一部だけある場合(空き2日・目標4日)、配置可能な2日全てがmatrix・requestsへ反映され、通知が目標4日・実際2日になる', () => {
+        const dayCount = 31;
+        // 先頭2日だけ空き、残り29日は確定シフト(④)で埋まっている
+        const partiallyBookedRow = Array.from({ length: dayCount }, (_, d) => (
+            d < 2 ? {} : { shift: '④', isError: false, isFixed: false }
+        ));
+        const employees = [
+            { name: '空き部分太郎', type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: null },
+        ];
+        const matrix = [partiallyBookedRow];
+        window.localStorage.setItem('shift_employees', JSON.stringify(employees));
+        window.localStorage.setItem('shift_generatedResult', JSON.stringify({ matrix, hasError: false, warnings: [], isWarningDraft: false, violations: [] }));
+
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        vi.spyOn(window, 'alert').mockImplementation(() => {});
+        // random=0.99 -> floor(0.99*3)+2=4 (正社員系の最大4日を要求させ、空き2日との差を明確にする)
+        vi.spyOn(Math, 'random').mockReturnValue(0.99);
+
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: /希望休ランダム入力/ }));
+
+        expect(window.alert).toHaveBeenCalledTimes(1);
+        const message = window.alert.mock.calls[0][0];
+        expect(message).toMatch(/空き部分太郎/);
+        expect(message).toMatch(/目標4日/);
+        expect(message).toMatch(/実際2日/);
+
+        // 空いていた1・2日目の両方がmatrixへ反映されていること
+        const table = document.querySelector('table');
+        const row = table.querySelectorAll('tbody tr')[0];
+        const selects = row.querySelectorAll('select');
+        expect(selects[0].value).toBe('希望休');
+        expect(selects[1].value).toBe('希望休');
+        for (let d = 2; d < selects.length; d++) {
+            expect(selects[d].value).toBe('④'); // 確定シフトは上書きされない
+        }
+
+        // requestsも同じ2日(1,2)と完全一致すること
+        fireEvent.click(screen.getByText('従業員管理'));
+        const empRow = document.querySelectorAll('table tbody tr')[0];
+        const match = empRow.textContent.match(/希望休:\s*([\d,\s]+)/);
+        const requestDays = match[1].split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)).sort((a, b) => a - b);
+        expect(requestDays).toEqual([1, 2]);
     });
 });
 
