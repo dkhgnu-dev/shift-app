@@ -10,17 +10,18 @@
 
 ## Current State
 
-- Cycle: 8 Take4 P3完了・Dex(P4)再レビュー待ち
-- Status: Vitest設定名を`maxForks`(無効)から`maxWorkers`へ訂正し、Take3報告書・レビュー依頼に残っていた誤った原因説明も訂正した。`App.jsx`・Cycle8テスト本体は無変更、`main`未統合
+- Cycle: 8 Take4 P4完了・Take5文書訂正待ち
+- Status: `maxWorkers: 2`はDex環境で有効、63/63を2周PASS、最大fork worker 2本を確認。設定・製品・テストコードは承認可能。ただしTake3文書末尾に古い`maxForks`前提の現在形記述が2か所残るため、文書訂正のみP4 NG。`main`未統合
 - Version: v4.30（変更なし）
-- Next: Dex(P4)が`cc-cycle8`の差分を再レビューする
-- Cycle8 Take4 HEAD: `12f9f63`（push済み、`e05cde7..12f9f63`）
+- Next: CC(P3)が`docs/handoff/P4_Rollback/cycle_8_take5_handoff_stale_text_request.md`に従ってhandoff文書だけを訂正する
+- Cycle8 Take4 reviewed HEAD: `dbc3a79`（push済み、`e05cde7..dbc3a79`）
 - P3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take4_report.md`
 - レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_8_take4_review_request.md`
 - Take3 reviewed HEAD: `859c99e`
 - Take1 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_review.md`
 - Take2 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take2_review.md`
 - Take3 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take3_review.md`
+- Take4 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take4_review.md`
 - Kazumax確認レベル: 現時点では確認不要（設定名訂正のみ）
 
 ## P2 Confirmed Rules
