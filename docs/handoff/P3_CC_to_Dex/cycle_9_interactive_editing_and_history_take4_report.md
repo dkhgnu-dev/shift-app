@@ -6,7 +6,7 @@
 - 差し戻し対象HEAD: `9d7a5f7`
 - 差し戻し文書: `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take4.md`
 - Version: **v4.33のまま**(実装コードは変更していないため、Take4差し戻し文書の指示どおり更新なし)
-- Take4 実装commit: (このセッションでのpush後にHEADを追記)
+- Take4 実装commit: `22b099c`
 
 ## 変更ファイル
 
