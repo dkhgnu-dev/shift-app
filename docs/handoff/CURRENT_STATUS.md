@@ -10,10 +10,10 @@
 
 ## Current State
 
-- Cycle: 9 Take4完了・Dex(P4)再レビュー待ち
-- Status: CC(P3)がTake4指示どおりテスト追加のみを実施(「空欄自動作成」の安全停止テスト追加、生成結果全体・Undo/Redoボタン状態の実行前後不変を検証)。実装コードは無変更。標準テスト135/135を2回連続PASS。`main`未統合
+- Cycle: 9 Take4のDex(P4)レビュー完了・P5統合待ち
+- Status: P4 OK。通常生成・空欄自動作成の安全停止、生成結果全体、Undo/Redo履歴の恒久テストを確認。標準テスト135/135を2回連続PASS。`main`未統合
 - Version: v4.33（実装コード無変更のため更新なし）
-- Next: Dex(P4)がTake4差分をレビューし、OKならmain統合フローへ
+- Next: Dex(P5)が最新`main`を確認し、`cc-cycle9`をmerge/push
 - Cycle9 Take4 report HEAD: `22b099c`
 - P3報告(Take1): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_report.md`
 - P3報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take2_report.md`
@@ -21,10 +21,11 @@
 - P3報告(Take4): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take4_report.md`
 - P4差し戻し(Take3): `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take3.md`
 - P4差し戻し(Take4): `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take4.md`
+- P4承認(Take4): `docs/handoff/P4_Dex_Review/cycle_9_take4_review.md`
 - Air Blueprint (Cycle 9): `docs/handoff/P1_Air_Blueprint/cycle_9_interactive_editing_and_history_blueprint.md`
 - Dex Instructions (Cycle 9): `docs/handoff/P2_Dex_to_CC/cycle_9_interactive_and_history_instructions.md`
 - Cycle 8 merge commit: `7f2fa40`
-- Kazumax確認レベル: 確認不要（Dex(P4)レビュー待ち）
+- Kazumax確認レベル: 確認不要
 
 ## P2 Confirmed Rules (Cycle 9)
 
@@ -48,15 +49,14 @@
 - 確定シフトを保持し、実際の空き不足だけを明示通知する。
 - CCクルー利用は推奨。使用結果または不使用理由をP3報告に記録する。
 
-## Verification (Cycle 9 Take4, CC P3)
+## Verification (Cycle 9 Take4, Dex P4)
 
-- frontend test(App.cycle9.test.jsxのみ): 41/41 PASS（約50〜56秒）
-- frontend test(全体): 135/135 PASS（2回連続、約109〜112秒）
+- frontend test(全体): 135/135 PASS（2回連続、114.33秒 / 112.42秒）
 - time utils: 33/33 PASS
 - frontend build: PASS（バンドルハッシュ前回と同一、実装コード無変更のため想定通り）
 - `git diff --check`: PASS（CRLF/LF警告のみ）
-- CCクルー: Take4出口指示により今回は不使用(範囲が明確なテスト追加のみのため)
-- ブラウザ実機確認: テストのみの変更のため未実施
+- デクスクルー: 不使用（テスト1か所だけの限定差分で実装コード変更なし）
+- ブラウザ実機確認: テストのみの変更のため不要
 
 ### 参考: Take2差し戻し時点(Dex P4)のNG実測
 
@@ -72,7 +72,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take4.md`
+- `docs/handoff/P4_Dex_Review/cycle_9_take4_review.md`
 
 ## Stop Conditions
 
