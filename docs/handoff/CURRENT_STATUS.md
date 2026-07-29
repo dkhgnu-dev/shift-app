@@ -14,7 +14,7 @@
 - Status: CC(P3)がTake2の全Finding(P1-1〜P1-4, P2-1〜P2-3)を修正し、CCクルー再レビューも実施(P1-2の`allowed_shifts`空フォールバック抜け穴を追加検出・修正済み)。標準テスト130/130を2回連続PASS。`main`未統合
 - Version: v4.32（更新済み）
 - Next: Dex(P4)がTake2差分をレビューし、OKならmain統合フローへ
-- Cycle9 Take2 report HEAD: (このセッションでのpush後にHEADを追記)
+- Cycle9 Take2 report HEAD: `30d4824`
 - P3報告(Take1): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_report.md`
 - P3報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take2_report.md`
 - P4差し戻し: `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take2.md`

@@ -6,6 +6,7 @@
 - 差し戻し対象HEAD: `7a3e363`
 - 差し戻し文書: `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take2.md`
 - Version: v4.31 → **v4.32**
+- Take2 実装commit: `30d4824`
 
 ## 変更ファイル
 
