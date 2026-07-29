@@ -4,16 +4,16 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `cc-cycle9`
+- Working Branch: `main`
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 9 Take4のDex(P4)レビュー完了・P5統合待ち
-- Status: P4 OK。通常生成・空欄自動作成の安全停止、生成結果全体、Undo/Redo履歴の恒久テストを確認。標準テスト135/135を2回連続PASS。`main`未統合
+- Cycle: 9完了・`main`統合済み
+- Status: P4 OK、P5完了。通常生成・空欄自動作成の安全停止、生成結果全体、Undo/Redo履歴を含む恒久テストを確認し、`cc-cycle9`を競合なく`main`へ統合
 - Version: v4.33（実装コード無変更のため更新なし）
-- Next: Dex(P5)が最新`main`を確認し、`cc-cycle9`をmerge/push
+- Next: 次サイクルのAir(P1)企画待ち
 - Cycle9 Take4 report HEAD: `22b099c`
 - P3報告(Take1): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_report.md`
 - P3報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take2_report.md`
@@ -22,9 +22,10 @@
 - P4差し戻し(Take3): `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take3.md`
 - P4差し戻し(Take4): `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take4.md`
 - P4承認(Take4): `docs/handoff/P4_Dex_Review/cycle_9_take4_review.md`
+- P5統合: `docs/handoff/P5_Dex_Integration/cycle_9_main_integration.md`
 - Air Blueprint (Cycle 9): `docs/handoff/P1_Air_Blueprint/cycle_9_interactive_editing_and_history_blueprint.md`
 - Dex Instructions (Cycle 9): `docs/handoff/P2_Dex_to_CC/cycle_9_interactive_and_history_instructions.md`
-- Cycle 8 merge commit: `7f2fa40`
+- Cycle 9 merge commit: `d1b3866`
 - Kazumax確認レベル: 確認不要
 
 ## P2 Confirmed Rules (Cycle 9)
@@ -72,7 +73,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P4_Dex_Review/cycle_9_take4_review.md`
+- `docs/handoff/P5_Dex_Integration/cycle_9_main_integration.md`
 
 ## Stop Conditions
 
