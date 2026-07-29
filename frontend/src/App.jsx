@@ -715,15 +715,17 @@ export default function App() {
         return [...realShifts, ...specialShifts];
     };
 
-    // Take2 P1-2(CCクルー指摘): allowed_shiftsが空だとバックエンドは「全シフト可」と
-    // 解釈し(shift_solver.py:184-187)、shift_typesに含まれる自由時間IDまで対象に
-    // 含まれてしまう。空欄自動作成のshift_typesは固定セル分の自由時間IDだけを許可
-    // しているが、それでも「全シフト可」の従業員には漏れてしまうため、allowed_shiftsが
-    // 空の従業員には、自由時間を除いた通常のshiftMaster IDを明示的に送り、
-    // バックエンド側の「空=全シフト可」フォールバックを発生させない。
+    // Take3 P1-1(Dex差戻し): 元配列が非空でも、中身が削除済み/未知IDだけの場合、
+    // バックエンドは「現在のshift_typesに対する有効ID0件」を「全シフト可」と解釈し
+    // (shift_solver.py:184-187)、自由時間IDまで対象に含まれてしまう。deleteShiftPattern()は
+    // shiftMasterから削除するだけで、参照中のemployees[].shiftsは更新しないため、
+    // 「④だけ選択→ルール設定で④を削除」という通常操作だけでこの状態に到達できる。
+    // 「元配列の長さ」ではなく「現在の通常shiftMasterに実在するIDが1件以上か」で判定する。
+    const normalShiftIds = () => Object.keys(shiftMaster).filter(id => !id.startsWith('__custom__'));
     const resolveAllowedShifts = (shifts) => {
-        if (Array.isArray(shifts) && shifts.length > 0) return shifts;
-        return Object.keys(shiftMaster).filter(id => !id.startsWith('__custom__'));
+        const normalSet = new Set(normalShiftIds());
+        const valid = [...new Set(Array.isArray(shifts) ? shifts : [])].filter(id => normalSet.has(id));
+        return valid.length > 0 ? valid : normalShiftIds();
     };
 
     const buildRequestsOff = (periodDatesForSubmit) => {
@@ -746,6 +748,13 @@ export default function App() {
     };
 
     const generateShift = async (allowWarningDraft = false) => {
+        // Take3 P1-1: 通常シフトが1件も無い場合、allowed_shiftsを明示しようがなく、
+        // solverが必ず「全シフト可」へフォールバックしてしまう。fetch自体を送らず、
+        // 表・履歴・生成結果を一切変更せずに理由を表示して安全停止する。
+        if (normalShiftIds().length === 0) {
+            alert('通常のシフトパターンが1件もありません。ルール設定でシフトパターンを追加してから実行してください。');
+            return;
+        }
         setIsGenerating(true);
         closeInteractiveState(); // Cycle9: 生成中はセル編集・交換・drag状態を発生させない
         // P4 Take4指摘: 応答を受け取る前に表を消してはいけない。INFEASIBLE・HTTPエラー・
@@ -824,6 +833,11 @@ export default function App() {
     // 「空欄自動作成」: 既に値が入っているセル(手動編集/前回生成結果)はそのまま固定し、
     // 空欄セルのみをバックエンドへ送って穴埋めする
     const fillBlanks = async (allowWarningDraft = false) => {
+        // Take3 P1-1: 通常シフトが1件も無い場合はfetchせず安全停止する(generateShiftと同様)。
+        if (normalShiftIds().length === 0) {
+            alert('通常のシフトパターンが1件もありません。ルール設定でシフトパターンを追加してから実行してください。');
+            return;
+        }
         setIsGenerating(true);
         closeInteractiveState(); // Cycle9: 生成中はセル編集・交換・drag状態を発生させない
 
@@ -1483,7 +1497,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.32</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.33</span></div>
                 </div>
             )}
 
@@ -1494,7 +1508,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.32</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.33</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>

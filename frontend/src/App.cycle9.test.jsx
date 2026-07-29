@@ -612,6 +612,83 @@ describe('Take2 P1-2: 自由時間は通常の自動生成候補から除外さ�
     });
 });
 
+describe('Take3 P1-1: 削除済み/未知IDだけの場合も「全シフト可」フォールバックを防ぐ', () => {
+    // ルール設定でシフトパターンを削除しても、それを参照していたemployees[].shiftsは
+    // 更新されない。この状態でも「元配列は非空」なのでTake2実装では素通りしてしまい、
+    // バックエンドは有効ID0件を「全シフト可」と誤解釈していた(Dex P4差し戻し)。
+    function seedWithShifts(emp1Shifts) {
+        const employees = [
+            { name: '太郎', type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④', '⑦'], requests: '', targetHours: null },
+            { name: '花子', type: '準社員', isRS: false, isKeyHolder: false, days: 23, shifts: emp1Shifts, requests: '', targetHours: null },
+        ];
+        window.localStorage.setItem('shift_employees', JSON.stringify(employees));
+        window.localStorage.setItem('shift_custom_master', JSON.stringify({
+            '①': '8:15～12:15', '④': '8:15～17:30', '⑦': '15:30～24:00',
+        }));
+    }
+
+    it('shifts=["削除済みID"]だけの従業員にも、通常IDのみが明示的に送られる(全シフト可フォールバックを防ぐ)', async () => {
+        seedWithShifts(['⑨_削除済み']); // shiftMasterに存在しないID
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'SUCCESS', shifts: { emp_0: [], emp_1: [] } }) });
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        const emp1AllowedShifts = body.employees[1].allowed_shifts;
+        expect(emp1AllowedShifts).not.toContain('⑨_削除済み');
+        expect(emp1AllowedShifts.length).toBeGreaterThan(0);
+        expect(emp1AllowedShifts.some(id => id.startsWith('__custom__'))).toBe(false);
+    });
+
+    it('shifts=["④","削除済みID","④"]では、存在する④だけが重複なく1件送られる', async () => {
+        seedWithShifts(['④', '⑨_削除済み', '④']);
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'SUCCESS', shifts: { emp_0: [], emp_1: [] } }) });
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body.employees[1].allowed_shifts).toEqual(['④']);
+    });
+
+    it('空欄自動作成でも、削除済みIDだけの従業員には通常IDのみが明示的に送られる', async () => {
+        seedWithShifts(['⑨_削除済み']);
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'SUCCESS', shifts: { emp_0: [], emp_1: [] } }) });
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: /空欄自動作成/ }));
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        const emp1AllowedShifts = body.employees[1].allowed_shifts;
+        expect(emp1AllowedShifts).not.toContain('⑨_削除済み');
+        expect(emp1AllowedShifts.length).toBeGreaterThan(0);
+    });
+
+    it('通常シフトが1件も無い場合、fetchせずに安全停止し、表・履歴・isGeneratingを変更しない', () => {
+        seedSmallFixture([blankRow(), blankRow()]);
+        // shiftMasterを空にする(通常シフト0件の状態)
+        window.localStorage.setItem('shift_custom_master', JSON.stringify({}));
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(window.alert).toHaveBeenCalled();
+        expect(screen.queryByText(/最適化を実行中/)).not.toBeInTheDocument(); // isGeneratingのままにならない
+        expect(readMatrix()).toEqual([blankRow(), blankRow()]); // 表は変更されない
+    });
+});
+
 describe('Take2 P2-1: 往復スワイプの誤判定修正', () => {
     it('30px移動後に開始点付近(2px)へ戻してpointerupしても、編集画面は開かない', () => {
         seedSmallFixture([blankRow(), blankRow()]);
