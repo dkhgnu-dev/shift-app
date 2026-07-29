@@ -14,7 +14,7 @@
 - Status: Take3の正式handoff文書2箇所に残っていた古い`maxForks`前提の現在形記述を、Take4の確定結果(`maxWorkers:2`、63/63を2周PASS)へ更新。`frontend/`配下は無変更、`main`未統合
 - Version: v4.30（変更なし）
 - Next: Dex(P4)が`cc-cycle8`の差分を再レビューする
-- Cycle8 Take5 HEAD: push後に追記します
+- Cycle8 Take5 HEAD: `916990b`（push済み、`fb322b0..916990b`）
 - P3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take5_report.md`
 - レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_8_take5_review_request.md`
 - Take4 reviewed HEAD: `dbc3a79`

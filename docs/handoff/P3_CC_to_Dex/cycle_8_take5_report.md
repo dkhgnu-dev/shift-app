@@ -3,7 +3,7 @@
 # P3 完了報告 Take5: 正式handoff文書に残る古い`maxForks`前提記述の訂正
 
 - 対象ブランチ: `cc-cycle8`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `916990b`（push済み、`fb322b0..916990b`）
 - 対応した指示書: `docs/handoff/P4_Rollback/cycle_8_take5_handoff_stale_text_request.md`（Dex差戻し、Reviewed HEAD: `dbc3a79`）
 - Take4報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take4_report.md`
 - Take4レビュー: `docs/handoff/P4_Dex_Review/cycle_8_take4_review.md`（P4 NG、handoff文書2か所の訂正のみ・`maxWorkers: 2`の設定と製品・テストコードは承認可能）
