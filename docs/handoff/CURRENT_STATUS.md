@@ -14,7 +14,7 @@
 - Status: Vitest設定名を`maxForks`(無効)から`maxWorkers`へ訂正し、Take3報告書・レビュー依頼に残っていた誤った原因説明も訂正した。`App.jsx`・Cycle8テスト本体は無変更、`main`未統合
 - Version: v4.30（変更なし）
 - Next: Dex(P4)が`cc-cycle8`の差分を再レビューする
-- Cycle8 Take4 HEAD: push後に追記します
+- Cycle8 Take4 HEAD: `12f9f63`（push済み、`e05cde7..12f9f63`）
 - P3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take4_report.md`
 - レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_8_take4_review_request.md`
 - Take3 reviewed HEAD: `859c99e`

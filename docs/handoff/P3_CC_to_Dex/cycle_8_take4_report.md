@@ -3,7 +3,7 @@
 # P3 完了報告 Take4: Vitest設定名の訂正（maxForks → maxWorkers）
 
 - 対象ブランチ: `cc-cycle8`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `12f9f63`（push済み、`e05cde7..12f9f63`）
 - 対応した指示書: `docs/handoff/P4_Rollback/cycle_8_take4_vitest_worker_config_request.md`（Dex差戻し、Reviewed HEAD: `859c99e`）
 - Take3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take3_report.md`（訂正済み）
 - Take3レビュー: `docs/handoff/P4_Dex_Review/cycle_8_take3_review.md`（P4 NG、Vitest設定と説明の訂正のみ・製品ロジックと追加テストは承認可能）
