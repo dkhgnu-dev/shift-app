@@ -10,16 +10,17 @@
 
 ## Current State
 
-- Cycle: 8 Take3 P3完了・Dex(P4)再レビュー待ち
-- Status: Take2 P4指摘4件(完全一致偽陽性・一括テストメモリ不安定・PC/スマホ代表値不足・部分不足テスト不足)へ対応。`App.jsx`は無変更、`main`未統合
+- Cycle: 8 Take3 P4完了・Take4設定訂正待ち
+- Status: Take2のテスト補強3件は承認可能。ただしVitest 4.1.10で`maxForks`は無効、標準poolも既に`forks`のためP4 NG。設定名と説明だけをTake4へ差戻し。`App.jsx`は無変更、`main`未統合
 - Version: v4.30（変更なし）
-- Next: Dex(P4)が`cc-cycle8`の差分を再レビューする
-- Cycle8 Take3 HEAD: `68726cf`（push済み、`280947c..68726cf`）
+- Next: CC(P3)が`docs/handoff/P4_Rollback/cycle_8_take4_vitest_worker_config_request.md`に従い`maxWorkers: 2`へ訂正する
+- Cycle8 Take3 reviewed HEAD: `859c99e`（push済み、`280947c..859c99e`）
 - P3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take3_report.md`
 - レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_8_take3_review_request.md`
 - Take2 reviewed HEAD: `1b48d3e`
 - Take1 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_review.md`
 - Take2 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take2_review.md`
+- Take3 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take3_review.md`
 - Kazumax確認レベル: 現時点では確認不要（テスト・設定のみの変更）
 
 ## P2 Confirmed Rules
