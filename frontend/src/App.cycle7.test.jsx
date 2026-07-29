@@ -178,23 +178,26 @@ describe('スマホ幅での左固定列圧縮とサブ情報の非表示 (Cycle
 });
 
 // Cycle7 Take2(Dex差戻し必須修正3): スマホでは行のdraggableを無効化する。
+// Cycle9(Dex P2指示): 行全体のdraggableを廃止し、左固定列の専用ドラッグハンドル
+// (.drag-handle-compact)だけをdraggableにする設計へ変更されたため、判定対象を
+// 行(tr)からハンドル要素へ変更した(行を無効化する仕様自体は維持)。
 describe('スマホでの行ドラッグ無効化 (Cycle7 Take2)', () => {
-    it('320/375/768pxでは行のdraggableがfalseになる', () => {
+    it('320/375/768pxでは行ドラッグハンドルのdraggableがfalseになる', () => {
         for (const width of [320, 375, 768]) {
             setViewportWidth(width);
             const { unmount } = render(<App />);
-            const row = document.querySelector('table tbody tr');
-            expect(row).toHaveAttribute('draggable', 'false');
+            const handle = document.querySelector('.drag-handle-compact');
+            expect(handle).toHaveAttribute('draggable', 'false');
             unmount();
         }
     });
 
-    it('769/1280pxでは行のdraggableがtrueのままである', () => {
+    it('769/1280pxでは行ドラッグハンドルのdraggableがtrueのままである', () => {
         for (const width of [769, 1280]) {
             setViewportWidth(width);
             const { unmount } = render(<App />);
-            const row = document.querySelector('table tbody tr');
-            expect(row).toHaveAttribute('draggable', 'true');
+            const handle = document.querySelector('.drag-handle-compact');
+            expect(handle).toHaveAttribute('draggable', 'true');
             unmount();
         }
     });
