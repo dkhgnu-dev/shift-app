@@ -10,11 +10,11 @@
 
 ## Current State
 
-- Cycle: 8 Take5 P3完了・Dex(P4)再レビュー待ち
-- Status: Take3の正式handoff文書2箇所に残っていた古い`maxForks`前提の現在形記述を、Take4の確定結果(`maxWorkers:2`、63/63を2周PASS)へ更新。`frontend/`配下は無変更、`main`未統合
+- Cycle: 8 Take5 P4 OK・Dex(P5)統合待ち
+- Status: Take3の正式handoff文書訂正を確認し、Cycle 8はP4 OK。製品・設定・テスト・文書すべて承認可能。`main`未統合
 - Version: v4.30（変更なし）
-- Next: Dex(P4)が`cc-cycle8`の差分を再レビューする
-- Cycle8 Take5 HEAD: `916990b`（push済み、`fb322b0..916990b`）
+- Next: Dex(P5)が`main`を最新化し、レビュー済み`cc-cycle8`を統合・pushする
+- Cycle8 Take5 reviewed HEAD: `295de2f`（push済み、`fb322b0..295de2f`）
 - P3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take5_report.md`
 - レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_8_take5_review_request.md`
 - Take4 reviewed HEAD: `dbc3a79`
@@ -22,6 +22,7 @@
 - Take2 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take2_review.md`
 - Take3 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take3_review.md`
 - Take4 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take4_review.md`
+- Take5 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take5_review.md`
 - Kazumax確認レベル: 現時点では確認不要（文書訂正のみ）
 
 ## P2 Confirmed Rules
