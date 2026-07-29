@@ -16,7 +16,7 @@ Take2 P4レビューの4件の指摘すべてに対応しました。
 1. `matrix`と`employees[].requests`の「完全一致」テストを、件数比較から日番号配列の直接比較(`toEqual`)へ厳密化。
 2. PC・スマホ同一判定の恒久テストへ、不足・標準・超過の代表値をスマホ詳細でも検証するテストを追加（同一データをPC/スマホ両方でレンダリングし判定・文言の一致を確認）。
 3. 空き不足テストへ「空き2日・目標4日」の部分不足ケースを追加し、配置可能な2日全てがmatrix・requestsへ反映されること、通知が「目標4日・実際2日」になることを確認。
-4. `frontend/vitest.config.js`を`pool: 'forks', maxForks: 2`へ変更し、標準の一括実行コマンドが61→63件を2周連続でPASSするようにした（timeout延長では対応せず、テスト実行方式自体を変更）。
+4. `frontend/vitest.config.js`へ`pool: 'forks'`を明示し、`maxWorkers: 2`を追加。標準の一括実行コマンドが61→63件を2周連続でPASSするようにした（timeout延長では対応せず、テスト実行方式自体を変更）。**Take4での訂正: 本ファイルは当初`maxForks: 2`・「既定threadsからforksへ変更」と記載していましたが、Vitest 4.1.10では`maxForks`という設定名は存在せず無視されること、標準poolが元から`forks`であることがTake3 P4レビューで判明したため、Take4で`maxWorkers: 2`へ修正し、この記述も訂正しています。詳細は`docs/handoff/P3_CC_to_Dex/cycle_8_take4_report.md`を参照してください。**
 
 ## CCクルー利用判断
 
