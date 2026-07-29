@@ -4,29 +4,22 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `main`
+- Working Branch: `cc-cycle9`
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 8 完了・main統合済み
-- Status: Cycle 8の製品・設定・テスト・文書をP4承認し、`cc-cycle8`を`main`へ競合なく統合・push済み
-- Version: v4.30（変更なし）
-- Next: Kazumax / Airが次サイクルの要件を整理する。作業開始時は最新`main`から新しいbranchを作る
-- Cycle8 merge commit: `7f2fa40`
-- P3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take5_report.md`
-- レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_8_take5_review_request.md`
-- Take4 reviewed HEAD: `dbc3a79`
-- Take1 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_review.md`
-- Take2 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take2_review.md`
-- Take3 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take3_review.md`
-- Take4 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take4_review.md`
-- Take5 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take5_review.md`
-- P5 integration: `docs/handoff/P5_Dex_Integration/cycle_8_main_integration.md`
-- Kazumax確認レベル: 現時点では確認不要（文書訂正のみ）
+- Cycle: 9 進行中 (Air P1 統合設計書完了 -> Dex P2 事前リスク＆構成監査待ち)
+- Status: Air(P1/P2草案)が「セルのクリック／タップでの直接時間微調整・スマホ対応スワップ交換・保護保証Undo/Redo履歴スナップショット」を同時構築する効率重視の設計書 `cycle_9_interactive_editing_and_history_blueprint.md` を策定。ステート移行構造とタッチイベントの干渉を排除するため、Dex(P2)への事前セキュリティ・再描画リスク監査に回す。
+- Version: v4.30（進行中。Cycle 9 完成・検証通過時に v4.31 へ更新予定）
+- Next: Dex(P2)が本Blueprintを監査し、CC(P3)が迷わずに作れ・タイムアウトゼロテストを守れる最強の実装指示書（P2_Dex_to_CC）を策定して合図を出す
+- Working branch: `cc-cycle9`（最新 `main` から生成）
+- Air Blueprint (Cycle 9): `docs/handoff/P1_Air_Blueprint/cycle_9_interactive_editing_and_history_blueprint.md`
+- Cycle 8 merge commit: `7f2fa40`
+- Kazumax確認レベル: 現時点では確認不要（事前指示策定段階）
 
-## P2 Confirmed Rules
+## P2 Confirmed Rules (Cycle 8 継承)
 
 - 月間目標計上時間は従業員ごとの任意入力 `targetHours` とし、未設定を許す。
 - 既存データや初期名簿へ推測値を埋めない。
@@ -36,15 +29,6 @@
 - 確定シフトを保持し、実際の空き不足だけを明示通知する。
 - CCクルー利用は推奨。使用結果または不使用理由をP3報告に記録する。
 
-## Verification (Take5)
-
-- コード・Vitest設定の変更なしのため、テスト再実行は未実施（指示書の完了条件通り）
-- Take4確定結果(参考): frontend test 63/63 PASS（2回連続）、time utils 33/33 PASS、build PASS
-- `git diff --check`: PASS
-- `git status --short`: `docs/handoff/`配下2ファイルのみ変更、`frontend/`配下は無変更
-- CCクルー: 不使用（文書2箇所の訂正のみのため、理由はP3報告参照）
-- ブラウザ実機確認: 対象が文書訂正のみのため今回の変更による影響なし
-
 ## Read First
 
 - `AGENTS.md`
@@ -52,7 +36,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P4_CC_to_Dex/cycle_8_take5_review_request.md`
+- `docs/handoff/P1_Air_Blueprint/cycle_9_interactive_editing_and_history_blueprint.md`
 
 ## Stop Conditions
 
