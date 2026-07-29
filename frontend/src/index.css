@@ -89,6 +89,11 @@ body {
    テキストはデフォルトでは折り返し、狭幅では下記メディアクエリでellipsis制限する。 */
 .name-col { cursor: pointer; }
 .name-col:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+/* Take2 P2-3: セルbuttonは常時透明背景(opacity:0は使わない)。opacity:0だと
+   outlineごと不可視になり、キーボードでのフォーカス位置が全く見えなかった。
+   マウス操作時の見た目は変えず、キーボード操作時(:focus-visible)だけ枠線を出す。 */
+.cell-hit-target:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; background: rgba(79, 70, 229, 0.08); }
 .name-cell-text { font-weight: 600; }
 
 /* Cycle7: PCのズームコントロール(+/-/100%フィット)。スマホでは非表示。 */

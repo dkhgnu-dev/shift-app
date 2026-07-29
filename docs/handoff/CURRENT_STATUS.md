@@ -10,17 +10,18 @@
 
 ## Current State
 
-- Cycle: 9 P4差し戻し・CC(P3) Take2待ち
-- Status: Dex(P4)が`daa73c1`をレビューし、希望休の生成後消失、自由時間の自動生成候補混入、標準テストtimeout、従業員管理画面の行全体drag、往復スワイプ誤判定等を確認したためTake2差し戻し。`main`未統合
-- Version: v4.31（更新済み）
-- Next: CC(P3)がP4差し戻し指示に従ってTake2を実装・検証し、`v4.32`として`cc-cycle9`へpush後にDex(P4)へ戻す
-- Cycle9 review HEAD: `daa73c1`
-- P3報告: `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_report.md`
+- Cycle: 9 Take2完了・Dex(P4)再レビュー待ち
+- Status: CC(P3)がTake2の全Finding(P1-1〜P1-4, P2-1〜P2-3)を修正し、CCクルー再レビューも実施(P1-2の`allowed_shifts`空フォールバック抜け穴を追加検出・修正済み)。標準テスト130/130を2回連続PASS。`main`未統合
+- Version: v4.32（更新済み）
+- Next: Dex(P4)がTake2差分をレビューし、OKならmain統合フローへ
+- Cycle9 Take2 report HEAD: (このセッションでのpush後にHEADを追記)
+- P3報告(Take1): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_report.md`
+- P3報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take2_report.md`
 - P4差し戻し: `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take2.md`
 - Air Blueprint (Cycle 9): `docs/handoff/P1_Air_Blueprint/cycle_9_interactive_editing_and_history_blueprint.md`
 - Dex Instructions (Cycle 9): `docs/handoff/P2_Dex_to_CC/cycle_9_interactive_and_history_instructions.md`
 - Cycle 8 merge commit: `7f2fa40`
-- Kazumax確認レベル: 現時点では確認不要（Take2修正待ち）
+- Kazumax確認レベル: 現時点では確認不要（Dex(P4)レビュー待ち）
 
 ## P2 Confirmed Rules (Cycle 9)
 
@@ -44,17 +45,21 @@
 - 確定シフトを保持し、実際の空き不足だけを明示通知する。
 - CCクルー利用は推奨。使用結果または不使用理由をP3報告に記録する。
 
-## Verification (Cycle 9 P4)
+## Verification (Cycle 9 Take2, CC P3)
+
+- frontend test: 130/130 PASS（2回連続、約113〜114秒、timeout再現なし）
+- time utils: 33/33 PASS
+- frontend build: PASS
+- `git diff --check`: PASS（CRLF/LF警告のみ）
+- CCクルー補助レビュー: 使用。7 Finding全件の実装確認・整合性・新規バグ有無を担当。P1-2のallowed_shifts空フォールバック抜け穴を追加検出・修正済み
+- ブラウザ実機確認: 今回も無関係な別アプリ(「シフトカレンダー」)がBrowser paneに固定され未実施。コードレベル検証とjsdomテストで代替(既承認の既知制約)
+
+### 参考: Take2差し戻し時点(Dex P4)のNG実測
 
 - frontend test: NG（Cycle 8希望休テスト3件timeout）
 - Cycle 8単独: 20/21 PASS、1件timeout（23.9秒）
 - Cycle 7ズーム単独: timeout（24.9秒）
 - Cycle 9単独: 56/56 PASS（73.0秒）
-- time utils: 33/33 PASS
-- frontend build: PASS
-- `git diff --check`: PASS
-- デクスクルー補助レビュー: 使用。履歴・生成条件担当と操作・性能担当の2視点
-- ブラウザ実機確認: PC表示、セル編集ダイアログ、Console error 0件を確認。全幅・実タッチはTake2後に実施
 
 ## Read First
 

@@ -289,13 +289,31 @@ describe('セル交換 (Cycle9)', () => {
         fireEvent.click(screen.getByText('従業員管理'));
 
         const rows = document.querySelectorAll('table tbody tr');
-        fireEvent.dragStart(rows[0]);
+        // Take2 P1-4: draggableは行本体ではなく専用ハンドル(.drag-handle-compact)のみに
+        // 限定されたため、ハンドル要素からdragStart/dragEndを発火させる。
+        const handle0 = rows[0].querySelector('.drag-handle-compact');
+        fireEvent.dragStart(handle0);
         fireEvent.dragEnter(rows[1]);
-        fireEvent.dragEnd(rows[0]);
+        fireEvent.dragEnd(handle0);
 
         const stored = JSON.parse(window.localStorage.getItem('shift_employees'));
         expect(stored[0].name).toBe('花子');
         expect(stored[1].name).toBe('太郎');
+    });
+
+    // Take2 P1-4(Dex差戻し): 従業員管理タブでも、行本体・編集/削除ボタンからは
+    // dragを開始できない(専用ハンドルだけがdraggable)ことを確認する。
+    it('従業員管理タブでは行本体や編集/削除ボタンにdraggable属性が付かない(専用ハンドルのみ)', () => {
+        seedSmallFixture(null);
+        render(<App />);
+        fireEvent.click(screen.getByText('従業員管理'));
+
+        const rows = document.querySelectorAll('table tbody tr');
+        expect(rows[0]).not.toHaveAttribute('draggable');
+        const editBtn = rows[0].querySelectorAll('button')[0];
+        expect(editBtn).not.toHaveAttribute('draggable');
+        const handle = rows[0].querySelector('.drag-handle-compact');
+        expect(handle).toHaveAttribute('draggable', 'true');
     });
 });
 
@@ -408,5 +426,253 @@ describe('希望休同期 (Cycle9)', () => {
 
         const stored = JSON.parse(window.localStorage.getItem('shift_employees'));
         expect(stored[0].requests).toBe('1');
+    });
+});
+
+// ============================================================
+// Take2 (Dex P4差し戻し) 必須修正の恒久テスト
+// ============================================================
+
+describe('Take2 P1-1: 希望休は生成後も保持される', () => {
+    function seedWithRequest(requestsForEmp0) {
+        const employees = [
+            { name: '太郎', type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④', '⑦'], requests: requestsForEmp0, targetHours: null },
+            { name: '花子', type: '準社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: null },
+        ];
+        window.localStorage.setItem('shift_employees', JSON.stringify(employees));
+    }
+
+    it('生成開始時点で希望休だった日は、成功レスポンスが「休」でも画面へ「希望休」として戻る', async () => {
+        seedWithRequest('1');
+        const dayCount = 31;
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                status: 'SUCCESS',
+                shifts: {
+                    emp_0: ['休', ...Array(dayCount - 1).fill('④')],
+                    emp_1: Array(dayCount).fill('休'),
+                },
+            }),
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        await vi.waitFor(() => expect(readMatrix()).not.toBeNull());
+
+        expect(readMatrix()[0][0].shift).toBe('希望休'); // '休'のまま消費されない
+        const stored = JSON.parse(window.localStorage.getItem('shift_employees'));
+        expect(stored[0].requests).toBe('1'); // requestsも保持される
+    });
+
+    it('2回連続で生成しても、2回目のpayloadに同じrequests_offが入る', async () => {
+        seedWithRequest('1');
+        const dayCount = 31;
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                status: 'SUCCESS',
+                shifts: {
+                    emp_0: ['休', ...Array(dayCount - 1).fill('④')],
+                    emp_1: Array(dayCount).fill('休'),
+                },
+            }),
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+        await vi.waitFor(() => expect(readMatrix()).not.toBeNull());
+
+        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+        await vi.waitFor(() => expect(readMatrix()[0][0].shift).toBe('希望休'));
+
+        const firstBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+        const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+        expect(firstBody.requests_off.length).toBe(1);
+        expect(secondBody.requests_off).toEqual(firstBody.requests_off); // 1回目と2回目で同じ希望休が送られる
+    });
+
+    it('警告付き仮シフトでも希望休を消さない', async () => {
+        seedWithRequest('1');
+        const dayCount = 31;
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                status: 'FEASIBLE_WITH_WARNINGS',
+                warnings: ['テスト警告'],
+                shifts: {
+                    emp_0: ['休', ...Array(dayCount - 1).fill('④')],
+                    emp_1: Array(dayCount).fill('休'),
+                },
+            }),
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        await vi.waitFor(() => expect(readMatrix()).not.toBeNull());
+
+        expect(readMatrix()[0][0].shift).toBe('希望休');
+    });
+
+    it('空欄自動作成でも、生成開始時点の希望休日は「希望休」として戻る', async () => {
+        seedWithRequest('1');
+        const dayCount = 31;
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                status: 'SUCCESS',
+                shifts: {
+                    emp_0: ['休', ...Array(dayCount - 1).fill('④')],
+                    emp_1: Array(dayCount).fill('休'),
+                },
+            }),
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: /空欄自動作成/ }));
+        await vi.waitFor(() => expect(readMatrix()[0][0]?.shift).toBe('希望休'));
+
+        expect(readMatrix()[0][0].shift).toBe('希望休');
+    });
+});
+
+describe('Take2 P1-2: 自由時間は通常の自動生成候補から除外される', () => {
+    it('通常生成(最適化シフトを生成)のpayloadには自由時間IDが一切含まれない', async () => {
+        const row0 = [{ shift: '__custom__10_00_15_00', isFixed: true, isError: false }, ...blankRow().slice(1)];
+        seedSmallFixture([row0, blankRow()]);
+        // shiftMasterへ自由時間IDを登録した状態を再現する
+        window.localStorage.setItem('shift_custom_master', JSON.stringify({
+            '①': '8:15～12:15', '④': '8:15～17:30', '⑦': '15:30～24:00',
+            '__custom__10_00_15_00': '10:00～15:00',
+        }));
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'SUCCESS', shifts: { emp_0: [], emp_1: [] } }) });
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body.shift_types.some(s => s.id.startsWith('__custom__'))).toBe(false);
+    });
+
+    it('空欄自動作成では、固定セルで参照中の自由時間IDだけがshift_typesへ含まれる(未使用IDは除外)', async () => {
+        const row0 = [{ shift: '__custom__10_00_15_00', isFixed: true, isError: false }, ...blankRow().slice(1)];
+        seedSmallFixture([row0, blankRow()]);
+        window.localStorage.setItem('shift_custom_master', JSON.stringify({
+            '①': '8:15～12:15', '④': '8:15～17:30', '⑦': '15:30～24:00',
+            '__custom__10_00_15_00': '10:00～15:00', // 使用中
+            '__custom__09_00_12_00': '09:00～12:00', // 未使用(過去に作られただけ)
+        }));
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'SUCCESS', shifts: { emp_0: [], emp_1: [] } }) });
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: /空欄自動作成/ }));
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        const customIds = body.shift_types.filter(s => s.id.startsWith('__custom__')).map(s => s.id);
+        expect(customIds).toEqual(['__custom__10_00_15_00']);
+    });
+
+    // CCクルー指摘: allowed_shiftsが空だとバックエンドは「全シフト可」と解釈し
+    // (shift_solver.py:184-187)、shift_typesに残った自由時間IDまで対象に含まれ得る。
+    // employees[].shiftsが空の従業員には、自由時間を除いた通常IDを明示送信することで、
+    // バックエンドの「空=全シフト可」フォールバックを発生させないことを確認する。
+    it('allowed_shiftsが空の従業員には、自由時間を除いた通常のshiftMaster IDが明示的に送られる', async () => {
+        const row0 = [{ shift: '__custom__10_00_15_00', isFixed: true, isError: false }, ...blankRow().slice(1)];
+        const employees = [
+            { name: '太郎', type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④', '⑦'], requests: '', targetHours: null },
+            { name: '花子', type: '準社員', isRS: false, isKeyHolder: false, days: 23, shifts: [], requests: '', targetHours: null }, // allowed_shifts空
+        ];
+        window.localStorage.setItem('shift_employees', JSON.stringify(employees));
+        window.localStorage.setItem('shift_generatedResult', JSON.stringify({ matrix: [row0, blankRow()], hasError: false, warnings: [], isWarningDraft: false, violations: [] }));
+        window.localStorage.setItem('shift_custom_master', JSON.stringify({
+            '①': '8:15～12:15', '④': '8:15～17:30', '⑦': '15:30～24:00',
+            '__custom__10_00_15_00': '10:00～15:00',
+        }));
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'SUCCESS', shifts: { emp_0: [], emp_1: [] } }) });
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: /空欄自動作成/ }));
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        const emp1AllowedShifts = body.employees[1].allowed_shifts;
+        expect(emp1AllowedShifts.length).toBeGreaterThan(0); // 空のまま送らない
+        expect(emp1AllowedShifts.some(id => id.startsWith('__custom__'))).toBe(false); // 自由時間は含まない
+    });
+});
+
+describe('Take2 P2-1: 往復スワイプの誤判定修正', () => {
+    it('30px移動後に開始点付近(2px)へ戻してpointerupしても、編集画面は開かない', () => {
+        seedSmallFixture([blankRow(), blankRow()]);
+        render(<App />);
+        const btn = getCellButton(0, 0);
+        fireEvent.pointerDown(btn, { pointerId: 1, clientX: 100, clientY: 100 });
+        fireEvent.pointerMove(btn, { pointerId: 1, clientX: 130, clientY: 100 }); // 30px移動
+        fireEvent.pointerUp(btn, { pointerId: 1, clientX: 102, clientY: 100 }); // 開始点付近へ戻る
+        expect(screen.queryByText(/太郎.*の勤務を編集/)).not.toBeInTheDocument();
+    });
+
+    it('8px未満の移動だけなら往復しても短タップとして開く', () => {
+        seedSmallFixture([blankRow(), blankRow()]);
+        render(<App />);
+        const btn = getCellButton(0, 0);
+        fireEvent.pointerDown(btn, { pointerId: 1, clientX: 100, clientY: 100 });
+        fireEvent.pointerMove(btn, { pointerId: 1, clientX: 103, clientY: 100 });
+        fireEvent.pointerMove(btn, { pointerId: 1, clientX: 100, clientY: 100 });
+        fireEvent.pointerUp(btn, { pointerId: 1, clientX: 101, clientY: 100 });
+        expect(screen.getByText(/太郎.*の勤務を編集/)).toBeInTheDocument();
+    });
+});
+
+describe('Take2 P2-2: INFEASIBLE再試行は最新render状態を使う', () => {
+    it('INFEASIBLE表示後にUndoで状態が変わっても、再試行は最新のemployees/matrixで送信する', async () => {
+        seedSmallFixture([blankRow(), blankRow()]);
+        render(<App />);
+
+        // 先に1件セル編集し、Undo可能な履歴を1つ作っておく
+        fireEvent.click(getCellButton(0, 0));
+        fireEvent.change(getShiftSelect(), { target: { value: '④' } });
+        fireEvent.click(screen.getByRole('button', { name: '保存する' }));
+        expect(readMatrix()[0][0].shift).toBe('④');
+
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ status: 'INFEASIBLE', message: 'テスト不可能', violations: ['違反A'] }),
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        await vi.waitFor(() => expect(screen.getByText(/自動生成を停止しました/)).toBeInTheDocument());
+
+        // INFEASIBLE表示中にUndoで状態を変える(古いrenderのclosureに閉じ込められていないか検証)
+        fireEvent.click(screen.getByRole('button', { name: '元に戻す(Undo)' }));
+        expect(readMatrix()[0][0]).toEqual({});
+
+        const successFetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ status: 'SUCCESS', shifts: { emp_0: Array(31).fill('休'), emp_1: Array(31).fill('休') } }),
+        });
+        vi.stubGlobal('fetch', successFetchMock);
+
+        fireEvent.click(screen.getByRole('button', { name: /違反一覧を確認のうえ/ }));
+        await vi.waitFor(() => expect(successFetchMock).toHaveBeenCalledTimes(1));
+        await vi.waitFor(() => expect(readMatrix()[0][0]?.shift).toBe('休'));
+
+        // 再試行が古いrenderのemployees(④固定済み)ではなく、Undo後の最新状態を使ったこと、
+        // かつallow_warning_draft:trueで呼ばれたことを確認する。
+        const body = JSON.parse(successFetchMock.mock.calls[0][1].body);
+        expect(body.allow_warning_draft).toBe(true);
+        expect(readMatrix()[0][0].shift).toBe('休'); // 古い'④'ではなく最新の生成結果が反映される
     });
 });

@@ -7,6 +7,7 @@ import {
     isValidFreeTimeRange,
     buildCellForSave,
     buildRequestsFromMatrix,
+    restoreRequestedOffInMatrix,
     swapMatrixCells,
     pushSnapshot,
     undoStep,
@@ -697,15 +698,32 @@ export default function App() {
 
     const API_URL = 'https://shift-app-rw01.onrender.com/api/generate_shift';
 
-    const buildShiftTypesPayload = () => {
-        const realShifts = Object.entries(shiftMaster).map(([id, timeStr]) => {
-            const [start, end] = timeStr.split('～');
-            return { id, start_time: start, end_time: end, is_special: false };
-        });
+    // Take2 P1-2: 自由時間(__custom__prefixのID)はそのセルだけの即席勤務であり、通常の
+    // 自動生成候補ではない。既定では全件除外し、空欄自動作成が固定セルとして参照中の
+    // IDだけをallowedCustomIdsで明示的に許可する(通常生成では常に除外=allowedCustomIds省略)。
+    const buildShiftTypesPayload = (allowedCustomIds = []) => {
+        const allowedSet = new Set(allowedCustomIds);
+        const realShifts = Object.entries(shiftMaster)
+            .filter(([id]) => !id.startsWith('__custom__') || allowedSet.has(id))
+            .map(([id, timeStr]) => {
+                const [start, end] = timeStr.split('～');
+                return { id, start_time: start, end_time: end, is_special: false };
+            });
         // 希望休はバックエンドへ独立シフト種別として送らない。既存のrequests_off(希望休テキスト欄)
         // 経由のOFF強制ハード制約に一本化し、セル手動固定との二重管理・衝突を構造的に防ぐ。
         const specialShifts = SPECIAL_SHIFTS.filter(s => s !== '希望休').map(id => ({ id, start_time: '0:00', end_time: '0:00', is_special: true }));
         return [...realShifts, ...specialShifts];
+    };
+
+    // Take2 P1-2(CCクルー指摘): allowed_shiftsが空だとバックエンドは「全シフト可」と
+    // 解釈し(shift_solver.py:184-187)、shift_typesに含まれる自由時間IDまで対象に
+    // 含まれてしまう。空欄自動作成のshift_typesは固定セル分の自由時間IDだけを許可
+    // しているが、それでも「全シフト可」の従業員には漏れてしまうため、allowed_shiftsが
+    // 空の従業員には、自由時間を除いた通常のshiftMaster IDを明示的に送り、
+    // バックエンド側の「空=全シフト可」フォールバックを発生させない。
+    const resolveAllowedShifts = (shifts) => {
+        if (Array.isArray(shifts) && shifts.length > 0) return shifts;
+        return Object.keys(shiftMaster).filter(id => !id.startsWith('__custom__'));
     };
 
     const buildRequestsOff = (periodDatesForSubmit) => {
@@ -746,7 +764,7 @@ export default function App() {
                     employment_type: e.type,
                     contract_days: e.days,
                     is_registered_seller: e.isRS,
-                    allowed_shifts: e.shifts
+                    allowed_shifts: resolveAllowedShifts(e.shifts)
                 })),
                 shift_types: buildShiftTypesPayload(),
                 requests_off: buildRequestsOff(periodDatesForSubmit),
@@ -768,13 +786,20 @@ export default function App() {
             if (res.ok && data.status === "INFEASIBLE") {
                 // Kazumax確定仕様: 通常出力は停止し、現在の表は更新しない。
                 // 違反箇所を提示し、利用者が明示選択した場合のみ警告付き仮シフトを表示する。
-                setInfeasibleInfo({ violations: data.violations || [], message: data.message, retry: () => generateShift(true) });
+                // Take2 P2-2: 関数自体をstateへ保存すると、Undo等で状態が変わった後に
+                // 再試行しても古いrenderのemployees/matrix/shiftMasterを使ってしまうため、
+                // 種別(kind)だけを保存し、再試行ボタン押下時に最新renderから呼び出す。
+                setInfeasibleInfo({ violations: data.violations || [], message: data.message, kind: 'generate' });
             } else if (res.ok && (data.status === "SUCCESS" || data.status === "FEASIBLE_WITH_WARNINGS")) {
                 setInfeasibleInfo(null);
-                const newMatrix = employees.map((emp, idx) => {
+                const rawMatrix = employees.map((emp, idx) => {
                     const empShifts = data.shifts[`emp_${idx}`] || [];
                     return empShifts.map(s => ({ shift: s, isError: false, isFixed: false }));
                 });
+                // Take2 P1-1: バックエンドは希望休を常に'休'として返すため、生成開始時点の
+                // 希望休日(employees[].requests、生成前のclosure値)を、成功レスポンスの
+                // 該当セルが'休'であれば'希望休'へ戻してから履歴コミットする。
+                const newMatrix = restoreRequestedOffInMatrix(rawMatrix, employees);
                 // Cycle9: 自動生成の成功だけを1履歴として記録する(通信開始時には記録しない)。
                 commitHistory('最適化シフトの生成', () => {
                     setGeneratedResult({
@@ -819,6 +844,11 @@ export default function App() {
                     }
                 });
             });
+            // Take2 P1-2: 固定セルとして現に参照中の自由時間IDだけをshift_typesへ許可する
+            // (それ以外の自由時間IDは通常の自動生成候補へ含めない)。
+            const referencedCustomIds = fixedAssignments
+                .map(fa => fa.shift_id)
+                .filter(id => typeof id === 'string' && id.startsWith('__custom__'));
 
             const payload = {
                 year: currentYear,
@@ -829,9 +859,9 @@ export default function App() {
                     employment_type: e.type,
                     contract_days: e.days,
                     is_registered_seller: e.isRS,
-                    allowed_shifts: e.shifts
+                    allowed_shifts: resolveAllowedShifts(e.shifts)
                 })),
-                shift_types: buildShiftTypesPayload(),
+                shift_types: buildShiftTypesPayload(referencedCustomIds),
                 requests_off: buildRequestsOff(periodDatesForSubmit),
                 thick_staffing_days: thickDays,
                 weekday_ranks: weekdayRanks,
@@ -850,10 +880,11 @@ export default function App() {
 
             if (res.ok && data.status === "INFEASIBLE") {
                 // 通常出力は停止し、現在の表(保護セルを含む)は一切変更しない。
-                setInfeasibleInfo({ violations: data.violations || [], message: data.message, retry: () => fillBlanks(true) });
+                // Take2 P2-2: 関数自体をstateへ保存せず、種別(kind)だけを保存する。
+                setInfeasibleInfo({ violations: data.violations || [], message: data.message, kind: 'fill' });
             } else if (res.ok && (data.status === "SUCCESS" || data.status === "FEASIBLE_WITH_WARNINGS")) {
                 setInfeasibleInfo(null);
-                const newMatrix = employees.map((emp, idx) => {
+                const rawMatrix = employees.map((emp, idx) => {
                     const empShifts = data.shifts[`emp_${idx}`] || [];
                     if (!generatedResult || !generatedResult.matrix || !generatedResult.matrix[idx]) return empShifts.map(s => ({ shift: s, isError: false, isFixed: false }));
                     return generatedResult.matrix[idx].map((cell, d) => {
@@ -862,6 +893,9 @@ export default function App() {
                         return { shift: s === undefined ? '休' : s, isError: false, isFixed: false };
                     });
                 });
+                // Take2 P1-1: 空欄自動作成でも、生成開始時点の希望休日は'休'ではなく
+                // '希望休'として画面へ戻す(保護セル以外の新規空欄埋め分が対象)。
+                const newMatrix = restoreRequestedOffInMatrix(rawMatrix, employees);
                 // Cycle9: 空欄自動作成の成功だけを1履歴として記録する。
                 commitHistory('空欄自動作成', () => {
                     setGeneratedResult({
@@ -1029,8 +1063,20 @@ export default function App() {
             startY: e.clientY,
             startTime: Date.now(),
             i, d,
+            // Take2 P2-1: 開始点からの最大移動距離をrefで追跡する(state更新はしない)。
+            maxDistancePx: 0,
             hadMultiplePointersAtStart: activePointersRef.current.size > 1
         };
+    };
+
+    // Take2 P2-1: pointermoveのたびに開始点からの最大移動距離だけをrefへ書き込む。
+    // 「30px移動後に開始点付近へ戻す」ような往復スワイプでも、終了位置ではなく
+    // 移動中の最大距離で判定するため、短タップとして誤検知しない。
+    const handleCellPointerMove = (e) => {
+        const state = pointerTrackRef.current;
+        if (!state || state.pointerId !== e.pointerId) return;
+        const distancePx = Math.hypot(e.clientX - state.startX, e.clientY - state.startY);
+        if (distancePx > state.maxDistancePx) state.maxDistancePx = distancePx;
     };
 
     const handleCellPointerUp = (e, i, d) => {
@@ -1038,7 +1084,8 @@ export default function App() {
         activePointersRef.current.delete(e.pointerId);
         pointerTrackRef.current = null;
         if (!state || state.pointerId !== e.pointerId) return;
-        const distancePx = Math.hypot(e.clientX - state.startX, e.clientY - state.startY);
+        const upDistancePx = Math.hypot(e.clientX - state.startX, e.clientY - state.startY);
+        const distancePx = Math.max(state.maxDistancePx, upDistancePx);
         const durationMs = Date.now() - state.startTime;
         const verdict = classifyPointerUp({
             distancePx,
@@ -1436,7 +1483,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.31</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.32</span></div>
                 </div>
             )}
 
@@ -1447,7 +1494,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.31</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.32</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -1512,7 +1559,15 @@ export default function App() {
                                 </ul>
                                 <div style={{display: 'flex', gap: '8px', marginTop: '12px'}}>
                                     <button className="btn outline" onClick={() => setInfeasibleInfo(null)}>閉じる</button>
-                                    <button className="btn danger" onClick={() => { const retry = infeasibleInfo.retry; setInfeasibleInfo(null); retry(); }} disabled={isGenerating}>
+                                    <button className="btn danger" onClick={() => {
+                                        const kind = infeasibleInfo.kind;
+                                        setInfeasibleInfo(null);
+                                        // Take2 P2-2: 保存していた関数ではなく、押下時点の最新renderから
+                                        // generateShift/fillBlanksを直接呼び出す(最新のemployees/matrix/
+                                        // shiftMasterとUndoスナップショットを使うため)。
+                                        if (kind === 'fill') fillBlanks(true);
+                                        else generateShift(true);
+                                    }} disabled={isGenerating}>
                                         違反一覧を確認のうえ、警告付き仮シフトを表示する
                                     </button>
                                 </div>
@@ -1640,11 +1695,13 @@ export default function App() {
                                                                         </div>
                                                                         <button
                                                                             type="button"
+                                                                            className="cell-hit-target"
                                                                             aria-label={cellAriaLabel}
                                                                             title={cell?.note || ''}
                                                                             disabled={isGenerating}
-                                                                            style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', border: 'none', padding: 0, zIndex: 1, background: 'transparent', touchAction: 'pan-x pan-y'}}
+                                                                            style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', border: 'none', padding: 0, zIndex: 1, background: 'transparent', touchAction: 'pan-x pan-y'}}
                                                                             onPointerDown={(e) => handleCellPointerDown(e, i, d)}
+                                                                            onPointerMove={handleCellPointerMove}
                                                                             onPointerUp={(e) => handleCellPointerUp(e, i, d)}
                                                                             onPointerCancel={handleCellPointerCancel}
                                                                             onClick={(e) => handleCellButtonClick(e, i, d)}
@@ -1892,14 +1949,20 @@ export default function App() {
                                         {employees.map((emp, i) => (
                                             <tr
                                                 key={i}
-                                                draggable={!isGenerating}
-                                                onDragStart={() => { dragKindRef.current = 'employee'; dragItem.current = i; }}
-                                                onDragEnter={() => dragOverItem.current = i}
-                                                onDragEnd={handleSort}
-                                                onDragOver={(e) => e.preventDefault()}
+                                                onDragEnter={() => { if (dragKindRef.current === 'employee') dragOverItem.current = i; }}
+                                                onDragOver={(e) => { if (dragKindRef.current === 'employee') e.preventDefault(); }}
                                             >
-                                                <td style={{width: '40px', textAlign: 'center', color: '#9CA3AF', cursor: 'grab'}}>
-                                                    <GripVertical size={16} className="drag-handle" />
+                                                <td style={{width: '40px', textAlign: 'center', color: '#9CA3AF'}}>
+                                                    {/* Take2 P1-4: 行本体・編集/削除ボタンからdragを開始できないよう、
+                                                        draggableを専用ハンドルだけへ限定する(ダッシュボード表と同じ方式)。 */}
+                                                    <span
+                                                        className="drag-handle-compact employee-row-drag-handle"
+                                                        draggable={!isGenerating}
+                                                        onDragStart={() => { dragKindRef.current = 'employee'; dragItem.current = i; }}
+                                                        onDragEnd={handleSort}
+                                                    >
+                                                        <GripVertical size={16} className="drag-handle" />
+                                                    </span>
                                                 </td>
                                                 <td style={{position: 'static', textAlign: 'left', padding: '16px', fontWeight: 600}}>
                                                     {emp.name}

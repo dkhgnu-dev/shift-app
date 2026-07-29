@@ -11,6 +11,18 @@ function setViewportWidth(width) {
     Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: width });
 }
 
+// Take2 P1-3(Dex差戻し): 24名×31日の巨大fixture(デフォルトINITIAL_DATA)のままだと
+// 標準テスト一括実行時に20秒のtestTimeoutへ達し得る(Dex環境で実測・単独でも再現)。
+// このファイルの検証目的(詳細ポップオーバー・ズーム・行ドラッグ)はいずれも
+// 従業員数やDOM規模に依存しないため、目的を変えずに2名の小型fixtureへ変更する。
+function seedSmallFixture() {
+    const employees = [
+        { name: '太郎', type: '正社員', isRS: true, isKeyHolder: true, days: 23, shifts: ['④', '⑦'], requests: '', targetHours: null },
+        { name: '花子', type: '準社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: null },
+    ];
+    window.localStorage.setItem('shift_employees', JSON.stringify(employees));
+}
+
 // Cycle7 Take3(Dex差戻し): Take2までのモックは「scrollWidth = naturalWidth ×
 // 現在のzoom」という前提だったが、これは実ブラウザの挙動と一致しておらず
 // (table.scrollWidthをzoom適用後の値として扱えない、min-width:100%の影響も
@@ -48,6 +60,7 @@ function withMockedScrollGeometry(initialClientWidth, naturalWidth, fn) {
 
 beforeEach(() => {
     window.localStorage.clear();
+    seedSmallFixture();
     setViewportWidth(1280);
 });
 
@@ -63,11 +76,11 @@ describe('従業員詳細ポップオーバー (Cycle7)', () => {
         const nameCell = table.querySelectorAll('tbody tr')[0].querySelectorAll('td')[1];
 
         fireEvent.click(nameCell);
-        expect(screen.getByText(/K\.D\./, { selector: 'h2' })).toBeInTheDocument();
+        expect(screen.getByText(/太郎/, { selector: 'h2' })).toBeInTheDocument();
         expect(screen.getByText(/出勤日数/)).toBeInTheDocument();
 
         fireEvent.click(screen.getAllByRole('button', { name: '閉じる' })[0]);
-        expect(screen.queryByText(/K\.D\./, { selector: 'h2' })).not.toBeInTheDocument();
+        expect(screen.queryByText(/太郎/, { selector: 'h2' })).not.toBeInTheDocument();
     });
 
     it('オーバーレイをクリックしてもポップオーバーが閉じる', () => {

@@ -68,6 +68,28 @@ export function buildRequestsFromMatrix(matrix, employees) {
     });
 }
 
+// "1, 15, 20" のようなrequestsテキストを日番号(1始まり)の配列へ変換する。
+export function parseRequestDays(requestsStr) {
+    if (!requestsStr) return [];
+    return requestsStr.split(',').map(s => parseInt(s.trim(), 10)).filter(n => Number.isFinite(n));
+}
+
+// Take2 P1-1: バックエンドは希望休を常に'休'として返すため、生成開始時点で
+// 希望休だった日は、成功レスポンスの該当セルが'休'であれば'希望休'へ戻す。
+// これにより employees[].requests を再構築しても希望休が消失しない。
+export function restoreRequestedOffInMatrix(matrix, requestingEmployees) {
+    return matrix.map((row, i) => {
+        const requestedDays = new Set(parseRequestDays(requestingEmployees[i]?.requests));
+        if (requestedDays.size === 0) return row;
+        return row.map((cell, d) => {
+            if (cell && cell.shift === '休' && requestedDays.has(d + 1)) {
+                return { ...cell, shift: '希望休' };
+            }
+            return cell;
+        });
+    });
+}
+
 // --- セル交換: セルオブジェクト全体を交換する ---
 export function swapMatrixCells(matrix, i1, d1, i2, d2) {
     const newMatrix = matrix.map(row => [...row]);
