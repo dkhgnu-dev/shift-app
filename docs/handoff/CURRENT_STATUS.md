@@ -10,16 +10,17 @@
 
 ## Current State
 
-- Cycle: 9 P3完了・Dex(P4)レビュー待ち
-- Status: CC(P3)がセル編集UI・自由時間・PCドラッグ/スマホ2点交換・Undo/Redo履歴を実装。CCクルー必須レビューで実害のある回帰2件(従業員管理タブの行drag不具合、isGenerating中の並べ替え未ブロック)を発見・修正済み。`main`未統合
+- Cycle: 9 P4差し戻し・CC(P3) Take2待ち
+- Status: Dex(P4)が`daa73c1`をレビューし、希望休の生成後消失、自由時間の自動生成候補混入、標準テストtimeout、従業員管理画面の行全体drag、往復スワイプ誤判定等を確認したためTake2差し戻し。`main`未統合
 - Version: v4.31（更新済み）
-- Next: Dex(P4)が`cc-cycle9`の差分をレビューする
-- Cycle9 HEAD: `4c5f268`（push済み、`86f1a59..4c5f268`）
+- Next: CC(P3)がP4差し戻し指示に従ってTake2を実装・検証し、`v4.32`として`cc-cycle9`へpush後にDex(P4)へ戻す
+- Cycle9 review HEAD: `daa73c1`
 - P3報告: `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_report.md`
+- P4差し戻し: `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take2.md`
 - Air Blueprint (Cycle 9): `docs/handoff/P1_Air_Blueprint/cycle_9_interactive_editing_and_history_blueprint.md`
 - Dex Instructions (Cycle 9): `docs/handoff/P2_Dex_to_CC/cycle_9_interactive_and_history_instructions.md`
 - Cycle 8 merge commit: `7f2fa40`
-- Kazumax確認レベル: 必須確認（実機未確認、CCクルーが実害ある回帰を発見、希望休の「消費」仕様の確認待ちのため）
+- Kazumax確認レベル: 現時点では確認不要（Take2修正待ち）
 
 ## P2 Confirmed Rules (Cycle 9)
 
@@ -43,15 +44,17 @@
 - 確定シフトを保持し、実際の空き不足だけを明示通知する。
 - CCクルー利用は推奨。使用結果または不使用理由をP3報告に記録する。
 
-## Verification (Cycle 9)
+## Verification (Cycle 9 P4)
 
-- frontend test: 119/119 PASS（2回連続、約171〜177秒）
+- frontend test: NG（Cycle 8希望休テスト3件timeout）
+- Cycle 8単独: 20/21 PASS、1件timeout（23.9秒）
+- Cycle 7ズーム単独: timeout（24.9秒）
+- Cycle 9単独: 56/56 PASS（73.0秒）
 - time utils: 33/33 PASS
 - frontend build: PASS
 - `git diff --check`: PASS
-- CCクルー補助レビュー: 使用(必須指定)。3観点中2件採用(従業員管理タブ行drag不具合、isGenerating中の並べ替え未ブロック)
-- ブラウザ実機確認: 未実施（Browserペインが別プロジェクト「シフトカレンダー」に固定される既知の制約、今回も再確認済み）
-- 既知の不安定テスト: `App.cycle7.test.jsx`の「拡大・縮小ボタンで表示中のズーム率が変化する」が標準の一括実行で断続的にtimeout(20000ms)することがある(単独実行では約16〜17秒で安定PASS)。詳細はP3報告参照
+- デクスクルー補助レビュー: 使用。履歴・生成条件担当と操作・性能担当の2視点
+- ブラウザ実機確認: PC表示、セル編集ダイアログ、Console error 0件を確認。全幅・実タッチはTake2後に実施
 
 ## Read First
 
@@ -60,7 +63,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_report.md`
+- `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take2.md`
 
 ## Stop Conditions
 
