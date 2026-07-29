@@ -14,7 +14,7 @@
 - Status: CC(P3)がセル編集UI・自由時間・PCドラッグ/スマホ2点交換・Undo/Redo履歴を実装。CCクルー必須レビューで実害のある回帰2件(従業員管理タブの行drag不具合、isGenerating中の並べ替え未ブロック)を発見・修正済み。`main`未統合
 - Version: v4.31（更新済み）
 - Next: Dex(P4)が`cc-cycle9`の差分をレビューする
-- Cycle9 HEAD: push後に追記します
+- Cycle9 HEAD: `4c5f268`（push済み、`86f1a59..4c5f268`）
 - P3報告: `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_report.md`
 - Air Blueprint (Cycle 9): `docs/handoff/P1_Air_Blueprint/cycle_9_interactive_editing_and_history_blueprint.md`
 - Dex Instructions (Cycle 9): `docs/handoff/P2_Dex_to_CC/cycle_9_interactive_and_history_instructions.md`

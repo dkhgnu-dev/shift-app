@@ -3,7 +3,7 @@
 # P3 完了報告: Cycle 9「ダイレクトセル調整＆スワップ入れ替え・Undo/Redo履歴」
 
 - 対象ブランチ: `cc-cycle9`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `4c5f268`（push済み、`86f1a59..4c5f268`）
 - 対応した指示書: `docs/handoff/P2_Dex_to_CC/cycle_9_interactive_and_history_instructions.md`（Air Blueprint `docs/handoff/P1_Air_Blueprint/cycle_9_interactive_editing_and_history_blueprint.md` を統合済み）
 
 **`main`へはmergeしていません。バージョンは`v4.30`→`v4.31`へ1回だけ更新しました。**
