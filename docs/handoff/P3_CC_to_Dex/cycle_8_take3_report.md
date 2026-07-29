@@ -3,7 +3,7 @@
 # P3 完了報告 Take3: 恒久テスト補強とテスト実行安定性の改善
 
 - 対象ブランチ: `cc-cycle8`
-- レビュー対象HEAD: push後に追記します
+- レビュー対象HEAD: `68726cf`（push済み、`280947c..68726cf`）
 - 対応した指示書: `docs/handoff/P4_Rollback/cycle_8_take3_test_hardening_request.md`（Dex差戻し、Reviewed HEAD: `1b48d3e`）
 - Take2報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take2_report.md`
 - Take2レビュー: `docs/handoff/P4_Dex_Review/cycle_8_take2_review.md`（P4 NG、テスト補強のみ・実装本体に重大不具合なし）

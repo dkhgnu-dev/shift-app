@@ -14,7 +14,7 @@
 - Status: Take2 P4指摘4件(完全一致偽陽性・一括テストメモリ不安定・PC/スマホ代表値不足・部分不足テスト不足)へ対応。`App.jsx`は無変更、`main`未統合
 - Version: v4.30（変更なし）
 - Next: Dex(P4)が`cc-cycle8`の差分を再レビューする
-- Cycle8 Take3 HEAD: push後に追記します
+- Cycle8 Take3 HEAD: `68726cf`（push済み、`280947c..68726cf`）
 - P3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take3_report.md`
 - レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_8_take3_review_request.md`
 - Take2 reviewed HEAD: `1b48d3e`
