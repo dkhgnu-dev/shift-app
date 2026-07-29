@@ -10,18 +10,19 @@
 
 ## Current State
 
-- Cycle: 9 Take2完了・Dex(P4)再レビュー待ち
-- Status: CC(P3)がTake2の全Finding(P1-1〜P1-4, P2-1〜P2-3)を修正し、CCクルー再レビューも実施(P1-2の`allowed_shifts`空フォールバック抜け穴を追加検出・修正済み)。標準テスト130/130を2回連続PASS。`main`未統合
+- Cycle: 9 Take2のDex(P4)再レビュー完了・Take3差し戻し
+- Status: Take2の既存Finding 6件は解消。`allowed_shifts`が非空でも、削除済み・未知IDだけの場合にsolverが全シフト許可へ戻る経路をP1として確認。Take3修正待ち。`main`未統合
 - Version: v4.32（更新済み）
-- Next: Dex(P4)がTake2差分をレビューし、OKならmain統合フローへ
+- Next: CC(P3)がTake3を修正し、Dex(P4)へ再提出
 - Cycle9 Take2 report HEAD: `30d4824`
 - P3報告(Take1): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_report.md`
 - P3報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take2_report.md`
 - P4差し戻し: `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take2.md`
+- P4差し戻し(Take3): `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take3.md`
 - Air Blueprint (Cycle 9): `docs/handoff/P1_Air_Blueprint/cycle_9_interactive_editing_and_history_blueprint.md`
 - Dex Instructions (Cycle 9): `docs/handoff/P2_Dex_to_CC/cycle_9_interactive_and_history_instructions.md`
 - Cycle 8 merge commit: `7f2fa40`
-- Kazumax確認レベル: 現時点では確認不要（Dex(P4)レビュー待ち）
+- Kazumax確認レベル: 現時点では確認不要（Take3修正待ち）
 
 ## P2 Confirmed Rules (Cycle 9)
 
@@ -45,14 +46,15 @@
 - 確定シフトを保持し、実際の空き不足だけを明示通知する。
 - CCクルー利用は推奨。使用結果または不使用理由をP3報告に記録する。
 
-## Verification (Cycle 9 Take2, CC P3)
+## Verification (Cycle 9 Take2, Dex P4)
 
-- frontend test: 130/130 PASS（2回連続、約113〜114秒、timeout再現なし）
+- frontend test: 130/130 PASS（2回連続、173.15秒 / 195.56秒、timeout再現なし）
 - time utils: 33/33 PASS
 - frontend build: PASS
-- `git diff --check`: PASS（CRLF/LF警告のみ）
-- CCクルー補助レビュー: 使用。7 Finding全件の実装確認・整合性・新規バグ有無を担当。P1-2のallowed_shifts空フォールバック抜け穴を追加検出・修正済み
-- ブラウザ実機確認: 今回も無関係な別アプリ(「シフトカレンダー」)がBrowser paneに固定され未実施。コードレベル検証とjsdomテストで代替(既承認の既知制約)
+- `git diff --check`: PASS
+- PCブラウザ: v4.32表示、主要UI表示、コンソールエラーなし
+- デクスクルー補助レビュー: 2名使用。両者とも削除済みIDだけが残るP1経路を確認
+- P4判定: NG。通常シフトIDとの照合と、通常シフト0件時の安全停止が必要
 
 ### 参考: Take2差し戻し時点(Dex P4)のNG実測
 
@@ -68,7 +70,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take2.md`
+- `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take3.md`
 
 ## Stop Conditions
 
