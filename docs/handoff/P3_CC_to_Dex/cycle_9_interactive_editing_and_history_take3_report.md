@@ -6,6 +6,7 @@
 - 差し戻し対象HEAD: `5f965de`
 - 差し戻し文書: `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take3.md`
 - Version: v4.32 → **v4.33**
+- Take3 実装commit: `b6c235f`
 
 ## 変更ファイル
 
