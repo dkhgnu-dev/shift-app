@@ -4,38 +4,45 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `main`
+- Working Branch: `cc-cycle8`
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 8 (P2 指示書完成 -> CC 実装待ち)
-- Status: 2段ロケット作戦の第1弾として、「希望休ランダム自動打ち込み（テスト検証加速機能）」および「残業・不足時間のリアルタイム過不足差分メーター（カラー警告付・スマホはタップドロワー内に大配分）」を当時一撃合体搭載する Cycle 8 の P2開発指示書 を発行策定。
-- Version: 予定 v4.30
-- Next: CCが `docs/handoff/P2_AirCrew_to_CC/cycle_8_random_holidays_and_overtime_badge_instructions.md` に従って P3実装と全自動テストを行い、完成後、Dex の P4 差分コードレビューへ送付する。
-- 直近P2指示書: `docs/handoff/P2_AirCrew_to_CC/cycle_8_random_holidays_and_overtime_badge_instructions.md`
-- 前期(C7)統合記録: `docs/handoff/P5_Dex_Integration/cycle_7_main_integration.md`
-- Kazumax確認レベル: 確認不要
+- Cycle: 8 Take5 P4 OK・Dex(P5)統合待ち
+- Status: Take3の正式handoff文書訂正を確認し、Cycle 8はP4 OK。製品・設定・テスト・文書すべて承認可能。`main`未統合
+- Version: v4.30（変更なし）
+- Next: Dex(P5)が`main`を最新化し、レビュー済み`cc-cycle8`を統合・pushする
+- Cycle8 Take5 reviewed HEAD: `295de2f`（push済み、`fb322b0..295de2f`）
+- P3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take5_report.md`
+- レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_8_take5_review_request.md`
+- Take4 reviewed HEAD: `dbc3a79`
+- Take1 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_review.md`
+- Take2 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take2_review.md`
+- Take3 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take3_review.md`
+- Take4 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take4_review.md`
+- Take5 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take5_review.md`
+- Kazumax確認レベル: 現時点では確認不要（文書訂正のみ）
 
-## Completed In Cycle 7
+## P2 Confirmed Rules
 
-- スマホ左固定列圧縮と従業員詳細ポップオーバー
-- ダイアログのフォーカス移動・復帰
-- PCズーム、画面フィット、左右フロートボタン
-- スマホ行ドラッグ無効化
-- resize・タブ復帰時の再計測
-- 成功時・例外時のzoom復元保証
-- Version `v4.29`
+- 月間目標計上時間は従業員ごとの任意入力 `targetHours` とし、未設定を許す。
+- 既存データや初期名簿へ推測値を埋めない。
+- `targetHours` はlocalStorage内のフロントエンド項目とし、バックエンドpayloadへ送らない。
+- 法的な「残業」ではなく、特殊勤務も含む「目標計上時間との差分」と表示する。
+- 希望休は空き日の列挙・シャッフル方式とし、乱数運による不足をなくす。
+- 確定シフトを保持し、実際の空き不足だけを明示通知する。
+- CCクルー利用は推奨。使用結果または不使用理由をP3報告に記録する。
 
-## Verification
+## Verification (Take5)
 
-- frontend test: 42/42 PASS
-- time utils: 33/33 PASS
-- frontend build: PASS
-- 320 / 375 / 768 / 769 / 1280px: PASS
-- resize 1280 -> 1600 -> 1280px: 55% -> 74% -> 55%
-- ブラウザconsole warning/error: 0件
+- コード・Vitest設定の変更なしのため、テスト再実行は未実施（指示書の完了条件通り）
+- Take4確定結果(参考): frontend test 63/63 PASS（2回連続）、time utils 33/33 PASS、build PASS
+- `git diff --check`: PASS
+- `git status --short`: `docs/handoff/`配下2ファイルのみ変更、`frontend/`配下は無変更
+- CCクルー: 不使用（文書2箇所の訂正のみのため、理由はP3報告参照）
+- ブラウザ実機確認: 対象が文書訂正のみのため今回の変更による影響なし
 
 ## Read First
 
@@ -44,12 +51,14 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
+- `docs/handoff/P4_CC_to_Dex/cycle_8_take5_review_request.md`
 
 ## Stop Conditions
 
 以下の場合は推測で進めず、人間へ確認する。
 
-- DB、保存形式、既存データ、削除、上書きに触れる
-- シフト自動生成ロジックを変更する
-- Git conflictが発生する
+- 月間目標配置時間を給与・法定労働時間・残業判定へ使う必要が生じた
+- バックエンドAPI、DB、保存形式の破壊的変更が必要になった
+- シフト自動生成ロジックを変更する必要が生じた
+- Git conflictが発生した
 - `.env`、パスワード、個人情報、本物データを扱う
