@@ -1,6 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2, Menu, GripVertical, ArrowUp, ArrowDown, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { computeHourChange, computeMinuteChange, formatTime, isValidSpecialHours, parseFourDigitTime, parseStrictNumber } from './timeUtils';
+import {
+    classifyPointerUp,
+    buildFreeTimeShiftId,
+    isValidFreeTimeRange,
+    buildCellForSave,
+    buildRequestsFromMatrix,
+    restoreRequestedOffInMatrix,
+    swapMatrixCells,
+    pushSnapshot,
+    undoStep,
+    redoStep,
+} from './cycle9Utils';
 
 const SHIFT_MASTER = {
     '①': '8:15～12:15', '②': '8:15～14:15', '③': '8:15～16:15',
@@ -236,6 +248,8 @@ export default function App() {
         setCurrentYear(newYear);
         setCurrentMonth(newMonth);
         setGeneratedResult(null);
+        clearHistory(); // Cycle9: 月変更はUndo/Redo履歴をクリアする
+        closeInteractiveState();
     };
     
     // Mobile View State
@@ -243,9 +257,133 @@ export default function App() {
     const [isNarrowViewport, setIsNarrowViewport] = useState(window.innerWidth <= 768);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    // Drag and Drop
+    // Drag and Drop (行の並べ替え専用)
     const dragItem = useRef(null);
     const dragOverItem = useRef(null);
+    // Cycle9: 行drag('employee')とセルdrag('cell')を同時発火させないための種別ref。
+    const dragKindRef = useRef(null);
+    // Cycle9: PCのセル交換drag&drop用(交換元セル座標)。
+    const cellDragSourceRef = useRef(null);
+
+    // Cycle9: Undo/Redo履歴(メモリ内のみ、localStorageへは保存しない・再読込で0件に戻る)。
+    const [historyPast, setHistoryPast] = useState([]);
+    const [historyFuture, setHistoryFuture] = useState([]);
+
+    // Cycle9: セル編集画面(短タップ/クリック/Enter/Spaceで開く)。
+    const [cellEditor, setCellEditor] = useState(null); // { i, d } | null
+    const [cellDraft, setCellDraft] = useState(null);
+    // Cycle9: スマホ2点タップ交換・PCキーボード2点交換の「交換元」待ち状態。
+    const [swapPending, setSwapPending] = useState(null); // { i, d } | null
+
+    // Cycle9: pointerdown〜pointerupで短タップ/スワイプを判定するための追跡状態(refのみ、stateにしない)。
+    const pointerTrackRef = useRef(null);
+    const activePointersRef = useRef(new Set());
+
+    // Cycle9: 変更前スナップショットを記録してから関連stateを1トランザクションとして
+    // 更新する共通commit関数。すべてのmatrix変更操作(セル編集・交換・希望休ランダム・
+    // 行並べ替え・自動生成成功・空欄自動作成成功)はこれを経由する。
+    const commitHistory = (label, applyFn) => {
+        const snapshot = {
+            generatedResult: structuredClone(generatedResult),
+            employees: structuredClone(employees),
+            shiftMaster: structuredClone(shiftMaster),
+            label
+        };
+        setHistoryPast(prev => pushSnapshot(prev, snapshot));
+        setHistoryFuture([]);
+        applyFn();
+    };
+
+    const clearHistory = () => {
+        setHistoryPast([]);
+        setHistoryFuture([]);
+    };
+
+    // 進行中のセル編集・交換待ち・drag状態をすべて閉じる(月変更・タブ変更・生成開始・
+    // 従業員構成変更・リセット・Undo/Redoで共通して呼ぶ)。
+    const closeInteractiveState = () => {
+        setCellEditor(null);
+        setSwapPending(null);
+        dragItem.current = null;
+        dragOverItem.current = null;
+        dragKindRef.current = null;
+        cellDragSourceRef.current = null;
+        pointerTrackRef.current = null;
+    };
+
+    const currentHistorySnapshot = () => ({
+        generatedResult: structuredClone(generatedResult),
+        employees: structuredClone(employees),
+        shiftMaster: structuredClone(shiftMaster),
+        label: 'current'
+    });
+
+    const applyHistorySnapshot = (snap) => {
+        setGeneratedResult(snap.generatedResult);
+        setEmployees(snap.employees);
+        setShiftMaster(snap.shiftMaster);
+        closeInteractiveState();
+    };
+
+    const handleUndo = () => {
+        if (isGenerating) return;
+        const result = undoStep(historyPast, historyFuture, currentHistorySnapshot());
+        if (!result) return;
+        setHistoryPast(result.past);
+        setHistoryFuture(result.future);
+        applyHistorySnapshot(result.restored);
+    };
+
+    const handleRedo = () => {
+        if (isGenerating) return;
+        const result = redoStep(historyPast, historyFuture, currentHistorySnapshot());
+        if (!result) return;
+        setHistoryPast(result.past);
+        setHistoryFuture(result.future);
+        applyHistorySnapshot(result.restored);
+    };
+
+    // Ctrl/Cmd+Z(Undo)、Ctrl/Cmd+Shift+Z または Ctrl+Y(Redo)。input/textarea/select/
+    // contenteditable内やセル編集draft入力中はブラウザ標準Undoを横取りしない。
+    // 実際にUndo/Redoできる場合だけpreventDefault()する。
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            // Cycle9: Escapeでdrag状態(行drag/セル交換drag)とスワイプ待ちを必ず消す。
+            if (e.key === 'Escape') {
+                dragItem.current = null;
+                dragOverItem.current = null;
+                dragKindRef.current = null;
+                cellDragSourceRef.current = null;
+                if (swapPending) setSwapPending(null);
+                return;
+            }
+
+            if (!(e.ctrlKey || e.metaKey)) return;
+            const key = e.key.toLowerCase();
+            const isUndoKey = key === 'z' && !e.shiftKey;
+            const isRedoKey = (key === 'z' && e.shiftKey) || key === 'y';
+            if (!isUndoKey && !isRedoKey) return;
+
+            const target = e.target;
+            const tag = target && target.tagName ? target.tagName.toLowerCase() : '';
+            if (tag === 'input' || tag === 'textarea' || tag === 'select' || (target && target.isContentEditable)) return;
+            if (cellEditor) return; // 編集画面のdraft入力中はグローバルUndo/Redoを発火させない
+            if (isGenerating) return;
+
+            if (isUndoKey) {
+                if (historyPast.length === 0) return;
+                e.preventDefault();
+                handleUndo();
+            } else if (isRedoKey) {
+                if (historyFuture.length === 0) return;
+                e.preventDefault();
+                handleRedo();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [historyPast, historyFuture, cellEditor, isGenerating, generatedResult, employees, shiftMaster, swapPending]);
 
     // Cycle5: ダッシュボードのマトリクス表(横スクロール領域)を左右ボタンから操作するためのref。
     const tableContainerRef = useRef(null);
@@ -264,41 +402,52 @@ export default function App() {
         setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
     };
     
+    // Cycle9: 行の並べ替えはUndo/Redo履歴対象(行dragハンドル専用、dragKindRef==='employee'の
+    // 場合だけ処理する。セル交換drag('cell')と干渉しない)。
     const handleSort = () => {
-        if (dragItem.current !== null && dragOverItem.current !== null && dragItem.current !== dragOverItem.current) {
-            let _employees = [...employees];
-            const draggedItemContent = _employees.splice(dragItem.current, 1)[0];
-            _employees.splice(dragOverItem.current, 0, draggedItemContent);
-            setEmployees(_employees);
-            
-            if (generatedResult?.matrix) {
-                let _matrix = [...generatedResult.matrix];
-                const draggedMatrixContent = _matrix.splice(dragItem.current, 1)[0];
-                _matrix.splice(dragOverItem.current, 0, draggedMatrixContent);
-                setGeneratedResult({...generatedResult, matrix: _matrix});
-            }
+        const isEmployeeDrag = dragKindRef.current === 'employee';
+        if (isEmployeeDrag && !isGenerating && dragItem.current !== null && dragOverItem.current !== null && dragItem.current !== dragOverItem.current) {
+            const from = dragItem.current;
+            const to = dragOverItem.current;
+            commitHistory(`${employees[from]?.name || ''}の並び替え`, () => {
+                let _employees = [...employees];
+                const draggedItemContent = _employees.splice(from, 1)[0];
+                _employees.splice(to, 0, draggedItemContent);
+                setEmployees(_employees);
+
+                if (generatedResult?.matrix) {
+                    let _matrix = [...generatedResult.matrix];
+                    const draggedMatrixContent = _matrix.splice(from, 1)[0];
+                    _matrix.splice(to, 0, draggedMatrixContent);
+                    setGeneratedResult(prev => ({ ...(prev || {}), matrix: _matrix }));
+                }
+            });
         }
         dragItem.current = null;
         dragOverItem.current = null;
+        dragKindRef.current = null;
     };
 
     const moveEmployee = (index, direction) => {
+        if (isGenerating) return;
         if (direction === -1 && index === 0) return;
         if (direction === 1 && index === employees.length - 1) return;
-        
+
         const newIndex = index + direction;
-        
-        let _employees = [...employees];
-        const item = _employees.splice(index, 1)[0];
-        _employees.splice(newIndex, 0, item);
-        setEmployees(_employees);
-        
-        if (generatedResult?.matrix) {
-            let _matrix = [...generatedResult.matrix];
-            const matrixItem = _matrix.splice(index, 1)[0];
-            _matrix.splice(newIndex, 0, matrixItem);
-            setGeneratedResult({...generatedResult, matrix: _matrix});
-        }
+
+        commitHistory(`${employees[index]?.name || ''}の並び替え`, () => {
+            let _employees = [...employees];
+            const item = _employees.splice(index, 1)[0];
+            _employees.splice(newIndex, 0, item);
+            setEmployees(_employees);
+
+            if (generatedResult?.matrix) {
+                let _matrix = [...generatedResult.matrix];
+                const matrixItem = _matrix.splice(index, 1)[0];
+                _matrix.splice(newIndex, 0, matrixItem);
+                setGeneratedResult(prev => ({ ...(prev || {}), matrix: _matrix }));
+            }
+        });
     };
 
     useEffect(() => {
@@ -335,9 +484,6 @@ export default function App() {
     const [empRequests, setEmpRequests] = useState('');
     const [empTargetHours, setEmpTargetHours] = useState(''); // Cycle8 Take2: 文字列で保持し、空欄=未設定
     const [selectedShifts, setSelectedShifts] = useState(['④', '⑦']);
-
-    // 特殊シフト(有休等)の勤務時間編集モーダル
-    const [specialHoursModal, setSpecialHoursModal] = useState(null); // { i, d, hours } | null
 
     // Cycle7: スマホでは氏名セルのサブ情報(属性・累積実績)を常時非表示にする代わりに、
     // 氏名セルタップで詳細ポップオーバーを表示する。
@@ -432,12 +578,14 @@ export default function App() {
         setNewShiftName('');
         setNewShiftStart('09:00');
         setNewShiftEnd('18:00');
+        clearHistory(); // Cycle9: シフトマスターの手動構成変更は履歴をクリアする
     };
 
     const deleteShiftPattern = (id) => {
         const newMaster = { ...shiftMaster };
         delete newMaster[id];
         setShiftMaster(newMaster);
+        clearHistory(); // Cycle9: シフトマスターの手動構成変更は履歴をクリアする
     };
 
     const handleTypeChange = (type, updateDays = true) => {
@@ -533,6 +681,8 @@ export default function App() {
         if (isGenerationRelevantChange(previousEmp, emp)) {
             setGeneratedResult(null); // 生成条件が変わった場合だけ結果を破棄する
         }
+        clearHistory(); // Cycle9: 従業員の追加・編集は無条件で履歴をクリアする
+        closeInteractiveState();
     };
 
     const deleteEmployee = (index) => {
@@ -541,40 +691,41 @@ export default function App() {
             newData.splice(index, 1);
             setEmployees(newData);
             setGeneratedResult(null);
+            clearHistory(); // Cycle9: 従業員の削除は履歴をクリアする
+            closeInteractiveState();
         }
     };
 
     const API_URL = 'https://shift-app-rw01.onrender.com/api/generate_shift';
 
-    const buildShiftTypesPayload = () => {
-        const realShifts = Object.entries(shiftMaster).map(([id, timeStr]) => {
-            const [start, end] = timeStr.split('～');
-            return { id, start_time: start, end_time: end, is_special: false };
-        });
+    // Take2 P1-2: 自由時間(__custom__prefixのID)はそのセルだけの即席勤務であり、通常の
+    // 自動生成候補ではない。既定では全件除外し、空欄自動作成が固定セルとして参照中の
+    // IDだけをallowedCustomIdsで明示的に許可する(通常生成では常に除外=allowedCustomIds省略)。
+    const buildShiftTypesPayload = (allowedCustomIds = []) => {
+        const allowedSet = new Set(allowedCustomIds);
+        const realShifts = Object.entries(shiftMaster)
+            .filter(([id]) => !id.startsWith('__custom__') || allowedSet.has(id))
+            .map(([id, timeStr]) => {
+                const [start, end] = timeStr.split('～');
+                return { id, start_time: start, end_time: end, is_special: false };
+            });
         // 希望休はバックエンドへ独立シフト種別として送らない。既存のrequests_off(希望休テキスト欄)
         // 経由のOFF強制ハード制約に一本化し、セル手動固定との二重管理・衝突を構造的に防ぐ。
         const specialShifts = SPECIAL_SHIFTS.filter(s => s !== '希望休').map(id => ({ id, start_time: '0:00', end_time: '0:00', is_special: true }));
         return [...realShifts, ...specialShifts];
     };
 
-    // 希望休(セル)⇔従業員の希望休欄(requests)を同期させるためのヘルパー
-    const parseRequestDays = (requestsStr) => {
-        if (!requestsStr) return [];
-        return requestsStr.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
-    };
-    const serializeRequestDays = (days) => Array.from(new Set(days)).sort((a, b) => a - b).join(', ');
-    const setEmployeeRequestDay = (idx, dayNumber, shouldInclude) => {
-        setEmployees(prevEmployees => {
-            const emp = prevEmployees[idx];
-            if (!emp) return prevEmployees;
-            const days = parseRequestDays(emp.requests);
-            const alreadyIncluded = days.includes(dayNumber);
-            if (shouldInclude === alreadyIncluded) return prevEmployees; // 変化なし
-            const newDays = shouldInclude ? [...days, dayNumber] : days.filter(dn => dn !== dayNumber);
-            const newEmployees = [...prevEmployees];
-            newEmployees[idx] = { ...emp, requests: serializeRequestDays(newDays) };
-            return newEmployees;
-        });
+    // Take3 P1-1(Dex差戻し): 元配列が非空でも、中身が削除済み/未知IDだけの場合、
+    // バックエンドは「現在のshift_typesに対する有効ID0件」を「全シフト可」と解釈し
+    // (shift_solver.py:184-187)、自由時間IDまで対象に含まれてしまう。deleteShiftPattern()は
+    // shiftMasterから削除するだけで、参照中のemployees[].shiftsは更新しないため、
+    // 「④だけ選択→ルール設定で④を削除」という通常操作だけでこの状態に到達できる。
+    // 「元配列の長さ」ではなく「現在の通常shiftMasterに実在するIDが1件以上か」で判定する。
+    const normalShiftIds = () => Object.keys(shiftMaster).filter(id => !id.startsWith('__custom__'));
+    const resolveAllowedShifts = (shifts) => {
+        const normalSet = new Set(normalShiftIds());
+        const valid = [...new Set(Array.isArray(shifts) ? shifts : [])].filter(id => normalSet.has(id));
+        return valid.length > 0 ? valid : normalShiftIds();
     };
 
     const buildRequestsOff = (periodDatesForSubmit) => {
@@ -597,7 +748,15 @@ export default function App() {
     };
 
     const generateShift = async (allowWarningDraft = false) => {
+        // Take3 P1-1: 通常シフトが1件も無い場合、allowed_shiftsを明示しようがなく、
+        // solverが必ず「全シフト可」へフォールバックしてしまう。fetch自体を送らず、
+        // 表・履歴・生成結果を一切変更せずに理由を表示して安全停止する。
+        if (normalShiftIds().length === 0) {
+            alert('通常のシフトパターンが1件もありません。ルール設定でシフトパターンを追加してから実行してください。');
+            return;
+        }
         setIsGenerating(true);
+        closeInteractiveState(); // Cycle9: 生成中はセル編集・交換・drag状態を発生させない
         // P4 Take4指摘: 応答を受け取る前に表を消してはいけない。INFEASIBLE・HTTPエラー・
         // 通信例外のいずれでも、既存の表(手編集済みセル含む)とlocalStorageの内容を保持する。
         // 表の置換は、成功した通常生成、または利用者が明示選択した警告付き仮シフトの
@@ -614,7 +773,7 @@ export default function App() {
                     employment_type: e.type,
                     contract_days: e.days,
                     is_registered_seller: e.isRS,
-                    allowed_shifts: e.shifts
+                    allowed_shifts: resolveAllowedShifts(e.shifts)
                 })),
                 shift_types: buildShiftTypesPayload(),
                 requests_off: buildRequestsOff(periodDatesForSubmit),
@@ -636,19 +795,30 @@ export default function App() {
             if (res.ok && data.status === "INFEASIBLE") {
                 // Kazumax確定仕様: 通常出力は停止し、現在の表は更新しない。
                 // 違反箇所を提示し、利用者が明示選択した場合のみ警告付き仮シフトを表示する。
-                setInfeasibleInfo({ violations: data.violations || [], message: data.message, retry: () => generateShift(true) });
+                // Take2 P2-2: 関数自体をstateへ保存すると、Undo等で状態が変わった後に
+                // 再試行しても古いrenderのemployees/matrix/shiftMasterを使ってしまうため、
+                // 種別(kind)だけを保存し、再試行ボタン押下時に最新renderから呼び出す。
+                setInfeasibleInfo({ violations: data.violations || [], message: data.message, kind: 'generate' });
             } else if (res.ok && (data.status === "SUCCESS" || data.status === "FEASIBLE_WITH_WARNINGS")) {
                 setInfeasibleInfo(null);
-                const newMatrix = employees.map((emp, idx) => {
+                const rawMatrix = employees.map((emp, idx) => {
                     const empShifts = data.shifts[`emp_${idx}`] || [];
                     return empShifts.map(s => ({ shift: s, isError: false, isFixed: false }));
                 });
-                setGeneratedResult({
-                    matrix: newMatrix,
-                    hasError: data.status === "FEASIBLE_WITH_WARNINGS",
-                    warnings: data.warnings || [],
-                    isWarningDraft: !!data.is_warning_draft,
-                    violations: data.violations || []
+                // Take2 P1-1: バックエンドは希望休を常に'休'として返すため、生成開始時点の
+                // 希望休日(employees[].requests、生成前のclosure値)を、成功レスポンスの
+                // 該当セルが'休'であれば'希望休'へ戻してから履歴コミットする。
+                const newMatrix = restoreRequestedOffInMatrix(rawMatrix, employees);
+                // Cycle9: 自動生成の成功だけを1履歴として記録する(通信開始時には記録しない)。
+                commitHistory('最適化シフトの生成', () => {
+                    setGeneratedResult({
+                        matrix: newMatrix,
+                        hasError: data.status === "FEASIBLE_WITH_WARNINGS",
+                        warnings: data.warnings || [],
+                        isWarningDraft: !!data.is_warning_draft,
+                        violations: data.violations || []
+                    });
+                    setEmployees(prevEmployees => buildRequestsFromMatrix(newMatrix, prevEmployees));
                 });
             } else {
                 alert("シフト生成に失敗しました: \n" + (data.detail || data.message || "制約が厳しすぎるため解が見つかりませんでした。希望休や登録販売者の数を見直してください。"));
@@ -663,7 +833,13 @@ export default function App() {
     // 「空欄自動作成」: 既に値が入っているセル(手動編集/前回生成結果)はそのまま固定し、
     // 空欄セルのみをバックエンドへ送って穴埋めする
     const fillBlanks = async (allowWarningDraft = false) => {
+        // Take3 P1-1: 通常シフトが1件も無い場合はfetchせず安全停止する(generateShiftと同様)。
+        if (normalShiftIds().length === 0) {
+            alert('通常のシフトパターンが1件もありません。ルール設定でシフトパターンを追加してから実行してください。');
+            return;
+        }
         setIsGenerating(true);
+        closeInteractiveState(); // Cycle9: 生成中はセル編集・交換・drag状態を発生させない
 
         try {
             const periodDatesForSubmit = getPeriodDates(currentYear, currentMonth);
@@ -682,6 +858,11 @@ export default function App() {
                     }
                 });
             });
+            // Take2 P1-2: 固定セルとして現に参照中の自由時間IDだけをshift_typesへ許可する
+            // (それ以外の自由時間IDは通常の自動生成候補へ含めない)。
+            const referencedCustomIds = fixedAssignments
+                .map(fa => fa.shift_id)
+                .filter(id => typeof id === 'string' && id.startsWith('__custom__'));
 
             const payload = {
                 year: currentYear,
@@ -692,9 +873,9 @@ export default function App() {
                     employment_type: e.type,
                     contract_days: e.days,
                     is_registered_seller: e.isRS,
-                    allowed_shifts: e.shifts
+                    allowed_shifts: resolveAllowedShifts(e.shifts)
                 })),
-                shift_types: buildShiftTypesPayload(),
+                shift_types: buildShiftTypesPayload(referencedCustomIds),
                 requests_off: buildRequestsOff(periodDatesForSubmit),
                 thick_staffing_days: thickDays,
                 weekday_ranks: weekdayRanks,
@@ -713,10 +894,11 @@ export default function App() {
 
             if (res.ok && data.status === "INFEASIBLE") {
                 // 通常出力は停止し、現在の表(保護セルを含む)は一切変更しない。
-                setInfeasibleInfo({ violations: data.violations || [], message: data.message, retry: () => fillBlanks(true) });
+                // Take2 P2-2: 関数自体をstateへ保存せず、種別(kind)だけを保存する。
+                setInfeasibleInfo({ violations: data.violations || [], message: data.message, kind: 'fill' });
             } else if (res.ok && (data.status === "SUCCESS" || data.status === "FEASIBLE_WITH_WARNINGS")) {
                 setInfeasibleInfo(null);
-                const newMatrix = employees.map((emp, idx) => {
+                const rawMatrix = employees.map((emp, idx) => {
                     const empShifts = data.shifts[`emp_${idx}`] || [];
                     if (!generatedResult || !generatedResult.matrix || !generatedResult.matrix[idx]) return empShifts.map(s => ({ shift: s, isError: false, isFixed: false }));
                     return generatedResult.matrix[idx].map((cell, d) => {
@@ -725,12 +907,19 @@ export default function App() {
                         return { shift: s === undefined ? '休' : s, isError: false, isFixed: false };
                     });
                 });
-                setGeneratedResult({
-                    matrix: newMatrix,
-                    hasError: data.status === "FEASIBLE_WITH_WARNINGS",
-                    warnings: data.warnings || [],
-                    isWarningDraft: !!data.is_warning_draft,
-                    violations: data.violations || []
+                // Take2 P1-1: 空欄自動作成でも、生成開始時点の希望休日は'休'ではなく
+                // '希望休'として画面へ戻す(保護セル以外の新規空欄埋め分が対象)。
+                const newMatrix = restoreRequestedOffInMatrix(rawMatrix, employees);
+                // Cycle9: 空欄自動作成の成功だけを1履歴として記録する。
+                commitHistory('空欄自動作成', () => {
+                    setGeneratedResult({
+                        matrix: newMatrix,
+                        hasError: data.status === "FEASIBLE_WITH_WARNINGS",
+                        warnings: data.warnings || [],
+                        isWarningDraft: !!data.is_warning_draft,
+                        violations: data.violations || []
+                    });
+                    setEmployees(prevEmployees => buildRequestsFromMatrix(newMatrix, prevEmployees));
                 });
             } else {
                 alert("空欄自動作成に失敗しました: \n" + (data.detail || data.message || "制約が厳しすぎるため解が見つかりませんでした。"));
@@ -742,54 +931,225 @@ export default function App() {
         }
     };
 
-    // セルを手動編集した際、自動的に「保護」状態にする（空欄自動作成で上書きされない）
-    // value === '' の場合は保護解除（空欄自動作成の対象に戻す）
-    const updateCell = (i, d, value) => {
-        let currentMatrix = generatedResult ? generatedResult.matrix : null;
-        if (!currentMatrix) {
-            currentMatrix = employees.map(() => periodDates.map(() => ({})));
-        }
-        const newMatrix = currentMatrix.map(row => [...row]);
-        const prevCell = newMatrix[i][d] || {};
-        const isSpecial = SPECIAL_SHIFTS.includes(value) && !SPECIAL_OFF_LIKE.has(value);
-        newMatrix[i][d] = {
-            ...prevCell,
-            shift: value,
-            isError: false,
-            isFixed: value !== '',
-            hours: isSpecial ? (prevCell && prevCell.hours ? prevCell.hours : DEFAULT_SPECIAL_HOURS) : undefined
-        };
-        setGeneratedResult(prev => ({ ...prev, matrix: newMatrix }));
-
-        // 希望休はセルと従業員編集モーダルの「希望休」欄(requests)を同期させ、二重管理・
-        // 衝突を防ぐ（セルで選ぶ/解除する操作が、そのままrequestsへの追加/削除になる）。
-        const dayNumber = d + 1;
-        if (value === '希望休') {
-            setEmployeeRequestDay(i, dayNumber, true);
-        } else if (prevCell && prevCell.shift === '希望休') {
-            setEmployeeRequestDay(i, dayNumber, false);
-        }
-
-        if (isSpecial) {
-            setSpecialHoursModal({ i, d, hours: newMatrix[i][d].hours });
-        }
+    // Cycle9: セル同士の内容比較(no-op判定用)。両者ともshiftが無ければ等価として扱う。
+    const cellsAreEquivalent = (a, b) => {
+        const na = a && a.shift ? a : {};
+        const nb = b && b.shift ? b : {};
+        return JSON.stringify(na) === JSON.stringify(nb);
     };
 
-    const applySpecialHours = () => {
-        if (!specialHoursModal) return;
-        const { i, d, hours } = specialHoursModal;
-        if (!isValidSpecialHours(hours)) {
+    const getCurrentMatrixOrBlank = () => {
+        return generatedResult ? generatedResult.matrix : employees.map(() => periodDates.map(() => ({})));
+    };
+
+    // Cycle9: セルbutton(短タップ/クリック/Enter/Space)を開く。交換待ち中は
+    // 有効な操作を「交換確定」または「同じセル再タップ=キャンセル」として処理する。
+    const openCellEditor = (i, d) => {
+        if (isGenerating) return;
+        if (swapPending) {
+            if (swapPending.i === i && swapPending.d === d) {
+                setSwapPending(null);
+            } else {
+                performSwap(swapPending.i, swapPending.d, i, d);
+                setSwapPending(null);
+            }
+            return;
+        }
+        const cell = generatedResult?.matrix?.[i]?.[d] || null;
+        const isFreeTime = !!(cell && typeof cell.shift === 'string' && cell.shift.startsWith('__custom__'));
+        const freeRange = isFreeTime && shiftMaster[cell.shift] ? shiftMaster[cell.shift].split('～') : null;
+        setCellDraft({
+            useFreeTime: isFreeTime,
+            shiftId: isFreeTime ? '' : (cell?.shift || ''),
+            freeStart: freeRange ? freeRange[0] : '09:00',
+            freeEnd: freeRange ? freeRange[1] : '18:00',
+            hours: cell?.hours ?? DEFAULT_SPECIAL_HOURS,
+            note: cell?.note || ''
+        });
+        setCellEditor({ i, d });
+    };
+
+    const closeCellEditor = () => {
+        setCellEditor(null);
+        setCellDraft(null);
+    };
+
+    // Cycle9: 「保存」。キャンセル・不正入力・同値保存ではセルも履歴も変更しない。
+    const saveCellDraft = () => {
+        if (!cellEditor || !cellDraft) return;
+        const { i, d } = cellEditor;
+        let shiftId;
+
+        if (cellDraft.useFreeTime) {
+            if (!isValidFreeTimeRange(cellDraft.freeStart, cellDraft.freeEnd)) {
+                alert('自由時間は 00:00 <= 開始 < 終了 <= 24:00 の形式で入力してください（開始に24:00は使えません）。');
+                return;
+            }
+            shiftId = buildFreeTimeShiftId(cellDraft.freeStart, cellDraft.freeEnd);
+        } else {
+            shiftId = cellDraft.shiftId || '';
+        }
+
+        const isSpecial = shiftId !== '' && SPECIAL_SHIFTS.includes(shiftId) && !SPECIAL_OFF_LIKE.has(shiftId);
+        if (isSpecial && !isValidSpecialHours(cellDraft.hours)) {
             alert('勤務時間は0〜24の範囲の数値で入力してください。');
             return;
         }
-        let currentMatrix = generatedResult ? generatedResult.matrix : null;
-        if (!currentMatrix) {
-            currentMatrix = employees.map(() => periodDates.map(() => ({})));
+
+        const mode = shiftId === '' ? 'empty' : (isSpecial ? 'special' : 'normal');
+        const newCell = buildCellForSave({
+            mode,
+            shiftId,
+            hours: isSpecial ? parseStrictNumber(cellDraft.hours) : undefined,
+            note: cellDraft.note
+        });
+
+        const currentMatrix = getCurrentMatrixOrBlank();
+        const currentCell = currentMatrix?.[i]?.[d] || {};
+        if (cellsAreEquivalent(currentCell, newCell)) {
+            closeCellEditor();
+            return; // 同値保存では変更しない
         }
-        const newMatrix = currentMatrix.map(row => [...row]);
-        newMatrix[i][d] = { ...newMatrix[i][d], hours: parseStrictNumber(hours) };
-        setGeneratedResult(prev => ({ ...prev, matrix: newMatrix }));
-        setSpecialHoursModal(null);
+
+        const empName = employees[i]?.name || '';
+        const dateLabel = periodDates[d] ? formatDateLabel(periodDates[d]) : '';
+        commitHistory(`${empName} ${dateLabel}の勤務変更`, () => {
+            const newMatrix = currentMatrix.map(row => [...row]);
+            newMatrix[i][d] = newCell;
+            if (cellDraft.useFreeTime) {
+                setShiftMaster(prev => ({ ...prev, [shiftId]: `${cellDraft.freeStart}～${cellDraft.freeEnd}` }));
+            }
+            setGeneratedResult(prev => ({ ...(prev || {}), matrix: newMatrix }));
+            setEmployees(prevEmployees => buildRequestsFromMatrix(newMatrix, prevEmployees));
+        });
+        closeCellEditor();
+    };
+
+    // 「セルを空にする」: draftを経由せず直接空セルとして保存する。
+    const clearCellFromEditor = () => {
+        if (!cellEditor) return;
+        const { i, d } = cellEditor;
+        const currentMatrix = getCurrentMatrixOrBlank();
+        const currentCell = currentMatrix?.[i]?.[d] || {};
+        if (cellsAreEquivalent(currentCell, {})) {
+            closeCellEditor();
+            return;
+        }
+        const empName = employees[i]?.name || '';
+        const dateLabel = periodDates[d] ? formatDateLabel(periodDates[d]) : '';
+        commitHistory(`${empName} ${dateLabel}を空にする`, () => {
+            const newMatrix = currentMatrix.map(row => [...row]);
+            newMatrix[i][d] = {};
+            setGeneratedResult(prev => ({ ...(prev || {}), matrix: newMatrix }));
+            setEmployees(prevEmployees => buildRequestsFromMatrix(newMatrix, prevEmployees));
+        });
+        closeCellEditor();
+    };
+
+    // 「このシフトを交換」: 編集画面を閉じ、交換元として待機する。
+    const startSwapFromEditor = () => {
+        if (!cellEditor) return;
+        setSwapPending({ i: cellEditor.i, d: cellEditor.d });
+        closeCellEditor();
+    };
+
+    // Cycle9: セル同士を交換する(セルオブジェクト全体)。同じセルはno-op。
+    const performSwap = (i1, d1, i2, d2) => {
+        if (i1 === i2 && d1 === d2) return;
+        const currentMatrix = getCurrentMatrixOrBlank();
+        const name1 = employees[i1]?.name || '';
+        const name2 = employees[i2]?.name || '';
+        commitHistory(`${name1}⇔${name2}のシフト交換`, () => {
+            const newMatrix = swapMatrixCells(currentMatrix, i1, d1, i2, d2);
+            setGeneratedResult(prev => ({ ...(prev || {}), matrix: newMatrix }));
+            setEmployees(prevEmployees => buildRequestsFromMatrix(newMatrix, prevEmployees));
+        });
+    };
+
+    // --- Cycle9: Pointer Eventsによる短タップ/スワイプ判定(座標・時刻はrefで追跡し、
+    // pointermoveごとにstateやlocalStorageを書き換えない) ---
+    const handleCellPointerDown = (e, i, d) => {
+        if (isGenerating) return;
+        activePointersRef.current.add(e.pointerId);
+        pointerTrackRef.current = {
+            pointerId: e.pointerId,
+            startX: e.clientX,
+            startY: e.clientY,
+            startTime: Date.now(),
+            i, d,
+            // Take2 P2-1: 開始点からの最大移動距離をrefで追跡する(state更新はしない)。
+            maxDistancePx: 0,
+            hadMultiplePointersAtStart: activePointersRef.current.size > 1
+        };
+    };
+
+    // Take2 P2-1: pointermoveのたびに開始点からの最大移動距離だけをrefへ書き込む。
+    // 「30px移動後に開始点付近へ戻す」ような往復スワイプでも、終了位置ではなく
+    // 移動中の最大距離で判定するため、短タップとして誤検知しない。
+    const handleCellPointerMove = (e) => {
+        const state = pointerTrackRef.current;
+        if (!state || state.pointerId !== e.pointerId) return;
+        const distancePx = Math.hypot(e.clientX - state.startX, e.clientY - state.startY);
+        if (distancePx > state.maxDistancePx) state.maxDistancePx = distancePx;
+    };
+
+    const handleCellPointerUp = (e, i, d) => {
+        const state = pointerTrackRef.current;
+        activePointersRef.current.delete(e.pointerId);
+        pointerTrackRef.current = null;
+        if (!state || state.pointerId !== e.pointerId) return;
+        const upDistancePx = Math.hypot(e.clientX - state.startX, e.clientY - state.startY);
+        const distancePx = Math.max(state.maxDistancePx, upDistancePx);
+        const durationMs = Date.now() - state.startTime;
+        const verdict = classifyPointerUp({
+            distancePx,
+            durationMs,
+            wasCancelled: false,
+            hadMultiplePointers: state.hadMultiplePointersAtStart || activePointersRef.current.size > 0,
+            pointerIdMismatch: false
+        });
+        if (verdict === 'tap' && state.i === i && state.d === d) {
+            openCellEditor(i, d);
+        }
+    };
+
+    const handleCellPointerCancel = (e) => {
+        activePointersRef.current.delete(e.pointerId);
+        if (pointerTrackRef.current && pointerTrackRef.current.pointerId === e.pointerId) {
+            pointerTrackRef.current = null;
+        }
+    };
+
+    // キーボード操作(Enter/Space)によるnative buttonのclickだけを処理する。
+    // マウス/タッチのクリックはdetail>=1になるため、pointerup側で既に処理済み(二重発火防止)。
+    const handleCellButtonClick = (e, i, d) => {
+        if (e.detail !== 0) return;
+        openCellEditor(i, d);
+    };
+
+    // --- Cycle9: PC専用のセル交換drag&drop(行の並べ替えdragとは別種別として扱う) ---
+    const handleCellDragStart = (e, i, d) => {
+        if (isMobileView || isGenerating) { e.preventDefault(); return; }
+        dragKindRef.current = 'cell';
+        cellDragSourceRef.current = { i, d };
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', 'cell');
+    };
+    const handleCellDragOver = (e) => {
+        if (dragKindRef.current === 'cell') e.preventDefault();
+    };
+    const handleCellDrop = (e, i, d) => {
+        if (dragKindRef.current !== 'cell') return;
+        e.preventDefault();
+        const src = cellDragSourceRef.current;
+        cellDragSourceRef.current = null;
+        dragKindRef.current = null;
+        if (!src) return;
+        performSwap(src.i, src.d, i, d);
+    };
+    const handleCellDragEnd = () => {
+        cellDragSourceRef.current = null;
+        dragKindRef.current = null;
     };
 
     // 従業員1名分の出勤日数・合計時間（特殊シフトも規定通り集計）
@@ -860,6 +1220,9 @@ export default function App() {
     const periodDates = getPeriodDates(currentYear, currentMonth);
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
     const dayAnalyses = generatedResult ? periodDates.map((_, d) => analyzeDay(d)) : [];
+    // Cycle9: 日付ラベルは列(日)ごとに1回だけ計算し、従業員行×日のループ内で
+    // 毎セルformatDateLabel()を呼び直さない(24名×31日の再計算を避ける軽量化)。
+    const dayLabels = periodDates.map(formatDateLabel);
 
     // Cycle8 Take2: 空きセルを先に列挙し、Fisher-Yatesで一度だけシャッフルしてから
     // 先頭N件を採用することで、乱数運に左右されず抽選を必ず終了させる。
@@ -920,16 +1283,14 @@ export default function App() {
                 shortages.push({ name: emp.name, targetDays: desiredCount, actualDays: chosenDays.length });
             }
 
-            // requestsは同じ行のマトリクスに実在する「希望休」セルから再構築し、常に完全一致させる
-            const requestDaysFromMatrix = [];
-            for (let d = 0; d < dayCount; d++) {
-                if (newMatrix[i][d] && newMatrix[i][d].shift === '希望休') requestDaysFromMatrix.push(d + 1);
-            }
-            return { ...emp, requests: serializeRequestDays(requestDaysFromMatrix) };
+            return emp;
         });
 
-        setGeneratedResult(prev => ({ ...(prev || {}), matrix: newMatrix }));
-        setEmployees(newEmployees);
+        // Cycle9: requestsはmatrixの「希望休」セルから再構築する共通関数を通し、常に完全一致させる。
+        commitHistory('希望休ランダム入力', () => {
+            setGeneratedResult(prev => ({ ...(prev || {}), matrix: newMatrix }));
+            setEmployees(buildRequestsFromMatrix(newMatrix, newEmployees));
+        });
 
         if (shortages.length > 0) {
             const lines = shortages.map(s => `・${s.name}: 目標${s.targetDays}日 → 実際${s.actualDays}日`);
@@ -1052,14 +1413,16 @@ export default function App() {
 
     const renderCellNode = (cell, empIdx, d) => {
         const icon = keyHolderIcon(empIdx, d);
-        if (!cell || !cell.shift) return <>{icon}－</>;
-        if (cell.shift === '休' || SPECIAL_OFF_LIKE.has(cell.shift)) return <>{icon}{cell.shift === '休' ? '休' : cell.shift}</>;
+        // Cycle9: 注記があるセルには小さな📝マーカーを添える(全文はbuttonのtitle/aria-labelで確認)。
+        const noteMark = cell && cell.note ? <span style={{fontSize: '0.55rem'}}>📝</span> : null;
+        if (!cell || !cell.shift) return <>{icon}－{noteMark}</>;
+        if (cell.shift === '休' || SPECIAL_OFF_LIKE.has(cell.shift)) return <>{icon}{cell.shift === '休' ? '休' : cell.shift}{noteMark}</>;
         if (SPECIAL_SHIFTS.includes(cell.shift)) {
-            return <>{icon}{cell.shift}<br />{cell.hours ?? DEFAULT_SPECIAL_HOURS}h</>;
+            return <>{icon}{cell.shift}<br />{cell.hours ?? DEFAULT_SPECIAL_HOURS}h{noteMark}</>;
         }
         const shiftText = shiftMaster[cell.shift] || cell.shift;
         const lines = shiftText.includes('～') ? shiftText.split('～') : [shiftText];
-        return lines.length === 2 ? <>{icon}{lines[0]}<br />~{lines[1]}</> : <>{icon}{cell.shift}</>;
+        return lines.length === 2 ? <>{icon}{lines[0]}<br />~{lines[1]}{noteMark}</> : <>{icon}{cell.shift}{noteMark}</>;
     };
 
     const cellClassName = (emp, cell, empIdx, d) => {
@@ -1112,6 +1475,8 @@ export default function App() {
                                 // 従業員構成が変わると生成済みシフトの担当者情報(matrix)が古くなり
                                 // 整合しなくなるため、リセット時は生成結果も一緒に破棄する(Take2)。
                                 setGeneratedResult(null);
+                                clearHistory(); // Cycle9: デフォルト構成リセットは履歴をクリアする
+                                closeInteractiveState();
                             }
                         }}
                     >
@@ -1132,7 +1497,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.30</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.33</span></div>
                 </div>
             )}
 
@@ -1143,14 +1508,14 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.30</span></div>
-                <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.33</span></div>
+                <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
-                <div className={`nav-item ${activeTab === 'employees' ? 'active' : ''}`} onClick={() => {setActiveTab('employees'); setIsMobileMenuOpen(false);}}>
+                <div className={`nav-item ${activeTab === 'employees' ? 'active' : ''}`} onClick={() => {setActiveTab('employees'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Users size={18} /> 従業員管理
                 </div>
-                <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false);}}>
+                <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Settings size={18} /> ルール設定
                 </div>
             </div>
@@ -1171,6 +1536,32 @@ export default function App() {
                             {!isNarrowViewport && renderActions()}
                         </div>
 
+                        <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap'}}>
+                            <button
+                                type="button"
+                                className="btn outline"
+                                onClick={handleUndo}
+                                disabled={historyPast.length === 0 || isGenerating}
+                                aria-label="元に戻す(Undo)"
+                                title={historyPast.length > 0 ? `元に戻す: ${historyPast[historyPast.length - 1].label}` : '元に戻す'}
+                            >↩ 戻る</button>
+                            <button
+                                type="button"
+                                className="btn outline"
+                                onClick={handleRedo}
+                                disabled={historyFuture.length === 0 || isGenerating}
+                                aria-label="やり直す(Redo)"
+                                title={historyFuture.length > 0 ? `やり直す: ${historyFuture[0].label}` : 'やり直す'}
+                            >↪ 進む</button>
+                        </div>
+
+                        {swapPending && (
+                            <div className="glass-card" style={{padding: '10px 16px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', background: '#EEF2FF'}}>
+                                <span style={{fontSize: '0.9rem'}}>🔄 {employees[swapPending.i]?.name} {periodDates[swapPending.d] ? formatDateLabel(periodDates[swapPending.d]) : ''} と交換する相手のセルをタップ/クリックしてください</span>
+                                <button type="button" className="btn outline" onClick={() => setSwapPending(null)}>キャンセル</button>
+                            </div>
+                        )}
+
                         {infeasibleInfo && (
                             <div className="infeasible-panel" style={{marginBottom: '16px'}}>
                                 <div className="infeasible-title"><AlertCircle size={18}/> 自動生成を停止しました（条件を満たせませんでした）</div>
@@ -1182,7 +1573,15 @@ export default function App() {
                                 </ul>
                                 <div style={{display: 'flex', gap: '8px', marginTop: '12px'}}>
                                     <button className="btn outline" onClick={() => setInfeasibleInfo(null)}>閉じる</button>
-                                    <button className="btn danger" onClick={() => { const retry = infeasibleInfo.retry; setInfeasibleInfo(null); retry(); }} disabled={isGenerating}>
+                                    <button className="btn danger" onClick={() => {
+                                        const kind = infeasibleInfo.kind;
+                                        setInfeasibleInfo(null);
+                                        // Take2 P2-2: 保存していた関数ではなく、押下時点の最新renderから
+                                        // generateShift/fillBlanksを直接呼び出す(最新のemployees/matrix/
+                                        // shiftMasterとUndoスナップショットを使うため)。
+                                        if (kind === 'fill') fillBlanks(true);
+                                        else generateShift(true);
+                                    }} disabled={isGenerating}>
                                         違反一覧を確認のうえ、警告付き仮シフトを表示する
                                     </button>
                                 </div>
@@ -1255,14 +1654,16 @@ export default function App() {
                                                     return (
                                                         <tr
                                                             key={i}
-                                                            draggable={!isMobileView}
-                                                            onDragStart={() => dragItem.current = i}
-                                                            onDragEnter={() => dragOverItem.current = i}
-                                                            onDragEnd={handleSort}
-                                                            onDragOver={(e) => e.preventDefault()}
+                                                            onDragEnter={() => { if (dragKindRef.current === 'employee') dragOverItem.current = i; }}
+                                                            onDragOver={(e) => { if (dragKindRef.current === 'employee') e.preventDefault(); }}
                                                         >
                                                             <td className="drag-col" style={{width: '40px', textAlign: 'center', color: '#9CA3AF'}}>
-                                                                <span className="drag-handle-compact">⋮⋮</span>
+                                                                <span
+                                                                    className="drag-handle-compact"
+                                                                    draggable={!isMobileView && !isGenerating}
+                                                                    onDragStart={() => { dragKindRef.current = 'employee'; dragItem.current = i; }}
+                                                                    onDragEnd={handleSort}
+                                                                >⋮⋮</span>
                                                             </td>
                                                             <td
                                                                 className="name-col"
@@ -1288,29 +1689,37 @@ export default function App() {
                                                             {periodDates.map((_, d) => {
                                                                 const cell = generatedResult?.matrix?.[i]?.[d] || null;
                                                                 const cssClass = cellClassName(emp, cell, i, d);
-                                                                const isSpecialEditable = cell && SPECIAL_SHIFTS.includes(cell.shift) && !SPECIAL_OFF_LIKE.has(cell.shift);
+                                                                const isSwapSource = swapPending && swapPending.i === i && swapPending.d === d;
+                                                                const dateLabel = dayLabels[d];
+                                                                const shiftLabel = cell?.shift ? (SPECIAL_SHIFTS.includes(cell.shift) ? cell.shift : (shiftMaster[cell.shift] || cell.shift)) : '未設定';
+                                                                const cellAriaLabel = `${emp.name} ${dateLabel} ${shiftLabel}${cell?.note ? ` (${cell.note})` : ''}`;
 
                                                                 return (
-                                                                    <td key={d} style={{position: 'relative', width: '50px'}}>
+                                                                    <td
+                                                                        key={d}
+                                                                        style={{position: 'relative', width: '50px', outline: isSwapSource ? '2px dashed #7C3AED' : 'none'}}
+                                                                        draggable={!isMobileView && !isGenerating}
+                                                                        onDragStart={(e) => handleCellDragStart(e, i, d)}
+                                                                        onDragOver={handleCellDragOver}
+                                                                        onDrop={(e) => handleCellDrop(e, i, d)}
+                                                                        onDragEnd={handleCellDragEnd}
+                                                                    >
                                                                         <div className={cssClass} style={{ pointerEvents: 'none', textAlign: 'center', fontSize: '0.75rem', padding: '4px', borderRadius: '4px', lineHeight: '1.2', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                                                             {renderCellNode(cell, i, d)}
                                                                         </div>
-                                                                        <select
-                                                                            value={cell?.shift || ''}
-                                                                            style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', appearance: 'none', zIndex: 1}}
-                                                                            onChange={(e) => updateCell(i, d, e.target.value)}
-                                                                        >
-                                                                            <option value="">－ (未設定)</option>
-                                                                            <option value="休">休</option>
-                                                                            {emp.shifts.map(s => <option key={s} value={s}>{shiftMaster[s] || s}</option>)}
-                                                                            <optgroup label="特殊シフト">
-                                                                                {SPECIAL_SHIFTS.map(sp => <option key={sp} value={sp}>{sp}</option>)}
-                                                                            </optgroup>
-                                                                        </select>
-                                                                        {isSpecialEditable && (
-                                                                            <button type="button" className="hours-edit-btn" style={{zIndex: 2}}
-                                                                                onClick={(ev) => { ev.stopPropagation(); setSpecialHoursModal({ i, d, hours: cell.hours ?? DEFAULT_SPECIAL_HOURS }); }}>✎</button>
-                                                                        )}
+                                                                        <button
+                                                                            type="button"
+                                                                            className="cell-hit-target"
+                                                                            aria-label={cellAriaLabel}
+                                                                            title={cell?.note || ''}
+                                                                            disabled={isGenerating}
+                                                                            style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', border: 'none', padding: 0, zIndex: 1, background: 'transparent', touchAction: 'pan-x pan-y'}}
+                                                                            onPointerDown={(e) => handleCellPointerDown(e, i, d)}
+                                                                            onPointerMove={handleCellPointerMove}
+                                                                            onPointerUp={(e) => handleCellPointerUp(e, i, d)}
+                                                                            onPointerCancel={handleCellPointerCancel}
+                                                                            onClick={(e) => handleCellButtonClick(e, i, d)}
+                                                                        />
                                                                     </td>
                                                                 )
                                                             })}
@@ -1509,8 +1918,8 @@ export default function App() {
                                             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
                                                 <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
                                                     <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
-                                                        <button className="btn outline" style={{padding: '2px 4px'}} onClick={() => moveEmployee(i, -1)} disabled={i === 0}><ArrowUp size={16}/></button>
-                                                        <button className="btn outline" style={{padding: '2px 4px'}} onClick={() => moveEmployee(i, 1)} disabled={i === employees.length - 1}><ArrowDown size={16}/></button>
+                                                        <button className="btn outline" style={{padding: '2px 4px'}} onClick={() => moveEmployee(i, -1)} disabled={i === 0 || isGenerating}><ArrowUp size={16}/></button>
+                                                        <button className="btn outline" style={{padding: '2px 4px'}} onClick={() => moveEmployee(i, 1)} disabled={i === employees.length - 1 || isGenerating}><ArrowDown size={16}/></button>
                                                     </div>
                                                     <div style={{fontWeight: 700, fontSize: '1.1rem'}}>{emp.name}</div>
                                                 </div>
@@ -1552,16 +1961,22 @@ export default function App() {
                                     </thead>
                                     <tbody>
                                         {employees.map((emp, i) => (
-                                            <tr 
+                                            <tr
                                                 key={i}
-                                                draggable 
-                                                onDragStart={() => dragItem.current = i} 
-                                                onDragEnter={() => dragOverItem.current = i} 
-                                                onDragEnd={handleSort} 
-                                                onDragOver={(e) => e.preventDefault()}
+                                                onDragEnter={() => { if (dragKindRef.current === 'employee') dragOverItem.current = i; }}
+                                                onDragOver={(e) => { if (dragKindRef.current === 'employee') e.preventDefault(); }}
                                             >
-                                                <td style={{width: '40px', textAlign: 'center', color: '#9CA3AF', cursor: 'grab'}}>
-                                                    <GripVertical size={16} className="drag-handle" />
+                                                <td style={{width: '40px', textAlign: 'center', color: '#9CA3AF'}}>
+                                                    {/* Take2 P1-4: 行本体・編集/削除ボタンからdragを開始できないよう、
+                                                        draggableを専用ハンドルだけへ限定する(ダッシュボード表と同じ方式)。 */}
+                                                    <span
+                                                        className="drag-handle-compact employee-row-drag-handle"
+                                                        draggable={!isGenerating}
+                                                        onDragStart={() => { dragKindRef.current = 'employee'; dragItem.current = i; }}
+                                                        onDragEnd={handleSort}
+                                                    >
+                                                        <GripVertical size={16} className="drag-handle" />
+                                                    </span>
                                                 </td>
                                                 <td style={{position: 'static', textAlign: 'left', padding: '16px', fontWeight: 600}}>
                                                     {emp.name}
@@ -1754,29 +2169,95 @@ export default function App() {
                 </div>
             )}
 
-            {/* 特殊シフト勤務時間 編集モーダル */}
-            {specialHoursModal && (
-                <div className="modal-overlay" onClick={() => setSpecialHoursModal(null)}>
-                    <div className="modal" style={{maxWidth: '320px'}} onClick={e => e.stopPropagation()}>
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-                            <h2 style={{fontSize: '1.1rem'}}>勤務時間を調整</h2>
-                            <X style={{cursor:'pointer', color: 'var(--text-sub)'}} onClick={() => setSpecialHoursModal(null)}/>
-                        </div>
-                        <div className="form-group">
-                            <label>個人時間として計上する時間数 (h)</label>
-                            <input
-                                type="number" min="0" max="24" step="0.5" className="form-control"
-                                value={specialHoursModal.hours}
-                                onChange={e => setSpecialHoursModal({...specialHoursModal, hours: e.target.value})}
-                            />
-                        </div>
-                        <div style={{display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px'}}>
-                            <button className="btn outline" onClick={() => setSpecialHoursModal(null)}>キャンセル</button>
-                            <button className="btn" onClick={applySpecialHours}>保存する</button>
+            {/* Cycle9: セル編集画面(短タップ/クリック/Enter/Space/PC・スマホ共通データ) */}
+            {cellEditor && cellDraft && employees[cellEditor.i] && (() => {
+                const { i, d } = cellEditor;
+                const emp = employees[i];
+                const isSpecialSelected = !cellDraft.useFreeTime && cellDraft.shiftId !== '' && SPECIAL_SHIFTS.includes(cellDraft.shiftId) && !SPECIAL_OFF_LIKE.has(cellDraft.shiftId);
+                return (
+                    <div className="modal-overlay" onClick={closeCellEditor}>
+                        <div className="modal" style={{maxWidth: '420px'}} role="dialog" aria-modal="true" aria-labelledby="cell-editor-title" onClick={e => e.stopPropagation()}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
+                                <h2 id="cell-editor-title" style={{fontSize: '1.1rem'}}>{emp.name} / {periodDates[d] ? formatDateLabel(periodDates[d]) : ''}の勤務を編集</h2>
+                                <button type="button" className="modal-close-btn" aria-label="閉じる" onClick={closeCellEditor}><X size={18} /></button>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="checkbox-label">
+                                    <input
+                                        type="checkbox"
+                                        checked={cellDraft.useFreeTime}
+                                        onChange={e => setCellDraft({ ...cellDraft, useFreeTime: e.target.checked })}
+                                    />
+                                    自由時間を入力する
+                                </label>
+                            </div>
+
+                            {!cellDraft.useFreeTime && (
+                                <div className="form-group">
+                                    <label>シフト</label>
+                                    <select
+                                        className="form-control"
+                                        value={cellDraft.shiftId}
+                                        onChange={e => setCellDraft({ ...cellDraft, shiftId: e.target.value })}
+                                    >
+                                        <option value="">－ (未設定)</option>
+                                        <option value="休">休</option>
+                                        {emp.shifts.map(s => <option key={s} value={s}>{shiftMaster[s] || s}</option>)}
+                                        <optgroup label="特殊シフト">
+                                            {SPECIAL_SHIFTS.map(sp => <option key={sp} value={sp}>{sp}</option>)}
+                                        </optgroup>
+                                    </select>
+                                </div>
+                            )}
+
+                            {cellDraft.useFreeTime && (
+                                <div className="form-group">
+                                    <label>自由時間 (開始〜終了)</label>
+                                    <div style={{display: 'flex', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap'}}>
+                                        <TimePicker value={cellDraft.freeStart} onChange={v => setCellDraft({ ...cellDraft, freeStart: v })} />
+                                        <span style={{paddingTop: '10px'}}>～</span>
+                                        <TimePicker value={cellDraft.freeEnd} onChange={v => setCellDraft({ ...cellDraft, freeEnd: v })} />
+                                    </div>
+                                    <div style={{fontSize: '0.8rem', color: 'var(--text-sub)', marginTop: '4px'}}>※開始に24:00は使用できません。終了は24:00まで指定できます。</div>
+                                </div>
+                            )}
+
+                            {isSpecialSelected && (
+                                <div className="form-group">
+                                    <label>個人時間として計上する時間数 (h)</label>
+                                    <input
+                                        type="number" min="0" max="24" step="0.5" className="form-control"
+                                        value={cellDraft.hours}
+                                        onChange={e => setCellDraft({ ...cellDraft, hours: e.target.value })}
+                                    />
+                                </div>
+                            )}
+
+                            <div className="form-group">
+                                <label>注記 (任意・最大40文字)</label>
+                                <input
+                                    type="text" className="form-control" maxLength={40}
+                                    value={cellDraft.note}
+                                    onChange={e => setCellDraft({ ...cellDraft, note: e.target.value })}
+                                    placeholder="例: 早退18:00まで"
+                                />
+                            </div>
+
+                            <div style={{display: 'flex', justifyContent: 'space-between', gap: '12px', marginTop: '24px', flexWrap: 'wrap'}}>
+                                <div style={{display: 'flex', gap: '8px'}}>
+                                    <button type="button" className="btn outline" onClick={clearCellFromEditor}>セルを空にする</button>
+                                    <button type="button" className="btn outline" onClick={startSwapFromEditor}>🔄 このシフトを交換</button>
+                                </div>
+                                <div style={{display: 'flex', gap: '12px'}}>
+                                    <button type="button" className="btn outline" onClick={closeCellEditor}>キャンセル</button>
+                                    <button type="button" className="btn" onClick={saveCellDraft}>保存する</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
             {/* Cycle7: 氏名セルタップで開く従業員詳細ポップオーバー(スマホでサブ情報を常時非表示にした代替) */}
             {selectedEmployeeForDetail !== null && employees[selectedEmployeeForDetail] && (() => {

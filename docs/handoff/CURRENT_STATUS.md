@@ -4,29 +4,42 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `main`
+- Working Branch: `cc-cycle9`
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 8 完了・main統合済み
-- Status: Cycle 8の製品・設定・テスト・文書をP4承認し、`cc-cycle8`を`main`へ競合なく統合・push済み
-- Version: v4.30（変更なし）
-- Next: Kazumax / Airが次サイクルの要件を整理する。作業開始時は最新`main`から新しいbranchを作る
-- Cycle8 merge commit: `7f2fa40`
-- P3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take5_report.md`
-- レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_8_take5_review_request.md`
-- Take4 reviewed HEAD: `dbc3a79`
-- Take1 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_review.md`
-- Take2 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take2_review.md`
-- Take3 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take3_review.md`
-- Take4 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take4_review.md`
-- Take5 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take5_review.md`
-- P5 integration: `docs/handoff/P5_Dex_Integration/cycle_8_main_integration.md`
-- Kazumax確認レベル: 現時点では確認不要（文書訂正のみ）
+- Cycle: 9 Take4のDex(P4)レビュー完了・P5統合待ち
+- Status: P4 OK。通常生成・空欄自動作成の安全停止、生成結果全体、Undo/Redo履歴の恒久テストを確認。標準テスト135/135を2回連続PASS。`main`未統合
+- Version: v4.33（実装コード無変更のため更新なし）
+- Next: Dex(P5)が最新`main`を確認し、`cc-cycle9`をmerge/push
+- Cycle9 Take4 report HEAD: `22b099c`
+- P3報告(Take1): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_report.md`
+- P3報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take2_report.md`
+- P3報告(Take3): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take3_report.md`
+- P3報告(Take4): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take4_report.md`
+- P4差し戻し(Take3): `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take3.md`
+- P4差し戻し(Take4): `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take4.md`
+- P4承認(Take4): `docs/handoff/P4_Dex_Review/cycle_9_take4_review.md`
+- Air Blueprint (Cycle 9): `docs/handoff/P1_Air_Blueprint/cycle_9_interactive_editing_and_history_blueprint.md`
+- Dex Instructions (Cycle 9): `docs/handoff/P2_Dex_to_CC/cycle_9_interactive_and_history_instructions.md`
+- Cycle 8 merge commit: `7f2fa40`
+- Kazumax確認レベル: 確認不要
 
-## P2 Confirmed Rules
+## P2 Confirmed Rules (Cycle 9)
+
+- スマホは768px以下、PCは769px以上。
+- セル全面の透明selectを廃止し、短タップ・クリック・キーボードで編集画面を開く。
+- 横移動8px以上、pointercancel、複数指ではセル操作を発火させない。
+- 行並べ替えは専用ハンドル、セル交換は別drag種別として干渉させない。
+- 自由時間は既存`shiftMaster`と空欄自動作成payloadへ統合し、バックエンドを変更しない。
+- 履歴は`generatedResult`, `employees`, `shiftMaster`を原子的に最大20件保持する。
+- 希望休はmatrixから`employees[].requests`を再構築する共通関数で同期する。
+- 非同期処理は成功時だけ1履歴を作り、失敗・キャンセル・同値保存では履歴を変えない。
+- CCクルー利用は必須。イベント競合、履歴原子性、テスト性能を分担監査する。
+
+## P2 Confirmed Rules (Cycle 8 継承)
 
 - 月間目標計上時間は従業員ごとの任意入力 `targetHours` とし、未設定を許す。
 - 既存データや初期名簿へ推測値を埋めない。
@@ -36,14 +49,21 @@
 - 確定シフトを保持し、実際の空き不足だけを明示通知する。
 - CCクルー利用は推奨。使用結果または不使用理由をP3報告に記録する。
 
-## Verification (Take5)
+## Verification (Cycle 9 Take4, Dex P4)
 
-- コード・Vitest設定の変更なしのため、テスト再実行は未実施（指示書の完了条件通り）
-- Take4確定結果(参考): frontend test 63/63 PASS（2回連続）、time utils 33/33 PASS、build PASS
-- `git diff --check`: PASS
-- `git status --short`: `docs/handoff/`配下2ファイルのみ変更、`frontend/`配下は無変更
-- CCクルー: 不使用（文書2箇所の訂正のみのため、理由はP3報告参照）
-- ブラウザ実機確認: 対象が文書訂正のみのため今回の変更による影響なし
+- frontend test(全体): 135/135 PASS（2回連続、114.33秒 / 112.42秒）
+- time utils: 33/33 PASS
+- frontend build: PASS（バンドルハッシュ前回と同一、実装コード無変更のため想定通り）
+- `git diff --check`: PASS（CRLF/LF警告のみ）
+- デクスクルー: 不使用（テスト1か所だけの限定差分で実装コード変更なし）
+- ブラウザ実機確認: テストのみの変更のため不要
+
+### 参考: Take2差し戻し時点(Dex P4)のNG実測
+
+- frontend test: NG（Cycle 8希望休テスト3件timeout）
+- Cycle 8単独: 20/21 PASS、1件timeout（23.9秒）
+- Cycle 7ズーム単独: timeout（24.9秒）
+- Cycle 9単独: 56/56 PASS（73.0秒）
 
 ## Read First
 
@@ -52,7 +72,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P4_CC_to_Dex/cycle_8_take5_review_request.md`
+- `docs/handoff/P4_Dex_Review/cycle_9_take4_review.md`
 
 ## Stop Conditions
 

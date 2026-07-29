@@ -23,8 +23,40 @@ function getTargetHoursInput() {
     return screen.getByPlaceholderText('未設定');
 }
 
+// Cycle9: セルがbutton化されたため、matrixの内容はlocalStorageのgeneratedResultから直接読む
+// (透明selectのvalueで読む方式は廃止された)。
+function readMatrixFromStorage() {
+    const raw = window.localStorage.getItem('shift_generatedResult');
+    if (!raw) return null;
+    return JSON.parse(raw).matrix;
+}
+
+// Take2 P1-3(Dex差戻し): 24名×31日の巨大fixture(デフォルトINITIAL_DATA)のままだと
+// 標準テスト一括実行時に希望休テストが20秒のtestTimeoutへ達していた(Dex環境で実測)。
+// 個別の氏名('K.D.'等)や生成条件を検証しない大半のテストは、目的を変えずこの
+// 小型fixture(2名、先頭は引き続き'K.D.')へ切り替える。
+function seedDefaultSmallFixture() {
+    const employees = [
+        { name: 'K.D.', type: '正社員', isRS: true, isKeyHolder: true, days: 23, shifts: ['④', '⑦'], requests: '', targetHours: null },
+        { name: 'N.E.', type: '時間限定社員', isRS: true, isKeyHolder: true, days: 23, shifts: ['④'], requests: '', targetHours: null },
+    ];
+    window.localStorage.setItem('shift_employees', JSON.stringify(employees));
+}
+
+// 希望休ランダム入力の「正社員系2〜4日 / パート系5〜8日」の境界を確認するテスト専用。
+// INITIAL_DATAの「先頭6名が標準層、残りがパート層」という構造だけを、3名+3名の
+// 最小構成で保つ(目的=境界確認は変えず、DOM規模だけを縮小する)。
+function seedRandomHolidayFixture() {
+    const standard = (n) => ({ name: `標準${n}`, type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: null });
+    const partTime = (n) => ({ name: `パート${n}`, type: '早パート', isRS: false, isKeyHolder: false, days: 16, shifts: ['①'], requests: '', targetHours: null });
+    const employees = [standard(1), standard(2), standard(3), partTime(1), partTime(2), partTime(3)];
+    window.localStorage.setItem('shift_employees', JSON.stringify(employees));
+    return { standardCount: 3 };
+}
+
 beforeEach(() => {
     window.localStorage.clear();
+    seedDefaultSmallFixture();
     setViewportWidth(1280);
 });
 
@@ -45,6 +77,7 @@ describe('希望休ランダム入力ボタン (Cycle8)', () => {
     });
 
     it('確認後、正社員系は2〜4日・パート系は5〜8日の希望休がランダムに分散配置される', () => {
+        const { standardCount } = seedRandomHolidayFixture();
         vi.spyOn(window, 'confirm').mockReturnValue(true);
         render(<App />);
         fireEvent.click(screen.getByRole('button', { name: /希望休ランダム入力/ }));
@@ -53,12 +86,12 @@ describe('希望休ランダム入力ボタン (Cycle8)', () => {
         const rows = document.querySelectorAll('table tbody tr');
         expect(rows.length).toBeGreaterThan(0);
 
-        // INITIAL_DATAの並び: 先頭6名(正社員/時間限定社員/準社員)が標準層、残りがパート層
+        // fixtureの並び: 先頭standardCount名が標準層、残りがパート層
         rows.forEach((row, i) => {
             const match = row.textContent.match(/希望休:\s*([\d,\s]+)/);
             expect(match).not.toBeNull();
             const count = match[1].split(',').filter(s => s.trim() !== '').length;
-            if (i < 6) {
+            if (i < standardCount) {
                 expect(count).toBeGreaterThanOrEqual(2);
                 expect(count).toBeLessThanOrEqual(4);
             } else {
@@ -69,6 +102,7 @@ describe('希望休ランダム入力ボタン (Cycle8)', () => {
     });
 
     it('再度実行すると、既存の希望休がクリアされて新しい配置に置き換わる(累積で増え続けない)', () => {
+        const { standardCount } = seedRandomHolidayFixture();
         vi.spyOn(window, 'confirm').mockReturnValue(true);
         render(<App />);
         fireEvent.click(screen.getByRole('button', { name: /希望休ランダム入力/ }));
@@ -79,7 +113,7 @@ describe('希望休ランダム入力ボタン (Cycle8)', () => {
         rows.forEach((row, i) => {
             const match = row.textContent.match(/希望休:\s*([\d,\s]+)/);
             const count = match[1].split(',').filter(s => s.trim() !== '').length;
-            if (i < 6) {
+            if (i < standardCount) {
                 expect(count).toBeLessThanOrEqual(4);
             } else {
                 expect(count).toBeLessThanOrEqual(8);
@@ -358,14 +392,13 @@ describe('希望休ランダム入力の空きセル保護・抽選終了保証�
         render(<App />);
         fireEvent.click(screen.getByRole('button', { name: /希望休ランダム入力/ }));
 
-        const table = document.querySelector('table');
-        const row = table.querySelectorAll('tbody tr')[0];
-        const selects = row.querySelectorAll('select');
-        expect(selects[0].value).toBe('④'); // 通常シフトは保護される
-        expect(selects[1].value).toBe('有休'); // 特殊シフトも保護される
+        const resultMatrix = readMatrixFromStorage();
+        expect(resultMatrix[0][0].shift).toBe('④'); // 通常シフトは保護される
+        expect(resultMatrix[0][1].shift).toBe('有休'); // 特殊シフトも保護される
     });
 
     it('十分な空きがある場合、乱数列に依存せず抽選目標数を必ず満たす(Math.randomが常に0を返す不利な乱数列でも)', () => {
+        const { standardCount } = seedRandomHolidayFixture();
         vi.spyOn(window, 'confirm').mockReturnValue(true);
         vi.spyOn(Math, 'random').mockReturnValue(0);
         render(<App />);
@@ -378,7 +411,7 @@ describe('希望休ランダム入力の空きセル保護・抽選終了保証�
             const match = row.textContent.match(/希望休:\s*([\d,\s]+)/);
             expect(match).not.toBeNull();
             const count = match[1].split(',').filter(s => s.trim() !== '').length;
-            expect(count).toBe(i < 6 ? 2 : 5); // 乱数運に負けず目標数(min)ちょうどを満たす
+            expect(count).toBe(i < standardCount ? 2 : 5); // 乱数運に負けず目標数(min)ちょうどを満たす
         });
     });
 
@@ -387,11 +420,9 @@ describe('希望休ランダム入力の空きセル保護・抽選終了保証�
         render(<App />);
         fireEvent.click(screen.getByRole('button', { name: /希望休ランダム入力/ }));
 
-        const table = document.querySelector('table');
-        const matrixRow = table.querySelectorAll('tbody tr')[0];
-        const selects = Array.from(matrixRow.querySelectorAll('select'));
-        const matrixDays = selects
-            .map((s, d) => ({ value: s.value, day: d + 1 }))
+        const matrixRow = readMatrixFromStorage()[0];
+        const matrixDays = matrixRow
+            .map((cell, d) => ({ value: cell?.shift, day: d + 1 }))
             .filter(x => x.value === '希望休')
             .map(x => x.day)
             .sort((a, b) => a - b);
@@ -459,13 +490,11 @@ describe('希望休ランダム入力の空きセル保護・抽選終了保証�
         expect(message).toMatch(/実際2日/);
 
         // 空いていた1・2日目の両方がmatrixへ反映されていること
-        const table = document.querySelector('table');
-        const row = table.querySelectorAll('tbody tr')[0];
-        const selects = row.querySelectorAll('select');
-        expect(selects[0].value).toBe('希望休');
-        expect(selects[1].value).toBe('希望休');
-        for (let d = 2; d < selects.length; d++) {
-            expect(selects[d].value).toBe('④'); // 確定シフトは上書きされない
+        const row = readMatrixFromStorage()[0];
+        expect(row[0].shift).toBe('希望休');
+        expect(row[1].shift).toBe('希望休');
+        for (let d = 2; d < row.length; d++) {
+            expect(row[d].shift).toBe('④'); // 確定シフトは上書きされない
         }
 
         // requestsも同じ2日(1,2)と完全一致すること
