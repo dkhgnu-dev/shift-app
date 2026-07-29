@@ -10,21 +10,21 @@
 
 ## Current State
 
-- Cycle: 9 Take3のDex(P4)再レビュー完了・Take4差し戻し
-- Status: Take3の実装ロジックは修正確認済み。通常シフト0件時の空欄自動作成と、生成結果・Undo/Redo履歴不変の恒久テストが不足しているため、Take4をテスト追加だけに限定して差し戻し。`main`未統合
-- Version: v4.33（更新済み）
-- Next: CC(P3)がTake4の恒久テストを追加し、Dex(P4)へ再提出
-- Cycle9 Take3 report HEAD: `b6c235f`
+- Cycle: 9 Take4完了・Dex(P4)再レビュー待ち
+- Status: CC(P3)がTake4指示どおりテスト追加のみを実施(「空欄自動作成」の安全停止テスト追加、生成結果全体・Undo/Redoボタン状態の実行前後不変を検証)。実装コードは無変更。標準テスト135/135を2回連続PASS。`main`未統合
+- Version: v4.33（実装コード無変更のため更新なし）
+- Next: Dex(P4)がTake4差分をレビューし、OKならmain統合フローへ
+- Cycle9 Take4 report HEAD: (このセッションでのpush後にHEADを追記)
 - P3報告(Take1): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_report.md`
 - P3報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take2_report.md`
 - P3報告(Take3): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take3_report.md`
-- P4差し戻し(Take2): `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take2.md`
+- P3報告(Take4): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take4_report.md`
 - P4差し戻し(Take3): `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take3.md`
 - P4差し戻し(Take4): `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take4.md`
 - Air Blueprint (Cycle 9): `docs/handoff/P1_Air_Blueprint/cycle_9_interactive_editing_and_history_blueprint.md`
 - Dex Instructions (Cycle 9): `docs/handoff/P2_Dex_to_CC/cycle_9_interactive_and_history_instructions.md`
 - Cycle 8 merge commit: `7f2fa40`
-- Kazumax確認レベル: 確認不要（Take4テスト追加待ち）
+- Kazumax確認レベル: 確認不要（Dex(P4)レビュー待ち）
 
 ## P2 Confirmed Rules (Cycle 9)
 
@@ -48,14 +48,15 @@
 - 確定シフトを保持し、実際の空き不足だけを明示通知する。
 - CCクルー利用は推奨。使用結果または不使用理由をP3報告に記録する。
 
-## Verification (Cycle 9 Take3, Dex P4)
+## Verification (Cycle 9 Take4, CC P3)
 
-- frontend test(全体): 134/134 PASS（2回連続、142.74秒 / 119.68秒）
+- frontend test(App.cycle9.test.jsxのみ): 41/41 PASS（約50〜56秒）
+- frontend test(全体): 135/135 PASS（2回連続、約109〜112秒）
 - time utils: 33/33 PASS
-- frontend build: PASS
-- `git diff --check`: PASS
-- デクスクルー: 2名使用。実装本体にP1なし、両名とも安全停止テスト不足をP2指摘
-- P4判定: NG。Take4はテスト追加だけに限定
+- frontend build: PASS（バンドルハッシュ前回と同一、実装コード無変更のため想定通り）
+- `git diff --check`: PASS（CRLF/LF警告のみ）
+- CCクルー: Take4出口指示により今回は不使用(範囲が明確なテスト追加のみのため)
+- ブラウザ実機確認: テストのみの変更のため未実施
 
 ### 参考: Take2差し戻し時点(Dex P4)のNG実測
 

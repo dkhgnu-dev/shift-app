@@ -671,21 +671,47 @@ describe('Take3 P1-1: 削除済み/未知IDだけの場合も「全シフト可�
         expect(emp1AllowedShifts.length).toBeGreaterThan(0);
     });
 
-    it('通常シフトが1件も無い場合、fetchせずに安全停止し、表・履歴・isGeneratingを変更しない', () => {
+    // Take4(Dex差し戻し): 「最適化シフトを生成」だけでなく「空欄自動作成」でも同じ安全停止が
+    // 必要。matrixだけでなくshift_generatedResult全体、およびUndo/Redoボタンの状態
+    // (履歴を追加・消去しない)が実行前後で変わらないことも直接検証する。
+    it.each([
+        ['最適化シフトを生成', /最適化シフトを生成/],
+        ['空欄自動作成', /空欄自動作成/],
+    ])('通常シフトが1件も無い場合、「%s」はfetchせずに安全停止し、生成結果・Undo\\/Redo履歴・isGeneratingを変更しない', (_label, buttonNameRegex) => {
         seedSmallFixture([blankRow(), blankRow()]);
         // shiftMasterを空にする(通常シフト0件の状態)
         window.localStorage.setItem('shift_custom_master', JSON.stringify({}));
+
+        render(<App />);
+
+        // 事前に1件セル編集し、Undoが有効な状態(historyPastが1件)を作っておく。
+        // これにより「安全停止時に既存の履歴が消去されない」ことまで検証できる。
+        fireEvent.click(getCellButton(0, 0));
+        fireEvent.change(getShiftSelect(), { target: { value: '休' } });
+        fireEvent.click(screen.getByRole('button', { name: '保存する' }));
+        expect(readMatrix()[0][0].shift).toBe('休');
+
         const fetchMock = vi.fn();
         vi.stubGlobal('fetch', fetchMock);
         vi.spyOn(window, 'alert').mockImplementation(() => {});
 
-        render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        // 生成前の状態を実行前後比較用に記録する。
+        const generatedResultBefore = window.localStorage.getItem('shift_generatedResult');
+        const undoDisabledBefore = screen.getByRole('button', { name: '元に戻す(Undo)' }).disabled;
+        const redoDisabledBefore = screen.getByRole('button', { name: 'やり直す(Redo)' }).disabled;
+        expect(undoDisabledBefore).toBe(false); // 事前のセル編集でUndoが有効になっている
+
+        fireEvent.click(screen.getByRole('button', { name: buttonNameRegex }));
 
         expect(fetchMock).not.toHaveBeenCalled();
         expect(window.alert).toHaveBeenCalled();
-        expect(screen.queryByText(/最適化を実行中/)).not.toBeInTheDocument(); // isGeneratingのままにならない
-        expect(readMatrix()).toEqual([blankRow(), blankRow()]); // 表は変更されない
+        expect(screen.queryByText(/最適化を実行中/)).not.toBeInTheDocument(); // isGeneratingが有効にならない
+        expect(readMatrix()[0][0].shift).toBe('休'); // 事前編集した内容も含めmatrixは変更されない
+        // shift_generatedResult全体(matrix以外の付随情報も含む)が実行前後で完全に同一であること。
+        expect(window.localStorage.getItem('shift_generatedResult')).toBe(generatedResultBefore);
+        // Undo/Redo履歴が追加・消去されていないこと(ボタンのdisabled状態が不変)。
+        expect(screen.getByRole('button', { name: '元に戻す(Undo)' }).disabled).toBe(undoDisabledBefore);
+        expect(screen.getByRole('button', { name: 'やり直す(Redo)' }).disabled).toBe(redoDisabledBefore);
     });
 });
 
