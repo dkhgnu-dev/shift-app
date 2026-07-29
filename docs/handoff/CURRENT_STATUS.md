@@ -4,17 +4,17 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `cc-cycle8`
+- Working Branch: `main`
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 8 Take5 P4 OK・Dex(P5)統合待ち
-- Status: Take3の正式handoff文書訂正を確認し、Cycle 8はP4 OK。製品・設定・テスト・文書すべて承認可能。`main`未統合
+- Cycle: 8 完了・main統合済み
+- Status: Cycle 8の製品・設定・テスト・文書をP4承認し、`cc-cycle8`を`main`へ競合なく統合・push済み
 - Version: v4.30（変更なし）
-- Next: Dex(P5)が`main`を最新化し、レビュー済み`cc-cycle8`を統合・pushする
-- Cycle8 Take5 reviewed HEAD: `295de2f`（push済み、`fb322b0..295de2f`）
+- Next: Kazumax / Airが次サイクルの要件を整理する。作業開始時は最新`main`から新しいbranchを作る
+- Cycle8 merge commit: `7f2fa40`
 - P3報告: `docs/handoff/P3_CC_to_Dex/cycle_8_take5_report.md`
 - レビュー依頼: `docs/handoff/P4_CC_to_Dex/cycle_8_take5_review_request.md`
 - Take4 reviewed HEAD: `dbc3a79`
@@ -23,6 +23,7 @@
 - Take3 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take3_review.md`
 - Take4 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take4_review.md`
 - Take5 P4 review: `docs/handoff/P4_Dex_Review/cycle_8_take5_review.md`
+- P5 integration: `docs/handoff/P5_Dex_Integration/cycle_8_main_integration.md`
 - Kazumax確認レベル: 現時点では確認不要（文書訂正のみ）
 
 ## P2 Confirmed Rules
