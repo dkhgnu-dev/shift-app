@@ -10,16 +10,18 @@
 
 ## Current State
 
-- Cycle: 11 CC P3 実装・検証完了 -> Dex P4レビュー待ち
-- Status: 6連勤/休息不足の健全性チェッカー(`cycle11Utils.js`、useMemo派生計算)と氏名列28px折りたたみ(UI専用state)を実装。CCクルー3班(A/B/C)による独立監査を実施し、クルーCの指摘(バージョン未更新)を採用してv4.36へ修正済み。詳細は `docs/handoff/P3_CC_to_Dex/cycle_11_health_and_collapsible_report.md` を参照。`main`未統合。
-- Version: v4.36（更新済み）
-- Next: Dex(P4)が `docs/handoff/P3_CC_to_Dex/cycle_11_health_and_collapsible_report.md` を確認し、DIFFレビューを行う
+- Cycle: 11 Dex P4レビュー完了 -> Take2差し戻し / CC P3修正待ち
+- Status: 主要実装は概ねP2どおりだが、壊れた時刻文字列の厳密拒否漏れ、折りたたみ時zoom再計測を証明しない恒久テスト、トグルのLucide未使用を検出。詳細は `docs/handoff/P4_Dex_Review/cycle_11_health_and_collapsible_review.md`、修正指示は `docs/handoff/P4_Rollback/cycle_11_health_and_collapsible_take2.md`。
+- Version: v4.36（Take2製品コード修正時にv4.37へ更新）
+- Next: CC(P3)がTake2修正指示に従って修正・検証し、`docs/handoff/P3_CC_to_Dex/cycle_11_health_and_collapsible_take2_report.md` を提出する
 - Working branch: `cc-cycle11`（最新 `main` より作成）
 - Air Blueprint (Cycle 11): `docs/handoff/P1_Air_Blueprint/cycle_11_health_alerts_and_collapsible_names.md`
 - Dex Instructions (Cycle 11): `docs/handoff/P2_Dex_to_CC/cycle_11_health_and_collapsible_instructions.md`
 - P3報告 (Cycle 11): `docs/handoff/P3_CC_to_Dex/cycle_11_health_and_collapsible_report.md`
+- P4 Review (Cycle 11): `docs/handoff/P4_Dex_Review/cycle_11_health_and_collapsible_review.md`
+- Take2 Instructions: `docs/handoff/P4_Rollback/cycle_11_health_and_collapsible_take2.md`
 - Cycle 10 merge commit: `6b5e23a`
-- Kazumax確認レベル: 確認不要（Dex P4レビュー待ち）
+- Kazumax確認レベル: 確認不要（CC Take2とDex再レビューを先行）
 
 ## P2 Confirmed Rules (Cycle 10 継承)
 
@@ -36,6 +38,8 @@
 - `docs/handoff/WORKFLOW_RULES.md`
 - `docs/handoff/P1_Air_Blueprint/cycle_11_health_alerts_and_collapsible_names.md`
 - `docs/handoff/P2_Dex_to_CC/cycle_11_health_and_collapsible_instructions.md`
+- `docs/handoff/P4_Dex_Review/cycle_11_health_and_collapsible_review.md`
+- `docs/handoff/P4_Rollback/cycle_11_health_and_collapsible_take2.md`
 
 ## Stop Conditions
 
