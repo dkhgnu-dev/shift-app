@@ -20,7 +20,6 @@
 - P4再レビュー: `docs/handoff/P4_Dex_Review/cycle_10_take2_review.md`
 - P5統合報告: `docs/handoff/P5_Dex_Integration/cycle_10_main_integration.md`
 - Cycle 10 merge commit: `6b5e23a`
-- Cycle 10 completion commit: `5e6ea7e`
 - Kazumax確認レベル: 確認不要
 
 ## P2 Confirmed Rules (Cycle 9)
@@ -62,7 +61,7 @@
 - `git diff --check 311db91..7acccc9`: PASS
 - デクスクルー: React導線回帰とレスポンシブCSSを分担監査。P1/P2 Findingなし
 - ブラウザ実測: 320/375/768/769/1280px PASS、console warning/error 0件
-- P5: `main`とレビュー済みbranchの製品ツリー一致、`origin/main`=`5e6ea7e`
+- P5: `main`とレビュー済みbranchの製品ツリー一致、`origin/main`へpush・同期済み
 
 ## Verification (Cycle 10 Take1, Dex P4)
 
