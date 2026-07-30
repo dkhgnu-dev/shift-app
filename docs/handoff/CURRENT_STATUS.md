@@ -4,7 +4,7 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `cc-cycle10`
+- Working Branch: `main`
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
@@ -20,7 +20,7 @@
 - P4再レビュー: `docs/handoff/P4_Dex_Review/cycle_10_take2_review.md`
 - P5統合報告: `docs/handoff/P5_Dex_Integration/cycle_10_main_integration.md`
 - Cycle 10 merge commit: `6b5e23a`
-- Cycle 9 merge commit: `d1b3866`
+- Cycle 10 completion commit: `5e6ea7e`
 - Kazumax確認レベル: 確認不要
 
 ## P2 Confirmed Rules (Cycle 9)
@@ -54,13 +54,15 @@
 - ブラウザ実機確認(375px): ダッシュボード/ルール設定とも`main-content`padding-bottom 4px・下部固定バーなし、従業員管理は`has-mobile-bottom-bar`付与でpadding-bottom 80px・下部固定バーあり、`.hamburger-btn`実測44×44px、console warning/error 0件
 - ブラウザ実機確認(769px): PCヘッダー3操作維持、下部バー/ドロワー/ハンバーガーいずれも非存在
 
-## Verification (Cycle 10 Take2, Dex P4)
+## Verification (Cycle 10 Take2, Dex P4/P5)
 
-- frontend test: 140/140 PASS（211.90秒）
+- frontend test: 140/140 PASS（2回連続、198.28秒 / 213.25秒）
 - time utils: 33/33 PASS
 - frontend build: PASS
 - `git diff --check 311db91..7acccc9`: PASS
 - デクスクルー: React導線回帰とレスポンシブCSSを分担監査。P1/P2 Findingなし
+- ブラウザ実測: 320/375/768/769/1280px PASS、console warning/error 0件
+- P5: `main`とレビュー済みbranchの製品ツリー一致、`origin/main`=`5e6ea7e`
 
 ## Verification (Cycle 10 Take1, Dex P4)
 
@@ -85,7 +87,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P4_Rollback/cycle_10_take2.md`
+- `docs/handoff/P5_Dex_Integration/cycle_10_main_integration.md`
 
 ## Stop Conditions
 

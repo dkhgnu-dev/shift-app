@@ -32,7 +32,10 @@
 
 ```text
 npm.cmd test
--> 140/140 PASS (211.90秒)
+-> 140/140 PASS (198.28秒)
+
+npm.cmd test
+-> 140/140 PASS (213.25秒)
 
 node frontend/test_time_utils.mjs
 -> 33/33 PASS
@@ -44,7 +47,11 @@ git diff --check 311db91..7acccc9
 -> PASS
 ```
 
-CC報告では全体テスト140件を2回連続PASSし、375pxと769pxの実ブラウザ確認、console warning/error 0件を確認済み。Dexは320/375/768/769/1280pxの表示条件をCSS、React条件分岐、恒久テストで再照合した。
+CC報告では全体テスト140件を2回連続PASSし、375pxと769pxの実ブラウザ確認、console warning/error 0件を確認済み。Dexは320/375/768/769/1280pxを実ブラウザで再測定し、表示条件をCSS、React条件分岐、恒久テストと照合した。
+
+## 残存リスク
+
+ハンバーガー44pxの恒久テストはCSSソース内の最初の`.hamburger-btn`宣言を検査するため、将来その後ろに別ルールで小さい値を上書きした場合は検出できない可能性がある。現行CSSには競合ルールがなく、全幅の実ブラウザ実測でも44×44pxを確認済みのため、リリース阻害にはしない。将来CSS構成を変更する際はcomputed styleを確認する。
 
 ## デクスクルー利用記録
 
