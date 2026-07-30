@@ -90,6 +90,47 @@ body {
 .name-col { cursor: pointer; }
 .name-col:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 
+/* Cycle11 5: 氏名列の折りたたみトグル。氏名列とは独立したbuttonとして表の直上に置く。
+   PC/スマホとも同じ見た目にし、スマホだけタップ領域を44px相当へ広げる。 */
+.name-col-toggle-row { display: flex; margin-bottom: 8px; }
+.name-col-toggle-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--primary); background: transparent; color: var(--primary); font-weight: 600; font-size: 0.8rem; cursor: pointer; }
+.name-col-toggle-btn:hover { background: rgba(79, 70, 229, 0.05); }
+
+/* Cycle11 5.2: 折りたたみ時はPC/スマホとも28px固定。display:noneは使わず、
+   width/min-width/max-width/paddingだけをtable単位のclassで一括変更する
+   (各td/thへ個別にstyleを書かない)。td.name-col/th.name-colの通常時ルールより
+   詳細度を上げて、通常時(PC140px/スマホ82px)を確実に上書きする。 */
+table.name-col-collapsed td.name-col,
+table.name-col-collapsed th.name-col {
+    width: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+}
+/* Take2で追加された各breakpoint用.name-cell-text(font-size/max-width)より確実に
+   優先させるため、`.name-col .name-cell-collapsed`という詳細度の高い記述にする。 */
+.name-col .name-cell-collapsed {
+    font-size: 0.68rem;
+    font-weight: 700;
+    opacity: 0.6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-align: center;
+    max-width: none;
+}
+
+/* Cycle11 4: 6連勤・休息不足の警告バッジ。既存のcell-hit-target(全面button)や
+   短タップ/横スワイプ判定を邪魔しないよう、非操作要素として重ねるだけにする。 */
+.health-alert-badge { pointer-events: none; font-size: 0.6rem; font-weight: 700; line-height: 1.1; white-space: nowrap; }
+.health-alert-consecutive { color: #B45309; }
+.health-alert-rest { color: #BE123C; }
+
+/* セル編集モーダル内の警告詳細(4章: セル編集画面にもそのセルの警告を表示する) */
+.health-alert-panel { background: #FFFBEB; border-left: 4px solid #F59E0B; border-radius: 8px; padding: 10px 12px; }
+.health-alert-panel-item { font-size: 0.85rem; color: #92400E; font-weight: 600; }
+.health-alert-panel-item + .health-alert-panel-item { margin-top: 4px; }
+
 /* Take2 P2-3: セルbuttonは常時透明背景(opacity:0は使わない)。opacity:0だと
    outlineごと不可視になり、キーボードでのフォーカス位置が全く見えなかった。
    マウス操作時の見た目は変えず、キーボード操作時(:focus-visible)だけ枠線を出す。 */
@@ -276,6 +317,10 @@ th:nth-child(1), th:nth-child(2) { z-index: 40; }
 
   /* Cycle10: マトリクス表を囲むカードの外枠余白を限界まで切り詰め、表示エリアを最大化する */
   .matrix-glass-card { padding: 2px !important; }
+
+  /* Cycle11 5.1: スマホでは折りたたみトグルの実タップ領域を44px相当まで広げる
+     (アイコン・文字サイズ自体は変えず、min-width/min-height/paddingで確保する)。 */
+  .name-col-toggle-btn { min-width: 44px; min-height: 44px; justify-content: center; padding: 10px 12px; }
 
   .modal { padding: 16px; margin: 16px; width: calc(100% - 32px); max-height: calc(100dvh - 32px); }
   .time-picker-step { width: 34px; height: 34px; }

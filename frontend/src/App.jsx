@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2, Menu, GripVertical, ArrowUp, ArrowDown, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { computeHourChange, computeMinuteChange, formatTime, isValidSpecialHours, parseFourDigitTime, parseStrictNumber } from './timeUtils';
 import {
@@ -13,6 +13,7 @@ import {
     undoStep,
     redoStep,
 } from './cycle9Utils';
+import { buildHealthAlerts, formatRestMinutesAsLabel, extractSurname } from './cycle11Utils';
 
 const SHIFT_MASTER = {
     '①': '8:15～12:15', '②': '8:15～14:15', '③': '8:15～16:15',
@@ -506,6 +507,10 @@ export default function App() {
             employeeDetailCloseBtnRef.current?.focus();
         }
     }, [selectedEmployeeForDetail]);
+
+    // Cycle11 5.1: 氏名列の折りたたみはUI専用state。localStorage/Undo/Redo/generatedResultへ
+    // 保存しない(仕様上、リロードやUndo/Redoで常にfalseへ戻ってよい)。
+    const [isNameColumnCollapsed, setIsNameColumnCollapsed] = useState(false);
 
     // Cycle7: PC版のズームコントロール(スマホでは常に100%固定・zoom未適用)。
     const ZOOM_STEP = 10;
@@ -1220,6 +1225,15 @@ export default function App() {
     const periodDates = getPeriodDates(currentYear, currentMonth);
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
     const dayAnalyses = generatedResult ? periodDates.map((_, d) => analyzeDay(d)) : [];
+
+    // Cycle11 3.4: generatedResult.matrixとshiftMasterだけから警告を派生計算する。
+    // 直接編集・スワップ・ランダム入力・自動生成・Undo/Redoはすべてmatrixの参照が
+    // 変わるため、setStateするeffectを作らずuseMemoで自動的に再計算される。
+    // 警告自体はgeneratedResult/localStorage/履歴スナップショットへは一切保存しない。
+    const healthAlerts = useMemo(() => {
+        if (!generatedResult?.matrix) return [];
+        return buildHealthAlerts(generatedResult.matrix, shiftMaster);
+    }, [generatedResult, shiftMaster]);
     // Cycle9: 日付ラベルは列(日)ごとに1回だけ計算し、従業員行×日のループ内で
     // 毎セルformatDateLabel()を呼び直さない(24名×31日の再計算を避ける軽量化)。
     const dayLabels = periodDates.map(formatDateLabel);
@@ -1384,8 +1398,10 @@ export default function App() {
         recalc();
         window.addEventListener('resize', recalc);
         return () => window.removeEventListener('resize', recalc);
+        // Cycle11 5.4: 折りたたみ切替でtable幅が変わるため、既存の再計測effectの依存へ
+        // isNameColumnCollapsedを追加する(DOM反映後に1回だけ再計測される)。
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [periodDates.length, employees.length, generatedResult, activeTab, isMobileView]);
+    }, [periodDates.length, employees.length, generatedResult, activeTab, isMobileView, isNameColumnCollapsed]);
 
     // zoomLevelが変わるたび(手動+/-、フィットボタン、上のeffectによる自動フィット)
     // オーバーフロー状態を再計測する。
@@ -1411,18 +1427,47 @@ export default function App() {
         );
     };
 
+    // Cycle11 4: 6連勤・休息不足の警告バッジ。既存のkeyHolderIcon/noteMarkと同様、
+    // 非操作(pointer-events:none)の小要素として追加するだけで、既存のcell-hit-target
+    // buttonやレイアウトを上書きしない。
+    const healthAlertBadges = (empIdx, d) => {
+        const alert = healthAlerts[empIdx]?.[d];
+        if (!alert) return null;
+        return (
+            <>
+                {alert.consecutiveDays ? (
+                    <div className="health-alert-badge health-alert-consecutive" aria-hidden="true">⚠️{alert.consecutiveDays}連勤</div>
+                ) : null}
+                {alert.restShortMinutes != null ? (
+                    <div className="health-alert-badge health-alert-rest" aria-hidden="true">⏰休息短</div>
+                ) : null}
+            </>
+        );
+    };
+
     const renderCellNode = (cell, empIdx, d) => {
         const icon = keyHolderIcon(empIdx, d);
         // Cycle9: 注記があるセルには小さな📝マーカーを添える(全文はbuttonのtitle/aria-labelで確認)。
         const noteMark = cell && cell.note ? <span style={{fontSize: '0.55rem'}}>📝</span> : null;
-        if (!cell || !cell.shift) return <>{icon}－{noteMark}</>;
-        if (cell.shift === '休' || SPECIAL_OFF_LIKE.has(cell.shift)) return <>{icon}{cell.shift === '休' ? '休' : cell.shift}{noteMark}</>;
+        const alertMarks = healthAlertBadges(empIdx, d);
+        if (!cell || !cell.shift) return <>{icon}－{noteMark}{alertMarks}</>;
+        if (cell.shift === '休' || SPECIAL_OFF_LIKE.has(cell.shift)) return <>{icon}{cell.shift === '休' ? '休' : cell.shift}{noteMark}{alertMarks}</>;
         if (SPECIAL_SHIFTS.includes(cell.shift)) {
-            return <>{icon}{cell.shift}<br />{cell.hours ?? DEFAULT_SPECIAL_HOURS}h{noteMark}</>;
+            return <>{icon}{cell.shift}<br />{cell.hours ?? DEFAULT_SPECIAL_HOURS}h{noteMark}{alertMarks}</>;
         }
         const shiftText = shiftMaster[cell.shift] || cell.shift;
         const lines = shiftText.includes('～') ? shiftText.split('～') : [shiftText];
-        return lines.length === 2 ? <>{icon}{lines[0]}<br />~{lines[1]}{noteMark}</> : <>{icon}{cell.shift}{noteMark}</>;
+        return lines.length === 2 ? <>{icon}{lines[0]}<br />~{lines[1]}{noteMark}{alertMarks}</> : <>{icon}{cell.shift}{noteMark}{alertMarks}</>;
+    };
+
+    // Cycle11 3.3: 休息不足の表示文言(セルaria-label/title、編集モーダル共通)。
+    const buildHealthAlertParts = (empIdx, d) => {
+        const alert = healthAlerts[empIdx]?.[d];
+        if (!alert) return [];
+        const parts = [];
+        if (alert.consecutiveDays) parts.push(`現在${alert.consecutiveDays}日以上の連続勤務中です（連続${alert.consecutiveDays}日目）`);
+        if (alert.restShortMinutes != null) parts.push(`前日の勤務終了からの休息が${formatRestMinutesAsLabel(alert.restShortMinutes)}です（目安11時間未満）`);
+        return parts;
     };
 
     const cellClassName = (emp, cell, empIdx, d) => {
@@ -1497,7 +1542,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.35</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.36</span></div>
                 </div>
             )}
 
@@ -1508,7 +1553,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.35</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.36</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -1657,14 +1702,29 @@ export default function App() {
                                     </div>
                                 )}
 
+                                {/* Cycle11 5.1: 氏名列とは独立した専用トグル。表の直上・左端に置き、
+                                    28px折りたたみヘッダー内へ押し込んだり日付列に重ねたりしない。 */}
+                                <div className="name-col-toggle-row">
+                                    <button
+                                        type="button"
+                                        className="name-col-toggle-btn"
+                                        onClick={() => setIsNameColumnCollapsed(v => !v)}
+                                        aria-expanded={!isNameColumnCollapsed}
+                                        aria-label={isNameColumnCollapsed ? '氏名列を展開する' : '氏名列を折りたたむ'}
+                                        title={isNameColumnCollapsed ? '氏名列を展開する' : '氏名列を折りたたむ'}
+                                    >
+                                        {isNameColumnCollapsed ? '👁️ 展開' : '◀ 折畳'}
+                                    </button>
+                                </div>
+
                                 <div className="glass-card matrix-glass-card" style={{padding: '16px'}}>
                                     <div className="matrix-scroll-wrapper">
                                         <div className="table-container" ref={tableContainerRef} onScroll={updateScrollButtons}>
-                                        <table style={{ zoom: isMobileView ? '100%' : `${zoomLevel}%` }}>
+                                        <table className={isNameColumnCollapsed ? 'name-col-collapsed' : ''} style={{ zoom: isMobileView ? '100%' : `${zoomLevel}%` }}>
                                             <thead>
                                                 <tr>
                                                     <th className="drag-col" style={{width: '40px'}}></th>
-                                                    <th className="name-col">{isMobileView ? '氏名' : '従業員'}</th>
+                                                    <th className="name-col">{isNameColumnCollapsed ? '名' : (isMobileView ? '氏名' : '従業員')}</th>
                                                     {periodDates.map((d, i) => {
                                                         const dow = d.getDay();
                                                         const cls = dow === 0 ? 'sun' : dow === 6 ? 'sat' : '';
@@ -1704,6 +1764,8 @@ export default function App() {
                                                                 role="button"
                                                                 tabIndex={0}
                                                                 aria-haspopup="dialog"
+                                                                aria-label={`${emp.name}の詳細を開く`}
+                                                                title={emp.name}
                                                                 onClick={(e) => openEmployeeDetail(i, e.currentTarget)}
                                                                 onKeyDown={(e) => {
                                                                     if (e.key === 'Enter' || e.key === ' ') {
@@ -1712,8 +1774,14 @@ export default function App() {
                                                                     }
                                                                 }}
                                                             >
-                                                                <div className="name-cell-text">{emp.name}</div>
-                                                                {!isMobileView && (
+                                                                {/* Cycle11 5.3: 折りたたみ中はdisplay:noneで消さず、名字ヒントを
+                                                                    うっすら表示する。フルネームはtitle/aria-labelに常時残す。 */}
+                                                                {isNameColumnCollapsed ? (
+                                                                    <div className="name-cell-text name-cell-collapsed">{extractSurname(emp.name)}</div>
+                                                                ) : (
+                                                                    <div className="name-cell-text">{emp.name}</div>
+                                                                )}
+                                                                {!isMobileView && !isNameColumnCollapsed && (
                                                                     <>
                                                                         <div style={{fontSize:'0.7rem', color:'#9CA3AF'}}>{emp.isRS ? '登販/' : ''}{emp.isKeyHolder ? '🔑/' : ''}{shortType}</div>
                                                                         <div className="staff-stat-badge">{(() => { const st = computeEmployeeStats(i); return `${st.days}日 / ${st.hours.toFixed(1)}h`; })()}{renderOvertimeDiffTag(i, 'small')}</div>
@@ -1726,7 +1794,10 @@ export default function App() {
                                                                 const isSwapSource = swapPending && swapPending.i === i && swapPending.d === d;
                                                                 const dateLabel = dayLabels[d];
                                                                 const shiftLabel = cell?.shift ? (SPECIAL_SHIFTS.includes(cell.shift) ? cell.shift : (shiftMaster[cell.shift] || cell.shift)) : '未設定';
-                                                                const cellAriaLabel = `${emp.name} ${dateLabel} ${shiftLabel}${cell?.note ? ` (${cell.note})` : ''}`;
+                                                                // Cycle11 4: 警告は色(バッジ)だけで伝えず、セルのaria-label/titleにも文言を含める。
+                                                                const healthAlertParts = buildHealthAlertParts(i, d);
+                                                                const cellAriaLabel = `${emp.name} ${dateLabel} ${shiftLabel}${cell?.note ? ` (${cell.note})` : ''}${healthAlertParts.length > 0 ? ` ${healthAlertParts.join(' ')}` : ''}`;
+                                                                const cellTitleParts = [cell?.note || '', ...healthAlertParts].filter(Boolean);
 
                                                                 return (
                                                                     <td
@@ -1745,7 +1816,7 @@ export default function App() {
                                                                             type="button"
                                                                             className="cell-hit-target"
                                                                             aria-label={cellAriaLabel}
-                                                                            title={cell?.note || ''}
+                                                                            title={cellTitleParts.join(' / ')}
                                                                             disabled={isGenerating}
                                                                             style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', border: 'none', padding: 0, zIndex: 1, background: 'transparent', touchAction: 'pan-x pan-y'}}
                                                                             onPointerDown={(e) => handleCellPointerDown(e, i, d)}
@@ -2215,6 +2286,15 @@ export default function App() {
                                 <h2 id="cell-editor-title" style={{fontSize: '1.1rem'}}>{emp.name} / {periodDates[d] ? formatDateLabel(periodDates[d]) : ''}の勤務を編集</h2>
                                 <button type="button" className="modal-close-btn" aria-label="閉じる" onClick={closeCellEditor}><X size={18} /></button>
                             </div>
+
+                            {/* Cycle11 5(4章): セル編集モーダルにも、そのセルの警告詳細を表示する */}
+                            {buildHealthAlertParts(i, d).length > 0 && (
+                                <div className="health-alert-panel" style={{marginBottom: '16px'}}>
+                                    {buildHealthAlertParts(i, d).map((text, idx) => (
+                                        <div key={idx} className="health-alert-panel-item">{text}</div>
+                                    ))}
+                                </div>
+                            )}
 
                             <div className="form-group">
                                 <label className="checkbox-label">

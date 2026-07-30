@@ -10,15 +10,16 @@
 
 ## Current State
 
-- Cycle: 11 進行中 (Dex P2 事前技術監査・最終指示書完了 -> CC P3実装待ち)
-- Status: Dex(P2)がAir Blueprintを事前監査し、勤務/非勤務分類、6連勤の警告範囲、11時間未満の実時刻判定、Undo/Redoからの派生再計算、28px氏名列、Zoom/タッチ共存、CCクルー監査、テスト・実機条件を `cycle_11_health_and_collapsible_instructions.md` に確定した。
-- Version: v4.35（進行中。Cycle 11 実装完成・合格時に v4.36 へ更新指定）
-- Next: CC(P3)が `docs/handoff/P2_Dex_to_CC/cycle_11_health_and_collapsible_instructions.md` に従って実装し、P3報告をDex(P4)へ提出する
+- Cycle: 11 CC P3 実装・検証完了 -> Dex P4レビュー待ち
+- Status: 6連勤/休息不足の健全性チェッカー(`cycle11Utils.js`、useMemo派生計算)と氏名列28px折りたたみ(UI専用state)を実装。CCクルー3班(A/B/C)による独立監査を実施し、クルーCの指摘(バージョン未更新)を採用してv4.36へ修正済み。詳細は `docs/handoff/P3_CC_to_Dex/cycle_11_health_and_collapsible_report.md` を参照。`main`未統合。
+- Version: v4.36（更新済み）
+- Next: Dex(P4)が `docs/handoff/P3_CC_to_Dex/cycle_11_health_and_collapsible_report.md` を確認し、DIFFレビューを行う
 - Working branch: `cc-cycle11`（最新 `main` より作成）
 - Air Blueprint (Cycle 11): `docs/handoff/P1_Air_Blueprint/cycle_11_health_alerts_and_collapsible_names.md`
 - Dex Instructions (Cycle 11): `docs/handoff/P2_Dex_to_CC/cycle_11_health_and_collapsible_instructions.md`
+- P3報告 (Cycle 11): `docs/handoff/P3_CC_to_Dex/cycle_11_health_and_collapsible_report.md`
 - Cycle 10 merge commit: `6b5e23a`
-- Kazumax確認レベル: 現時点では確認不要（P2監査策定段階）
+- Kazumax確認レベル: 確認不要（Dex P4レビュー待ち）
 
 ## P2 Confirmed Rules (Cycle 10 継承)
 
