@@ -10,14 +10,15 @@
 
 ## Current State
 
-- Cycle: 10 完了 (CC P3 実装・検証完了 -> Dex P4 レビュー待ち)
-- Status: CC(P3)がスマホ版UI全面領域拡大仕様（①下部アクションボタンのハンバーガーメニュー格納、②コンテナ外枠余白の極小化、③氏名固定列82pxスリム化）を実装。frontend test 135/135 PASS(2回連続)・build成功・Browser実機確認済み。詳細は `docs/handoff/P3_CC_to_Dex/cycle_10_report.md` を参照。
+- Cycle: 10 P4レビュー完了・Take2差し戻し
+- Status: 主要3操作の移設と既存機能の配線は確認済み。ルール設定タブに不要な下部80px余白が残る問題、主要操作の唯一の入口であるハンバーガーが32×32pxの問題、Cycle 10専用テスト不足をTake2へ差し戻し。`main`未統合
 - Version: v4.34（更新済み）
-- Next: Dex(P4)が `docs/handoff/P3_CC_to_Dex/cycle_10_report.md` を確認し、DIFFレビューを行う
+- Next: CC(P3)がTake2を修正し、Dex(P4)へ再提出
 - Working branch: `cc-cycle10`（最新 `main` から生成）
 - Air Instructions (Cycle 10): `docs/handoff/P2_AirCrew_to_CC/cycle_10_mobile_ui_optimization_instructions.md`
+- P4差し戻し(Take2): `docs/handoff/P4_Rollback/cycle_10_take2.md`
 - Cycle 9 merge commit: `d1b3866`
-- Kazumax確認レベル: 現時点では確認不要（開発着手合図段階）
+- Kazumax確認レベル: 確認不要（Take2修正待ち）
 
 ## P2 Confirmed Rules (Cycle 9)
 
@@ -41,14 +42,14 @@
 - 確定シフトを保持し、実際の空き不足だけを明示通知する。
 - CCクルー利用は推奨。使用結果または不使用理由をP3報告に記録する。
 
-## Verification (Cycle 9 Take4, Dex P4)
+## Verification (Cycle 10, Dex P4)
 
-- frontend test(全体): 135/135 PASS（2回連続、114.33秒 / 112.42秒）
+- frontend test(全体): 135/135 PASS（2回連続、138.22秒 / 132.14秒）
 - time utils: 33/33 PASS
 - frontend build: PASS（バンドルハッシュ前回と同一、実装コード無変更のため想定通り）
 - `git diff --check`: PASS（CRLF/LF警告のみ）
-- デクスクルー: 不使用（テスト1か所だけの限定差分で実装コード変更なし）
-- ブラウザ実機確認: テストのみの変更のため不要
+- デクスクルー: 2名使用。React導線は問題なし、レスポンシブUIにP2を2件確認
+- ブラウザ実機確認: 320/375/768/769/1280pxを確認。ルール設定の下余白80pxとハンバーガー32×32pxを実測
 
 ### 参考: Take2差し戻し時点(Dex P4)のNG実測
 
@@ -64,7 +65,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P5_Dex_Integration/cycle_9_main_integration.md`
+- `docs/handoff/P4_Rollback/cycle_10_take2.md`
 
 ## Stop Conditions
 
