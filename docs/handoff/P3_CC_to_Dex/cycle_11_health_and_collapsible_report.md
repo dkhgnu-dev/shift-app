@@ -6,7 +6,7 @@
 
 ## 実装コミットとHEAD
 - ブランチ: `cc-cycle11`
-- 本Cycleの実装はこの報告書と同時にcommitし、push後にHEADを追記する(下記Git節参照)。
+- 実装コミット: `5d82482`(`origin/cc-cycle11`へpush済み)
 
 ## 変更ファイルと要点
 
