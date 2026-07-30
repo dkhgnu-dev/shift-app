@@ -10,15 +10,16 @@
 
 ## Current State
 
-- Cycle: 10 Take2 完了 (CC P3 修正・検証完了 -> Dex P4 再レビュー待ち)
-- Status: Take1差し戻し3点(ルール設定の下部80px余白/ハンバーガー32×32px/専用テスト不足)を修正。`.main-content`の余白を明示クラス`has-mobile-bottom-bar`(従業員管理のみ付与)方式へ変更し、ハンバーガーを44×44pxへ拡大、レスポンシブ契約の恒久テスト5件を`App.cycle10.test.jsx`に追加。`cycle_10_report.md`のGit記録も訂正。詳細は `docs/handoff/P3_CC_to_Dex/cycle_10_take2_report.md` を参照。`main`未統合。
+- Cycle: 10 Take2 P4レビュー完了
+- Status: Dex(P4)再DIFFレビューOK。差戻し2件と恒久テスト不足は解消し、P1/P2 Findingなし。`main`統合待ち。
 - Version: v4.35（更新済み）
-- Next: Dex(P4)が `docs/handoff/P3_CC_to_Dex/cycle_10_take2_report.md` を確認し、再DIFFレビューを行う
+- Next: Dex(P5)がレビュー済みHEADを`main`へ統合する
 - Working branch: `cc-cycle10`（最新 `main` から生成）
 - Air Instructions (Cycle 10): `docs/handoff/P2_AirCrew_to_CC/cycle_10_mobile_ui_optimization_instructions.md`
 - P4差し戻し(Take2): `docs/handoff/P4_Rollback/cycle_10_take2.md`
+- P4再レビュー: `docs/handoff/P4_Dex_Review/cycle_10_take2_review.md`
 - Cycle 9 merge commit: `d1b3866`
-- Kazumax確認レベル: 確認不要（Take2再レビュー待ち）
+- Kazumax確認レベル: 確認不要
 
 ## P2 Confirmed Rules (Cycle 9)
 
@@ -50,6 +51,14 @@
 - `git diff --check`: PASS（CRLF/LF警告のみ）
 - ブラウザ実機確認(375px): ダッシュボード/ルール設定とも`main-content`padding-bottom 4px・下部固定バーなし、従業員管理は`has-mobile-bottom-bar`付与でpadding-bottom 80px・下部固定バーあり、`.hamburger-btn`実測44×44px、console warning/error 0件
 - ブラウザ実機確認(769px): PCヘッダー3操作維持、下部バー/ドロワー/ハンバーガーいずれも非存在
+
+## Verification (Cycle 10 Take2, Dex P4)
+
+- frontend test: 140/140 PASS（211.90秒）
+- time utils: 33/33 PASS
+- frontend build: PASS
+- `git diff --check 311db91..7acccc9`: PASS
+- デクスクルー: React導線回帰とレスポンシブCSSを分担監査。P1/P2 Findingなし
 
 ## Verification (Cycle 10 Take1, Dex P4)
 
