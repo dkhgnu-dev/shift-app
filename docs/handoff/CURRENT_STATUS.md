@@ -4,17 +4,17 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `cc-cycle11`
+- Working Branch: `main`
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 11 Take2 P4再レビュー完了
-- Status: Take1差し戻し3点の修正を確認し、Dex検証・デクスクルー独立監査とも指摘なし。P4 OK。詳細は `docs/handoff/P4_Dex_Review/cycle_11_health_and_collapsible_take2_review.md` を参照。`main`未統合。
+- Cycle: 11 完了
+- Status: Take2をP4 OKと判定し、`cc-cycle11`を競合なしで`main`へ統合済み。詳細は `docs/handoff/P5_Dex_Integration/cycle_11_main_integration.md` を参照。
 - Version: v4.37（更新済み）
-- Next: Dex(P5)が対象ブランチを最新`main`へ安全に統合してpushする
-- Working branch: `cc-cycle11`（最新 `main` より作成）
+- Next: 次Cycleの要件整理またはAir(P1) Blueprint作成
+- Working branch: `main`
 - Air Blueprint (Cycle 11): `docs/handoff/P1_Air_Blueprint/cycle_11_health_alerts_and_collapsible_names.md`
 - Dex Instructions (Cycle 11): `docs/handoff/P2_Dex_to_CC/cycle_11_health_and_collapsible_instructions.md`
 - P3報告 (Cycle 11): `docs/handoff/P3_CC_to_Dex/cycle_11_health_and_collapsible_report.md`
@@ -22,6 +22,8 @@
 - Take2 Instructions: `docs/handoff/P4_Rollback/cycle_11_health_and_collapsible_take2.md`
 - P3 Take2報告: `docs/handoff/P3_CC_to_Dex/cycle_11_health_and_collapsible_take2_report.md`
 - P4 Take2再レビュー: `docs/handoff/P4_Dex_Review/cycle_11_health_and_collapsible_take2_review.md`
+- P5 main統合: `docs/handoff/P5_Dex_Integration/cycle_11_main_integration.md`
+- Cycle 11 merge commit: `78d2491`
 - Cycle 10 merge commit: `6b5e23a`
 - Kazumax確認レベル: 確認不要
 
