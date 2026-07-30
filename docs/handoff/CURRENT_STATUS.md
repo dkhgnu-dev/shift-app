@@ -10,10 +10,10 @@
 
 ## Current State
 
-- Cycle: 11 Take2 完了 (CC P3 修正・検証完了 -> Dex P4 再レビュー待ち)
-- Status: Take1差し戻し3点(壊れた時刻文字列の厳密拒否漏れ/折りたたみ時zoom再計測を証明しない恒久テスト/トグルのLucide未使用)を修正。`parseShiftRange`が"開始～終了"のちょうど2要素だけを厳密に受理するよう修正し、zoom再計測テストはgeometry mockで実際の再計測を証明する形へ置き換え(依存配列を外すと失敗することを裏取り済み)、トグルをLucideアイコン(ChevronLeft/ChevronRight)へ変更。詳細は `docs/handoff/P3_CC_to_Dex/cycle_11_health_and_collapsible_take2_report.md` を参照。`main`未統合。
+- Cycle: 11 Take2 P4再レビュー完了
+- Status: Take1差し戻し3点の修正を確認し、Dex検証・デクスクルー独立監査とも指摘なし。P4 OK。詳細は `docs/handoff/P4_Dex_Review/cycle_11_health_and_collapsible_take2_review.md` を参照。`main`未統合。
 - Version: v4.37（更新済み）
-- Next: Dex(P4)が `docs/handoff/P3_CC_to_Dex/cycle_11_health_and_collapsible_take2_report.md` を確認し、再DIFFレビューを行う
+- Next: Dex(P5)が対象ブランチを最新`main`へ安全に統合してpushする
 - Working branch: `cc-cycle11`（最新 `main` より作成）
 - Air Blueprint (Cycle 11): `docs/handoff/P1_Air_Blueprint/cycle_11_health_alerts_and_collapsible_names.md`
 - Dex Instructions (Cycle 11): `docs/handoff/P2_Dex_to_CC/cycle_11_health_and_collapsible_instructions.md`
@@ -21,8 +21,9 @@
 - P4 Review (Cycle 11): `docs/handoff/P4_Dex_Review/cycle_11_health_and_collapsible_review.md`
 - Take2 Instructions: `docs/handoff/P4_Rollback/cycle_11_health_and_collapsible_take2.md`
 - P3 Take2報告: `docs/handoff/P3_CC_to_Dex/cycle_11_health_and_collapsible_take2_report.md`
+- P4 Take2再レビュー: `docs/handoff/P4_Dex_Review/cycle_11_health_and_collapsible_take2_review.md`
 - Cycle 10 merge commit: `6b5e23a`
-- Kazumax確認レベル: 確認不要（Dex P4再レビュー待ち）
+- Kazumax確認レベル: 確認不要
 
 ## P2 Confirmed Rules (Cycle 10 継承)
 
