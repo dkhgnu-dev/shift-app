@@ -4,29 +4,20 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `main`
+- Working Branch: `cc-cycle10`
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 9完了・`main`統合済み
-- Status: P4 OK、P5完了。通常生成・空欄自動作成の安全停止、生成結果全体、Undo/Redo履歴を含む恒久テストを確認し、`cc-cycle9`を競合なく`main`へ統合
-- Version: v4.33（実装コード無変更のため更新なし）
-- Next: 次サイクルのAir(P1)企画待ち
-- Cycle9 Take4 report HEAD: `22b099c`
-- P3報告(Take1): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_report.md`
-- P3報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take2_report.md`
-- P3報告(Take3): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take3_report.md`
-- P3報告(Take4): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take4_report.md`
-- P4差し戻し(Take3): `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take3.md`
-- P4差し戻し(Take4): `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take4.md`
-- P4承認(Take4): `docs/handoff/P4_Dex_Review/cycle_9_take4_review.md`
-- P5統合: `docs/handoff/P5_Dex_Integration/cycle_9_main_integration.md`
-- Air Blueprint (Cycle 9): `docs/handoff/P1_Air_Blueprint/cycle_9_interactive_editing_and_history_blueprint.md`
-- Dex Instructions (Cycle 9): `docs/handoff/P2_Dex_to_CC/cycle_9_interactive_and_history_instructions.md`
+- Cycle: 10 進行中 (Air P1/P2 統合UI仕様策定完了 -> CC P3 実装待ち)
+- Status: Air(P1/P2統合)がスマホ版UI全面領域拡大仕様（①下部アクションボタンのハンバーガーメニュー格納、②コンテナ外枠余白の極小化、③氏名固定列 80〜85px スリム化）を策定。純粋な表示領域の最適化であり、危険領域タスクに抵触しないためCC(P3)への直接実装指示として確定・送出済み。
+- Version: v4.33（進行中。Cycle 10 実装時に v4.34 へ更新指定）
+- Next: CC(P3)が `docs/handoff/P2_AirCrew_to_CC/cycle_10_mobile_ui_optimization_instructions.md` に従い全実装を進め、全135件超のテストスピードPASSを確認し、Dex(P4) へレビューを申請する
+- Working branch: `cc-cycle10`（最新 `main` から生成）
+- Air Instructions (Cycle 10): `docs/handoff/P2_AirCrew_to_CC/cycle_10_mobile_ui_optimization_instructions.md`
 - Cycle 9 merge commit: `d1b3866`
-- Kazumax確認レベル: 確認不要
+- Kazumax確認レベル: 現時点では確認不要（開発着手合図段階）
 
 ## P2 Confirmed Rules (Cycle 9)
 
