@@ -1497,7 +1497,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.34</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.35</span></div>
                 </div>
             )}
 
@@ -1508,7 +1508,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.34</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.35</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -1553,7 +1553,9 @@ export default function App() {
             </div>
 
             {/* Main Content */}
-            <div className={`main-content ${isMobileView && activeTab === 'dashboard' ? 'compact-bottom' : ''}`}>
+            {/* Take2(Dex差戻し): 下部固定バーが実在するのは従業員管理タブのみ。
+                その時だけ`has-mobile-bottom-bar`で余白を確保し、ダッシュボード/ルール設定は最小余白にする。 */}
+            <div className={`main-content ${isMobileView && activeTab === 'employees' ? 'has-mobile-bottom-bar' : ''}`}>
                 {activeTab === 'dashboard' && (
                     <div className="tab-content active">
                         <div className="header month-header">

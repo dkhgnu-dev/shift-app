@@ -10,15 +10,15 @@
 
 ## Current State
 
-- Cycle: 10 P4レビュー完了・Take2差し戻し
-- Status: 主要3操作の移設と既存機能の配線は確認済み。ルール設定タブに不要な下部80px余白が残る問題、主要操作の唯一の入口であるハンバーガーが32×32pxの問題、Cycle 10専用テスト不足をTake2へ差し戻し。`main`未統合
-- Version: v4.34（更新済み）
-- Next: CC(P3)がTake2を修正し、Dex(P4)へ再提出
+- Cycle: 10 Take2 完了 (CC P3 修正・検証完了 -> Dex P4 再レビュー待ち)
+- Status: Take1差し戻し3点(ルール設定の下部80px余白/ハンバーガー32×32px/専用テスト不足)を修正。`.main-content`の余白を明示クラス`has-mobile-bottom-bar`(従業員管理のみ付与)方式へ変更し、ハンバーガーを44×44pxへ拡大、レスポンシブ契約の恒久テスト5件を`App.cycle10.test.jsx`に追加。`cycle_10_report.md`のGit記録も訂正。詳細は `docs/handoff/P3_CC_to_Dex/cycle_10_take2_report.md` を参照。`main`未統合。
+- Version: v4.35（更新済み）
+- Next: Dex(P4)が `docs/handoff/P3_CC_to_Dex/cycle_10_take2_report.md` を確認し、再DIFFレビューを行う
 - Working branch: `cc-cycle10`（最新 `main` から生成）
 - Air Instructions (Cycle 10): `docs/handoff/P2_AirCrew_to_CC/cycle_10_mobile_ui_optimization_instructions.md`
 - P4差し戻し(Take2): `docs/handoff/P4_Rollback/cycle_10_take2.md`
 - Cycle 9 merge commit: `d1b3866`
-- Kazumax確認レベル: 確認不要（Take2修正待ち）
+- Kazumax確認レベル: 確認不要（Take2再レビュー待ち）
 
 ## P2 Confirmed Rules (Cycle 9)
 
@@ -42,7 +42,16 @@
 - 確定シフトを保持し、実際の空き不足だけを明示通知する。
 - CCクルー利用は推奨。使用結果または不使用理由をP3報告に記録する。
 
-## Verification (Cycle 10, Dex P4)
+## Verification (Cycle 10 Take2, CC P3)
+
+- frontend test(全体): 140/140 PASS（既存135件+Cycle10新規5件、2回連続、148.77秒 / 179.93秒）
+- time utils: 33/33 PASS
+- frontend build: PASS
+- `git diff --check`: PASS（CRLF/LF警告のみ）
+- ブラウザ実機確認(375px): ダッシュボード/ルール設定とも`main-content`padding-bottom 4px・下部固定バーなし、従業員管理は`has-mobile-bottom-bar`付与でpadding-bottom 80px・下部固定バーあり、`.hamburger-btn`実測44×44px、console warning/error 0件
+- ブラウザ実機確認(769px): PCヘッダー3操作維持、下部バー/ドロワー/ハンバーガーいずれも非存在
+
+## Verification (Cycle 10 Take1, Dex P4)
 
 - frontend test(全体): 135/135 PASS（2回連続、138.22秒 / 132.14秒）
 - time utils: 33/33 PASS
