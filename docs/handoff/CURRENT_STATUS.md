@@ -10,10 +10,10 @@
 
 ## Current State
 
-- Cycle: 10 進行中 (Air P1/P2 統合UI仕様策定完了 -> CC P3 実装待ち)
-- Status: Air(P1/P2統合)がスマホ版UI全面領域拡大仕様（①下部アクションボタンのハンバーガーメニュー格納、②コンテナ外枠余白の極小化、③氏名固定列 80〜85px スリム化）を策定。純粋な表示領域の最適化であり、危険領域タスクに抵触しないためCC(P3)への直接実装指示として確定・送出済み。
-- Version: v4.33（進行中。Cycle 10 実装時に v4.34 へ更新指定）
-- Next: CC(P3)が `docs/handoff/P2_AirCrew_to_CC/cycle_10_mobile_ui_optimization_instructions.md` に従い全実装を進め、全135件超のテストスピードPASSを確認し、Dex(P4) へレビューを申請する
+- Cycle: 10 完了 (CC P3 実装・検証完了 -> Dex P4 レビュー待ち)
+- Status: CC(P3)がスマホ版UI全面領域拡大仕様（①下部アクションボタンのハンバーガーメニュー格納、②コンテナ外枠余白の極小化、③氏名固定列82pxスリム化）を実装。frontend test 135/135 PASS(2回連続)・build成功・Browser実機確認済み。詳細は `docs/handoff/P3_CC_to_Dex/cycle_10_report.md` を参照。
+- Version: v4.34（更新済み）
+- Next: Dex(P4)が `docs/handoff/P3_CC_to_Dex/cycle_10_report.md` を確認し、DIFFレビューを行う
 - Working branch: `cc-cycle10`（最新 `main` から生成）
 - Air Instructions (Cycle 10): `docs/handoff/P2_AirCrew_to_CC/cycle_10_mobile_ui_optimization_instructions.md`
 - Cycle 9 merge commit: `d1b3866`

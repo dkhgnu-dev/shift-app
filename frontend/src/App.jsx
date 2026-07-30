@@ -1497,7 +1497,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.33</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.34</span></div>
                 </div>
             )}
 
@@ -1508,7 +1508,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.33</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.34</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -1518,10 +1518,42 @@ export default function App() {
                 <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => {setActiveTab('settings'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Settings size={18} /> ルール設定
                 </div>
+
+                {/* Cycle10: スマホ表示では下部固定バーを廃止し、ダッシュボードの3アクションを
+                    ハンバーガーメニュー内へ統合する(PC表示のrenderActions()は従来通り維持)。 */}
+                {isMobileView && activeTab === 'dashboard' && (
+                    <div className="sidebar-mobile-actions">
+                        <div className="sidebar-section-label">シフト操作</div>
+                        <button
+                            type="button"
+                            className="sidebar-action-btn primary"
+                            onClick={() => { randomizeHolidayRequests(); setIsMobileMenuOpen(false); }}
+                            disabled={isGenerating}
+                        >
+                            🎲 希望休ランダム入力
+                        </button>
+                        <button
+                            type="button"
+                            className="sidebar-action-btn"
+                            onClick={() => { fillBlanks(); setIsMobileMenuOpen(false); }}
+                            disabled={isGenerating}
+                        >
+                            <Wand2 size={16}/> 空欄自動作成
+                        </button>
+                        <button
+                            type="button"
+                            className="sidebar-action-btn"
+                            onClick={() => { generateShift(); setIsMobileMenuOpen(false); }}
+                            disabled={isGenerating}
+                        >
+                            <Wand2 size={16}/> 最適化シフトを生成
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Main Content */}
-            <div className="main-content">
+            <div className={`main-content ${isMobileView && activeTab === 'dashboard' ? 'compact-bottom' : ''}`}>
                 {activeTab === 'dashboard' && (
                     <div className="tab-content active">
                         <div className="header month-header">
@@ -2316,7 +2348,9 @@ export default function App() {
                 </div>
             )}
 
-            {isNarrowViewport && (activeTab === 'dashboard' || activeTab === 'employees') && (
+            {/* Cycle10: ダッシュボードの3アクションはハンバーガーメニューへ移設したため、
+                スマホ下部固定バーは従業員管理タブのアクションのみに限定する。 */}
+            {isNarrowViewport && activeTab === 'employees' && (
                 <div className="mobile-bottom-bar">
                     {renderActions()}
                 </div>
