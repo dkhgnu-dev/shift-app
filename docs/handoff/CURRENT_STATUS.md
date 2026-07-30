@@ -10,14 +10,16 @@
 
 ## Current State
 
-- Cycle: 10 Take2 P4レビュー完了
-- Status: Dex(P4)再DIFFレビューOK。差戻し2件と恒久テスト不足は解消し、P1/P2 Findingなし。`main`統合待ち。
+- Cycle: 10 完了
+- Status: Dex(P4)再DIFFレビューOK、Dex(P5)で`main`へ競合なく統合完了。差戻し2件と恒久テスト不足は解消し、P1/P2 Findingなし。
 - Version: v4.35（更新済み）
-- Next: Dex(P5)がレビュー済みHEADを`main`へ統合する
-- Working branch: `cc-cycle10`（最新 `main` から生成）
+- Next: Airが最新`main`から次サイクルを設計する
+- Working branch: `main`
 - Air Instructions (Cycle 10): `docs/handoff/P2_AirCrew_to_CC/cycle_10_mobile_ui_optimization_instructions.md`
 - P4差し戻し(Take2): `docs/handoff/P4_Rollback/cycle_10_take2.md`
 - P4再レビュー: `docs/handoff/P4_Dex_Review/cycle_10_take2_review.md`
+- P5統合報告: `docs/handoff/P5_Dex_Integration/cycle_10_main_integration.md`
+- Cycle 10 merge commit: `6b5e23a`
 - Cycle 9 merge commit: `d1b3866`
 - Kazumax確認レベル: 確認不要
 
