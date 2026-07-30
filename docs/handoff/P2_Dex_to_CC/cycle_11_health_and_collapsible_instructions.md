@@ -116,9 +116,10 @@ Air Blueprintは採用する。ただし、曖昧だった勤務判定・休息�
 - `isNameColumnCollapsed` はUI専用state、初期値false
 - localStorage、Undo/Redo、generatedResultへ保存しない
 - PC・スマホの両方で使用可能
-- 氏名ヘッダー内または直近に専用buttonを1個置く
+- 表の直上・左端付近に、氏名列とは独立した専用buttonを1個置く
 - buttonには `aria-expanded` または `aria-pressed`、状態が分かる`aria-label`と`title`を付ける
-- スマホの操作面は最低44px相当を確保する。ただし列幅自体は28pxへ畳めるよう、ボタンを列外へ重ねる等で設計する
+- スマホの操作面は最低44px相当を確保する
+- 28pxの氏名ヘッダー内へbuttonを押し込んだり、日付列の上へ重ねたりしない
 - 行の氏名セルは折りたたみ中もタップ・Enter・Spaceで従業員詳細を開ける
 
 ### 5.2 幅と表示
@@ -138,7 +139,7 @@ Air Blueprintは採用する。ただし、曖昧だった勤務判定・休息�
 - null等は空文字
 - 前後空白を除去
 - 半角または全角スペースがあれば最初の語を名字とする
-- スペースがない名前は推測で分割せず、元の名前を返す
+- スペースがない名前はUnicode文字単位で先頭最大4文字を返す
 
 折りたたみ表示:
 
@@ -154,7 +155,7 @@ Air Blueprintは採用する。ただし、曖昧だった勤務判定・休息�
 - 再計測はDOM反映後に1回だけ行う。state更新の無限ループを作らない
 - 既存のzoom一時100%測定・`try/finally`復元契約を変更しない
 - 必要なら既存の再計測effect依存へ折りたたみstateを追加する
-- 幅transitionを使う場合は短時間にし、`prefers-reduced-motion`へ配慮する
+- 幅transitionは使わない。中間幅をzoom-fitが誤計測することを防ぐ
 
 ## 6. 恒久テスト
 

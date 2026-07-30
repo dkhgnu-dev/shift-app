@@ -23,7 +23,7 @@
 ## P2 Confirmed Rules (Cycle 10 継承)
 
 - 画面下部アクションバーの廃止およびハンバーガーメニューへの移管はスマホ表示時のみ適用する。
-- 氏名固定列幅は最大85px目安とし、スマホでは全幅エリア極大開放を維持する。
+- 氏名固定列は通常時の現行幅（スマホ82px、PC140px）を維持し、Cycle 11の折りたたみ時だけ28pxとする。
 - 自由時間の編集、Undo/Redo (20件原子保持)、希望休のランダム・空きシャッフルロジックは一切破壊しないこと。
 
 ## Read First
@@ -34,6 +34,7 @@
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
 - `docs/handoff/P1_Air_Blueprint/cycle_11_health_alerts_and_collapsible_names.md`
+- `docs/handoff/P2_Dex_to_CC/cycle_11_health_and_collapsible_instructions.md`
 
 ## Stop Conditions
 
