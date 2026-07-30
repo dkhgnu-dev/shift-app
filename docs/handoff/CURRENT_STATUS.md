@@ -10,12 +10,13 @@
 
 ## Current State
 
-- Cycle: 11 進行中 (Air P1 統合設計書完了 -> Dex P2 事前技術監査・指示確定待ち)
-- Status: Air(P1/P2草案)が「① 6連勤＆遅番早番（休息インターバル不足）のリアルタイム健全性警告バッジ機能」と「② 左固定氏名列の極薄折りたたみ ＆ うっすら名字ヒント透かし表示機能」の統合設計書 `cycle_11_health_alerts_and_collapsible_names.md` を策定。列幅の動的リサイズとバッジ状態追加によるタッチ競合・テスト過労を防ぐため、Dex(P2)の事前技術監査に託す。
+- Cycle: 11 進行中 (Dex P2 事前技術監査・最終指示書完了 -> CC P3実装待ち)
+- Status: Dex(P2)がAir Blueprintを事前監査し、勤務/非勤務分類、6連勤の警告範囲、11時間未満の実時刻判定、Undo/Redoからの派生再計算、28px氏名列、Zoom/タッチ共存、CCクルー監査、テスト・実機条件を `cycle_11_health_and_collapsible_instructions.md` に確定した。
 - Version: v4.35（進行中。Cycle 11 実装完成・合格時に v4.36 へ更新指定）
-- Next: Dex(P2)が本Blueprintを技術監査し、CC(P3)が一気呵成＆タイムアウト無しの全件PASSで作り上げてくる最強の P2最終指示書を策定・提示する
+- Next: CC(P3)が `docs/handoff/P2_Dex_to_CC/cycle_11_health_and_collapsible_instructions.md` に従って実装し、P3報告をDex(P4)へ提出する
 - Working branch: `cc-cycle11`（最新 `main` より作成）
 - Air Blueprint (Cycle 11): `docs/handoff/P1_Air_Blueprint/cycle_11_health_alerts_and_collapsible_names.md`
+- Dex Instructions (Cycle 11): `docs/handoff/P2_Dex_to_CC/cycle_11_health_and_collapsible_instructions.md`
 - Cycle 10 merge commit: `6b5e23a`
 - Kazumax確認レベル: 現時点では確認不要（P2監査策定段階）
 
