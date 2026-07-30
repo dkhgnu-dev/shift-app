@@ -21,7 +21,13 @@ export function parseShiftRange(cell, shiftMaster) {
     if (shiftId === OFF_SHIFT || NON_WORKING_SPECIAL.has(shiftId) || WORKING_SPECIAL.has(shiftId)) return null;
     const timeStr = shiftMaster ? shiftMaster[shiftId] : undefined;
     if (typeof timeStr !== 'string' || !timeStr.includes('～')) return null;
-    const [startText, endText] = timeStr.split('～');
+    // Take2(Dex P4差戻し): "8:15～17:30～不正値"のように区切り文字が複数ある
+    // 壊れた文字列は、split()の先頭2要素だけを使うと余分な値を無視して誤って
+    // 正常値として受理してしまう(Dex実測で検出)。開始・終了のちょうど2要素
+    // だけであることを厳密に確認し、それ以外は判定不能(null)として拒否する。
+    const parts = timeStr.split('～');
+    if (parts.length !== 2) return null;
+    const [startText, endText] = parts;
     const startMin = freeTimeToMinutes(startText);
     const endMin = freeTimeToMinutes(endText);
     if (startMin === null || endMin === null) return null;

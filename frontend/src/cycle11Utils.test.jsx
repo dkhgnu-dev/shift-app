@@ -63,6 +63,35 @@ describe('cycle11Utils: isWorkingCell / parseShiftRange (3.1)', () => {
     it('特殊シフト(応援等)はparseShiftRangeでnull(時刻解析対象外)を返す', () => {
         expect(parseShiftRange(OUEN, MASTER)).toBeNull();
     });
+
+    // Take2(Dex P4差戻し): 正しい"開始～終了"のちょうど2要素だけを受理し、
+    // 区切り過多・空要素・分範囲外・終了<=開始はすべてnull(判定不能)として拒否する。
+    it('正しい"8:15～17:30"は従来どおり勤務として判定する', () => {
+        const master = { X: '8:15～17:30' };
+        expect(parseShiftRange({ shift: 'X' }, master)).toEqual({ startMin: 495, endMin: 1050 });
+        expect(isWorkingCell({ shift: 'X' }, master)).toBe(true);
+    });
+
+    it.each([
+        ['区切り文字が複数ある壊れた時刻("8:15～17:30～不正値")', '8:15～17:30～不正値'],
+        ['終了が欠落("8:15～")', '8:15～'],
+        ['開始が欠落("～17:30")', '～17:30'],
+        ['分が範囲外("8:60～17:30")', '8:60～17:30'],
+        ['終了<=開始("17:30～8:15")', '17:30～8:15'],
+    ])('%sはparseShiftRangeでnull、isWorkingCellでも非勤務として安全側に倒す', (_label, timeStr) => {
+        const master = { X: timeStr };
+        const cell = { shift: 'X' };
+        expect(parseShiftRange(cell, master)).toBeNull();
+        expect(isWorkingCell(cell, master)).toBe(false);
+    });
+
+    it('壊れた時刻を挟むとbuildHealthAlertsで6連勤が継続しない(連勤カウンタが切れる)', () => {
+        const master = { A: '9:00～17:00', X: '8:15～17:30～不正値' };
+        const matrix = [[{ shift: 'A' }, { shift: 'A' }, { shift: 'A' }, { shift: 'A' }, { shift: 'A' }, { shift: 'X' }, { shift: 'A' }]];
+        const alerts = buildHealthAlerts(matrix, master);
+        expect(alerts[0][5].consecutiveDays).toBeNull(); // 壊れた時刻のセル自体は非勤務扱い
+        expect(alerts[0][6].consecutiveDays).toBeNull(); // リセット後1日目なので警告なし(6連勤にならない)
+    });
 });
 
 describe('cycle11Utils: buildHealthAlerts 連勤警告 (3.2)', () => {

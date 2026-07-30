@@ -150,16 +150,56 @@ describe('Cycle11: 氏名列の折りたたみのApp結合', () => {
         expect(screen.getByText(/目標計上時間との差分/)).toBeInTheDocument();
     });
 
-    it('折りたたみ切替後もzoomの復元契約(table.style.zoomが不整合な値のまま残らない)を壊さない', () => {
-        seedFixture([blankRow(), blankRow()]);
-        render(<App />);
-        const table = document.querySelector('table');
-        expect(table.style.zoom).toBe('100%');
+    // Take2(Dex P4差戻し): 「切替前後どちらも100%」という最終値だけを見るproxyテストは、
+    // isNameColumnCollapsedを再計測effectの依存から外しても(=再計測が一切走らなくても)
+    // PASSしてしまい、実際の再計測を証明できていなかった。App.cycle7.test.jsxの
+    // withMockedScrollGeometryを踏襲し、scrollWidth(自然幅)をtableの折りたたみclassに
+    // 応じて実際に変化させることで、「折りたたみでDOM幅が変わった後にzoom-fitが
+    // 再計算されること」を直接検証する。
+    it('折りたたみでtable幅が変わった後、zoom-fitが実際に再計算され、再展開で元へ戻る', () => {
+        const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+        const originalScrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
+        try {
+            // コンテナ幅(clientWidth)は常に1000。tableの自然幅(scrollWidth)は、
+            // 折りたたみclassが付いている間だけ1400(氏名列が28pxへ縮んだ分だけ狭い)、
+            // 展開中は2000を返す。isWorkingCellの実装ではなく、実際にDOMのclassを
+            // 都度読んで値を変えるため、再計測effectが本当に呼ばれない限り
+            // 表示ズーム率は変化しない。
+            Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+                configurable: true,
+                get() { return 1000; },
+            });
+            Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
+                configurable: true,
+                get() {
+                    if (this.tagName === 'TABLE') {
+                        return this.classList.contains('name-col-collapsed') ? 1400 : 2000;
+                    }
+                    return 0;
+                },
+            });
 
-        fireEvent.click(screen.getByRole('button', { name: '氏名列を折りたたむ' }));
-        // 折りたたみ切替でtable幅を再計測するeffectが走っても、最終的にzoomは
-        // 一貫した文字列表現に復元されている(try/finallyの契約を壊していない)。
-        expect(document.querySelector('table').style.zoom).toBe('100%');
+            seedFixture([blankRow(), blankRow()]);
+            render(<App />);
+            // 展開時: 1000/2000*100 = 50%
+            expect(screen.getByText('50%')).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('button', { name: '氏名列を折りたたむ' }));
+            expect(document.querySelector('table').className).toMatch(/name-col-collapsed/);
+            // 折りたたみ後: 1000/1400*100 = 71.4...% -> floor 71%
+            // (isNameColumnCollapsedが依存配列になければこの値の変化は起きない)
+            expect(screen.getByText('71%')).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('button', { name: '氏名列を展開する' }));
+            expect(document.querySelector('table').className).not.toMatch(/name-col-collapsed/);
+            // 再展開後: 元の50%へ戻る
+            expect(screen.getByText('50%')).toBeInTheDocument();
+        } finally {
+            if (originalClientWidth) Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth);
+            else delete HTMLElement.prototype.clientWidth;
+            if (originalScrollWidth) Object.defineProperty(HTMLElement.prototype, 'scrollWidth', originalScrollWidth);
+            else delete HTMLElement.prototype.scrollWidth;
+        }
     });
 
     it('768pxはスマホ、769pxはPCという既存境界を維持する(氏名列ヘッダー文言)', () => {
