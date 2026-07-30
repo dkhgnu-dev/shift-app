@@ -4,27 +4,20 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `main`
+- Working Branch: `cc-cycle10`
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 9完了・`main`統合済み
-- Status: P4 OK、P5完了。通常生成・空欄自動作成の安全停止、生成結果全体、Undo/Redo履歴を含む恒久テストを確認し、`cc-cycle9`を競合なく`main`へ統合
-- Version: v4.33（実装コード無変更のため更新なし）
-- Next: 次サイクルのAir(P1)企画待ち
-- Cycle9 Take4 report HEAD: `22b099c`
-- P3報告(Take1): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_report.md`
-- P3報告(Take2): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take2_report.md`
-- P3報告(Take3): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take3_report.md`
-- P3報告(Take4): `docs/handoff/P3_CC_to_Dex/cycle_9_interactive_editing_and_history_take4_report.md`
-- P4差し戻し(Take3): `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take3.md`
-- P4差し戻し(Take4): `docs/handoff/P4_Rollback/cycle_9_interactive_editing_and_history_take4.md`
-- P4承認(Take4): `docs/handoff/P4_Dex_Review/cycle_9_take4_review.md`
-- P5統合: `docs/handoff/P5_Dex_Integration/cycle_9_main_integration.md`
-- Air Blueprint (Cycle 9): `docs/handoff/P1_Air_Blueprint/cycle_9_interactive_editing_and_history_blueprint.md`
-- Dex Instructions (Cycle 9): `docs/handoff/P2_Dex_to_CC/cycle_9_interactive_and_history_instructions.md`
+- Cycle: 10 Take2 P4レビュー完了
+- Status: Dex(P4)再DIFFレビューOK。差戻し2件と恒久テスト不足は解消し、P1/P2 Findingなし。`main`統合待ち。
+- Version: v4.35（更新済み）
+- Next: Dex(P5)がレビュー済みHEADを`main`へ統合する
+- Working branch: `cc-cycle10`（最新 `main` から生成）
+- Air Instructions (Cycle 10): `docs/handoff/P2_AirCrew_to_CC/cycle_10_mobile_ui_optimization_instructions.md`
+- P4差し戻し(Take2): `docs/handoff/P4_Rollback/cycle_10_take2.md`
+- P4再レビュー: `docs/handoff/P4_Dex_Review/cycle_10_take2_review.md`
 - Cycle 9 merge commit: `d1b3866`
 - Kazumax確認レベル: 確認不要
 
@@ -50,14 +43,31 @@
 - 確定シフトを保持し、実際の空き不足だけを明示通知する。
 - CCクルー利用は推奨。使用結果または不使用理由をP3報告に記録する。
 
-## Verification (Cycle 9 Take4, Dex P4)
+## Verification (Cycle 10 Take2, CC P3)
 
-- frontend test(全体): 135/135 PASS（2回連続、114.33秒 / 112.42秒）
+- frontend test(全体): 140/140 PASS（既存135件+Cycle10新規5件、2回連続、148.77秒 / 179.93秒）
+- time utils: 33/33 PASS
+- frontend build: PASS
+- `git diff --check`: PASS（CRLF/LF警告のみ）
+- ブラウザ実機確認(375px): ダッシュボード/ルール設定とも`main-content`padding-bottom 4px・下部固定バーなし、従業員管理は`has-mobile-bottom-bar`付与でpadding-bottom 80px・下部固定バーあり、`.hamburger-btn`実測44×44px、console warning/error 0件
+- ブラウザ実機確認(769px): PCヘッダー3操作維持、下部バー/ドロワー/ハンバーガーいずれも非存在
+
+## Verification (Cycle 10 Take2, Dex P4)
+
+- frontend test: 140/140 PASS（211.90秒）
+- time utils: 33/33 PASS
+- frontend build: PASS
+- `git diff --check 311db91..7acccc9`: PASS
+- デクスクルー: React導線回帰とレスポンシブCSSを分担監査。P1/P2 Findingなし
+
+## Verification (Cycle 10 Take1, Dex P4)
+
+- frontend test(全体): 135/135 PASS（2回連続、138.22秒 / 132.14秒）
 - time utils: 33/33 PASS
 - frontend build: PASS（バンドルハッシュ前回と同一、実装コード無変更のため想定通り）
 - `git diff --check`: PASS（CRLF/LF警告のみ）
-- デクスクルー: 不使用（テスト1か所だけの限定差分で実装コード変更なし）
-- ブラウザ実機確認: テストのみの変更のため不要
+- デクスクルー: 2名使用。React導線は問題なし、レスポンシブUIにP2を2件確認
+- ブラウザ実機確認: 320/375/768/769/1280pxを確認。ルール設定の下余白80pxとハンバーガー32×32pxを実測
 
 ### 参考: Take2差し戻し時点(Dex P4)のNG実測
 
@@ -73,7 +83,7 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P5_Dex_Integration/cycle_9_main_integration.md`
+- `docs/handoff/P4_Rollback/cycle_10_take2.md`
 
 ## Stop Conditions
 
