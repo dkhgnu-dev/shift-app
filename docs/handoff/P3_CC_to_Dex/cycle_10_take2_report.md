@@ -67,5 +67,5 @@
 ## Git
 - ブランチ: `cc-cycle10`
 - 前回HEAD（Take1）: `78d28d7`
-- 本Take2の実装コミット: 本報告書と同時にcommit予定、push後にHEADを追記する。
+- 本Take2の実装コミット: `a953c2d`（`origin/cc-cycle10`へpush済み）
 - `main`へのmergeは実施しない（指示通り）。
