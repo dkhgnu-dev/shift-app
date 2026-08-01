@@ -10,16 +10,17 @@
 
 ## Current State
 
-- Cycle: 12 Take2(main統合) 実装中 -> CC P3検証・Dex P4再レビュー待ち
-- Status: Dex P4差戻し(P1: 全画面表示とスタンプUIの機能衝突、P2: Phase2フォールバック・requestTokenの実挙動テスト不足)に対応。P2の2件は`cc-cycle12-stamp-and-protect`上で先に修正済み(commit `6073dda`)。P1は、Kazumaxの承認を得て新設した統合専用branch `cc-cycle12-main-integration`(origin/mainから作成)上で、mainの全画面表示(v4.44)とCycle12のスタンプモードを統合中。文字競合はversion表示2箇所とCURRENT_STATUS.mdのみで、いずれも解消済み。
+- Cycle: 12 Take2(main統合) 完了 -> Dex P4再レビュー待ち
+- Status: Dex P4差戻し3点(P1: 全画面表示とスタンプUIの機能衝突、P2: Phase2フォールバック・requestTokenの実挙動テスト不足)すべてに対応済み。統合専用branch `cc-cycle12-main-integration`(origin/mainから新設)上で、mainの全画面表示とCycle12のスタンプモードの共存UIを実装し、全テスト・実機確認済み。詳細は`docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_take2_report.md`を参照。
 - Version: v4.46（更新済み。統合元の2つのbranchより新しい値へ採番した。詳細は下記「採番の経緯」参照）
 - 採番の経緯: main起点は当時v4.44、mergeしたcc-cycle12-stamp-and-protect側はv4.45だったため、両方より新しい値としてv4.46を採用した。
-- Next: 全画面表示中でもスタンプ開始・筆選択・連続スタンプ・終了が操作できるようUIを実装済み。320/375/768pxで全画面ON/OFF×スタンプ操作を実機確認済み。Dex(P4)へ再レビューを依頼する。
-- **重要**: `main`・`cc-cycle12-stamp-and-protect`のどちらにも、Kazumaxの明示承認まではmerge・pushしない。統合専用branch`cc-cycle12-main-integration`はpush対象だが、これも`main`への統合そのものではない。
+- Next: Dex(P4)が`docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_take2_report.md`を確認し、再DIFFレビューを行う。
+- **重要**: `main`・`cc-cycle12-stamp-and-protect`のどちらにも、Kazumaxの明示承認まではmerge・pushしていない。統合専用branch`cc-cycle12-main-integration`はpush済みだが、これは`main`への統合そのものではない。
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
 - Air Blueprint (Cycle 12): `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
 - Dex P2 Instructions (Cycle 12): `docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md`
 - Dex P4 Review (Take1): `docs/handoff/P4_Dex_Review/cycle_12_protection_and_stamp_review.md`
+- P3 Take2報告: `docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_take2_report.md`
 
 ## P2 Confirmed Rules (Cycle 11 継承)
 
