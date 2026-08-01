@@ -10,13 +10,14 @@
 
 ## Current State
 
-- Cycle: 12 進行中 (Air P1 統合設計書完了 -> Dex P2 事前技術監査＆自動生成上書き不具合の保護審査待ち)
-- Status: Air(P1/P2草案)が「① 手動配置したシフトが自動生成で上書きされる不具合の緊急是正（固定シフト保護）」と「② ワンクリック・連打で連続塗装できる一括スタンプ登録モード機能」の統合設計書 `cycle_12_shift_protection_and_stamp_mode.md` を策定。危険領域であるシフト自動生成ロジック変更および v4.38 の未評価差分 (`4755975`/`550d0ba`) を含むため、Dex(P2)への技術監査および最善の実装方針判定に託す。
+- Cycle: 12 進行中 (Dex P2事前監査完了 -> CC P3実装待ち)
+- Status: DexがAir設計と現行コードを監査し、手動セル保護、スタンプ操作、v4.38未評価差分の是正を統合した最終指示書を作成。通常生成は手動/由来不明セルのみ保護し、不正固定はfail-closed。v4.38のday max持ち越し・祝日欠落・特殊シフト混入も必須是正とする。
 - Version: v4.38（進行中。設計提案のみのため変更なし。CC実装完了時に次バージョンへ更新指定）
-- Next: Dex(P2)が自動生成の上書き防止とパレット連続塗り機能、および v4.38 の既存差分を総合監査し、CC(P3)向けに安全・全テスト合格となる最強の最終指示書（P2_Dex_to_CC）を確定させる
+- Next: CC(P3)が `docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md` に従い、CCクルー必須で実装・検証し、P3報告をDexへ渡す
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
 - Working branch: `cc-cycle12-stamp-and-protect`（最新 `main` より作成）
 - Air Blueprint (Cycle 12): `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
+- Dex P2 Instructions (Cycle 12): `docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md`
 
 ## P2 Confirmed Rules (Cycle 11 継承)
 
@@ -24,7 +25,7 @@
 - 氏名固定列は通常時の現行幅（スマホ82px、PC140px）を維持し、Cycle 11の折りたたみ時だけ28pxとする。
 - 自由時間の編集、Undo/Redo (20件原子保持)、希望休のランダム・空きシャッフルロジックは一切破壊しないこと。
 
-## アグ担当機能（v4.12最新統合）
+## v4.38未評価差分（Cycle 12で是正・回帰テスト必須）
 - **土日祝の全員50%以上出勤ルール（v4.12新機能）**
   - 土曜日・日曜日・日本の祝日（振替休日含む）において、全従業員数の50%以上（切り上げ）が必ず出勤する下限制約を自動適用
 - **時間帯区分（早番・中番・遅番）の出勤人数自動均等配分ロジック（v4.11新機能）**
@@ -44,8 +45,7 @@
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
 - `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
-- `docs/handoff/P2_Dex_to_CC/cycle_11_health_and_collapsible_instructions.md`
-- `docs/handoff/P4_Dex_Review/cycle_11_health_and_collapsible_review.md`
+- `docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md`
 
 ## Stop Conditions
 
