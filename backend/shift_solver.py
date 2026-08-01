@@ -43,6 +43,58 @@ def classify_shift_category(start_time_str: str, end_time_str: str) -> str:
         return 'EARLY'                       # それ以外（午前メイン） -> 早番
 
 
+def is_japanese_holiday(dt: datetime.date) -> bool:
+    """日本の国民の祝日および振替休日を判定"""
+    year = dt.year
+    month = dt.month
+    day = dt.day
+
+    # 固定祝日
+    fixed = {
+        (1, 1),   # 元日
+        (2, 11),  # 建国記念の日
+        (2, 23),  # 天皇誕生日
+        (4, 29),  # 昭和の日
+        (5, 3),   # 憲法記念日
+        (5, 4),   # みどりの日
+        (5, 5),   # こどもの日
+        (8, 11),  # 山の日
+        (11, 3),  # 文化の日
+        (11, 23), # 勤労感謝の日
+    }
+    if (month, day) in fixed:
+        return True
+
+    # ハッピーマンデー (第N月曜日)
+    weekday = dt.weekday()
+    if weekday == 0:  # 月曜日
+        nth_monday = (day - 1) // 7 + 1
+        if month == 1 and nth_monday == 2:   # 成人の日
+            return True
+        if month == 7 and nth_monday == 3:   # 海の日
+            return True
+        if month == 9 and nth_monday == 3:   # 敬老の日
+            return True
+        if month == 10 and nth_monday == 2:  # スポーツの日
+            return True
+
+    # 春分の日・秋分の日 (2000-2099概算)
+    if month == 3:
+        if day == int(20.8431 + 0.242194 * (year - 1980) - int((year - 1980) / 4)):
+            return True
+    if month == 9:
+        if day == int(23.2488 + 0.242194 * (year - 1980) - int((year - 1980) / 4)):
+            return True
+
+    # 振替休日: 前日が日曜日で祝日
+    if weekday == 0 and day > 1:
+        prev = dt - datetime.timedelta(days=1)
+        if is_japanese_holiday(prev):
+            return True
+
+    return False
+
+
 def get_period_start(year: int, month: int) -> datetime.date:
     """前月16日〜当月15日締めの開始日を返す"""
     prev_month = month - 1
@@ -392,6 +444,14 @@ def _solve_once(input_data: ShiftInput, diagnostic_mode: bool):
                 if user_min > 0:
                     # 上限 (max_allowed) を超えないようにクランプ
                     day_min = max(day_min, min(user_min, max_allowed))
+
+        # 【土日祝ルール】土曜・日曜・祝日は全従業員の半分(50%)以上が必ず出勤
+        half_staff_min = math.ceil(len(employees) * 0.5)
+        if weekday in [5, 6] or is_japanese_holiday(current_date):
+            day_min = max(day_min, half_staff_min)
+            # max_allowed が day_min より小さい場合は引き上げ
+            if max_allowed < day_min:
+                max_allowed = day_min
 
         # 出勤人数上限・下限は通常モードでは「ハード制約」として直接固定（スラックなし）
         # → フェーズ1で均等配分に固定されることなく、フェーズ2の順位配分が機能する
