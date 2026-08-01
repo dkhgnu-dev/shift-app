@@ -98,4 +98,5 @@ localhost devサーバーで2名fixtureを投入し確認。
 - 統合branch: `cc-cycle12-main-integration`
 - 起点: `origin/main` @ `58f385fda065c915955836cbcc04efa5c1086215`(v4.44)
 - merge元: `cc-cycle12-stamp-and-protect` @ `6073dda`(P2対応済み)
-- 統合コミット: `0acb0c4`(`origin/cc-cycle12-main-integration`へpush済み)
+- 統合コミット: `0acb0c4`
+- 最終HEAD: `5049e81`(`origin/cc-cycle12-main-integration`へpush済み)
