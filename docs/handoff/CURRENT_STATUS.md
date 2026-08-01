@@ -10,10 +10,11 @@
 
 ## Current State
 
-- Cycle: 11 完了 ＋ v4.38リリース完了（時間帯区分均等配分 ＋ 土日祝50%以上出勤ルール）
-- Status: v4.38リリース完了。main ブランチへ push 済み。
+- Cycle: 11 完了 ＋ v4.38追加変更（時間帯区分均等配分 ＋ 土日祝50%以上出勤ルール）
+- Status: v4.38は`main`へpush済み。ただし、危険領域の `backend/shift_solver.py` を変更しており、Dexの正式レビュー記録がないため、正式完了ではなくレビュー待ち。
 - Version: v4.38（更新済み）
-- Next: Render自動デプロイ後に動作確認。
+- Next: Dexが `4755975` / `550d0ba` の自動生成ロジック差分をレビューし、OK後に完了判定する。
+- Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
 
 ## P2 Confirmed Rules (Cycle 10 継承)
 
@@ -35,6 +36,7 @@
 ## Read First
 
 - `AGENTS.md`
+- `docs/AGU_START_HERE.md`
 - `docs/handoff/CURRENT_STATUS.md`
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`

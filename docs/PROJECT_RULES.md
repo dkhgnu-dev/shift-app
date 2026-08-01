@@ -20,6 +20,25 @@
 - 大きな依存ライブラリ追加
 - ログイン、個人情報、スタッフ名簿
 
+## アグの必読入口
+
+- アグは毎回 `docs/AGU_START_HERE.md` を読む。
+- 読了報告に現在のbranch、HEAD、画面version、version更新予定を書くまで実装を始めない。
+- 指示と実際のリポジトリ状態が食い違う場合は、推測で進めず停止する。
+
+## バージョン管理（強制）
+
+- 画面versionの管理場所は `frontend/src/App.jsx` のスマホ表示とPC表示の2か所。
+- 製品コード（ユーザーが使う機能・画面・自動生成ロジック）を変更した場合は、必ずversionを1つ進める。
+- 新versionは記憶で決めず、作業開始時に `git pull --ff-only` 後の `App.jsx` から現在値を取得して決める。
+- 画面2か所と `docs/handoff/CURRENT_STATUS.md` のversionは完全一致させる。
+- コード変更なしの文書・テストのみはversionを上げない。報告書に「version変更なし。理由: ...」と書く。
+- `frontend/package.json` の `version: 0.0.0` は画面versionの管理場所ではない。
+- commit前に `node scripts/check_version_gate.mjs` を実行し、失敗したままcommit/pushしない。
+- コミットメッセージまたは完了報告に実際のversionを記載する。
+- 未実装のversionを予告だけして完了扱いしない。
+- バージョンゲートに通らない変更は「実装完了」ではない。
+
 ## 途中棚卸の優先
 
 このプロジェクトは途中から苦戦しているため、まず棚卸を優先します。

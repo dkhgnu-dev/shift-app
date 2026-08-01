@@ -1,0 +1,21 @@
+name: version-gate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check visible version and CURRENT_STATUS
+        env:
+          PUSH_BASE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/check_version_gate.mjs "${PR_BASE:-$PUSH_BASE}"

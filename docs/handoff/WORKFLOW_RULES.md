@@ -13,6 +13,19 @@
 5. 結果を `docs/handoff/` に保存する。
 6. 検証内容を書いてcommit/pushする。
 
+### アグへの呼称統一
+
+この文書の「アイ」は、現在の友達側AIエージェント「アグ（Antigravity）」を指す。
+アグは作業前に `docs/AGU_START_HERE.md` を必ず読む。
+
+### 「読んだつもり」防止ゲート
+
+- 読了報告にbranch、HEAD、現在version、version更新予定がなければ着手不可。
+- 製品コード変更時は、完了報告に変更前versionと変更後versionがなければ完了扱いしない。
+- `node scripts/check_version_gate.mjs` が失敗したらpushしない。
+- GitHub Actionsの `version-gate` が失敗したpushは完成版として扱わない。
+- アグが「次はvX.Yでpushする」と言っただけで、実ファイルが更新されていない場合は未完了とする。
+
 ## Dexレビューが必要なとき
 
 以下の場合は、Kazumax側Dexにレビューを依頼してください。
