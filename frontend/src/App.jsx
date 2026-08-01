@@ -1544,7 +1544,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.41</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.42</span></div>
                 </div>
             )}
 
@@ -1555,7 +1555,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.41</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.42</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -2386,6 +2386,24 @@ export default function App() {
             {selectedEmployeeForDetail !== null && employees[selectedEmployeeForDetail] && (() => {
                 const emp = employees[selectedEmployeeForDetail];
                 const stats = computeEmployeeStats(selectedEmployeeForDetail);
+
+                let offDaysCount = 0;
+                let offDaysText = "";
+                if (generatedResult && generatedResult.matrix && generatedResult.matrix[selectedEmployeeForDetail]) {
+                    const empMatrix = generatedResult.matrix[selectedEmployeeForDetail];
+                    const offDays = [];
+                    empMatrix.forEach((shift, dayIndex) => {
+                        if (!shift || shift === '休' || shift.toString().trim() === '') {
+                            const d = periodDates[dayIndex];
+                            if (d) {
+                                offDays.push(`${d.getDate()}日(${dayNames[d.getDay()]})`);
+                            }
+                        }
+                    });
+                    offDaysCount = offDays.length;
+                    offDaysText = offDays.join(", ");
+                }
+
                 return (
                     <div
                         className="modal-overlay"
@@ -2420,6 +2438,11 @@ export default function App() {
                             <div style={{marginBottom: '8px'}}>
                                 🕒 出勤日数: <strong>{stats.days}日</strong> / 累積勤務時間: <strong>{stats.hours.toFixed(1)}時間</strong>
                             </div>
+                            {generatedResult && generatedResult.matrix && (
+                                <div style={{marginBottom: '12px', fontSize: '0.95rem', lineHeight: '1.4', color: '#374151'}}>
+                                    🏖️ 休みの日: {offDaysCount > 0 ? offDaysText : 'なし'} <strong>(計{offDaysCount}日)</strong>
+                                </div>
+                            )}
                             {renderOvertimeDiffTag(selectedEmployeeForDetail, 'large')}
                             {emp.requests && (
                                 <div style={{color: '#DC2626', fontSize: '0.9rem'}}>📅 希望休: {emp.requests}</div>
