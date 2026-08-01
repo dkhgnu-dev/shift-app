@@ -4,19 +4,21 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `main`
+- Working Branch: `cc-cycle12-stamp-and-protect`
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 11 完了 ＋ v4.38追加変更（時間帯区分均等配分 ＋ 土日祝50%以上出勤ルール）
-- Status: v4.38は`main`へpush済み。ただし、危険領域の `backend/shift_solver.py` を変更しており、Dexの正式レビュー記録がないため、正式完了ではなくレビュー待ち。
-- Version: v4.38（更新済み）
-- Next: Dexが `4755975` / `550d0ba` の自動生成ロジック差分をレビューし、OK後に完了判定する。
+- Cycle: 12 進行中 (Air P1 統合設計書完了 -> Dex P2 事前技術監査＆自動生成上書き不具合の保護審査待ち)
+- Status: Air(P1/P2草案)が「① 手動配置したシフトが自動生成で上書きされる不具合の緊急是正（固定シフト保護）」と「② ワンクリック・連打で連続塗装できる一括スタンプ登録モード機能」の統合設計書 `cycle_12_shift_protection_and_stamp_mode.md` を策定。危険領域であるシフト自動生成ロジック変更および v4.38 の未評価差分 (`4755975`/`550d0ba`) を含むため、Dex(P2)への技術監査および最善の実装方針判定に託す。
+- Version: v4.38（進行中。設計提案のみのため変更なし。CC実装完了時に次バージョンへ更新指定）
+- Next: Dex(P2)が自動生成の上書き防止とパレット連続塗り機能、および v4.38 の既存差分を総合監査し、CC(P3)向けに安全・全テスト合格となる最強の最終指示書（P2_Dex_to_CC）を確定させる
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
+- Working branch: `cc-cycle12-stamp-and-protect`（最新 `main` より作成）
+- Air Blueprint (Cycle 12): `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
 
-## P2 Confirmed Rules (Cycle 10 継承)
+## P2 Confirmed Rules (Cycle 11 継承)
 
 - 画面下部アクションバーの廃止およびハンバーガーメニューへの移管はスマホ表示時のみ適用する。
 - 氏名固定列は通常時の現行幅（スマホ82px、PC140px）を維持し、Cycle 11の折りたたみ時だけ28pxとする。
@@ -41,10 +43,9 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P1_Air_Blueprint/cycle_11_health_alerts_and_collapsible_names.md`
+- `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
 - `docs/handoff/P2_Dex_to_CC/cycle_11_health_and_collapsible_instructions.md`
 - `docs/handoff/P4_Dex_Review/cycle_11_health_and_collapsible_review.md`
-- `docs/handoff/P4_Rollback/cycle_11_health_and_collapsible_take2.md`
 
 ## Stop Conditions
 
