@@ -6,7 +6,7 @@
 
 - レビュー対象: `cc-cycle12-main-integration` / `f0b5b2622c146313d18982067d8b4a632626c746`
 - 確認時main: `58f385fda065c915955836cbcc04efa5c1086215` / v4.44
-- mainへのmerge: 未実施。P4 OK後もKazumaxの明示承認まで禁止。
+- mainへのmerge: 未実施。CCはmergeせず、P4 OK後にDex(P5)が最新mainを再確認してmerge・pushする。追加のKazumax許可確認は不要。
 
 Take2で、request tokenの実挙動と全画面中のタップ操作は改善した。以下2点を修正・検証して再提出すること。
 
@@ -67,7 +67,7 @@ Take2で、request tokenの実挙動と全画面中のタップ操作は改善�
 
 ## 触らない範囲
 
-- mainへmerge/pushしない。
+- CCはmainへmerge/pushしない。P4 OK後のmerge/pushはDex(P5)が担当する。
 - 自動生成制約、保存形式、API、休日一覧の計算内容を変更しない。
 - request tokenテストはTake2で解消済みのため作り直さない。
 - `docs/FRIEND_TEXTBOOK.md`は本Takeの対象外。

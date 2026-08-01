@@ -14,8 +14,8 @@
 - Status: Take2でrequest token実挙動と全画面中のポインター操作は改善。再監査で、Phase1 FEASIBLE専用分岐がテスト未到達であること、全画面中に背面の不可視UIへTabフォーカスが移り得ることを確認した。詳細は`docs/handoff/P4_Rollback/cycle_12_protection_and_stamp_take3.md`を参照。
 - Version: v4.46（更新済み。統合元の2つのbranchより新しい値へ採番した。詳細は下記「採番の経緯」参照）
 - 採番の経緯: main起点は当時v4.44、mergeしたcc-cycle12-stamp-and-protect側はv4.45だったため、両方より新しい値としてv4.46を採用した。
-- Next: CC(P3)がTake3の2点を修正・検証し、統合branchへpushしてDex(P4)へ再提出する。mainへのmergeは禁止。DexがP4 OKを出した後も、Kazumaxへmerge可否を確認する。
-- **重要**: `main`・`cc-cycle12-stamp-and-protect`のどちらにも、Kazumaxの明示承認まではmerge・pushしていない。統合専用branch`cc-cycle12-main-integration`はpush済みだが、これは`main`への統合そのものではない。
+- Next: CC(P3)がTake3の2点を修正・検証し、統合branchへpushしてDex(P4)へ再提出する。CCはmainへmergeしない。DexがP4 OKを出したら、追加の許可確認なしでDex(P5)が最新mainを再確認してmerge・pushする。
+- **重要**: 友達側の作業終了をKazumaxが確認済み。CCは統合branchへのpushまでとし、mainへのmergeはP4 OK後にDex(P5)が担当する。
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
 - Air Blueprint (Cycle 12): `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
 - Dex P2 Instructions (Cycle 12): `docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md`
