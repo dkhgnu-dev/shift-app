@@ -10,9 +10,9 @@
 
 ## Current State
 
-- Cycle: 11 完了 ＋ v4.12新機能（土日祝50%以上出勤ルール）統合完了
-- Status: v4.12リリース完了。main ブランチへ push 済み。
-- Version: v4.38 (v4.12新機能統合)
+- Cycle: 11 完了 ＋ v4.38リリース完了（時間帯区分均等配分 ＋ 土日祝50%以上出勤ルール）
+- Status: v4.38リリース完了。main ブランチへ push 済み。
+- Version: v4.38（更新済み）
 - Next: Render自動デプロイ後に動作確認。
 
 ## P2 Confirmed Rules (Cycle 10 継承)
