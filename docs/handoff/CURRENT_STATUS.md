@@ -10,8 +10,8 @@
 
 ## Current State
 
-- Cycle: 11 完了 ＋ v4.12新機能（土日祝50%以上出勤ルール）統合
-- Status: v4.12リリース準備完了。main ブランチへ push 承認確認待ち。
+- Cycle: 11 完了 ＋ v4.12新機能（土日祝50%以上出勤ルール）統合完了
+- Status: v4.12リリース完了。main ブランチへ push 済み。
 - Version: v4.38 (v4.12新機能統合)
 - Next: Render自動デプロイ後に動作確認。
 
