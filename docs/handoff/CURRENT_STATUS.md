@@ -4,25 +4,30 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `main`
+- Working Branch: `cc-cycle12-main-integration`（`origin/main`(v4.44)起点、`cc-cycle12-stamp-and-protect`をmerge）
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 11 完了 ＋ v4.44（全画面表示のレイアウト調整・閉じるボタン被り解消）
-- Status: v4.44リリース完了。main ブランチへ push 済み。
-- Version: v4.44（更新済み）
-- Next: Render自動デプロイ後に動作確認。
+- Cycle: 12 Take2(main統合) 実装中 -> CC P3検証・Dex P4再レビュー待ち
+- Status: Dex P4差戻し(P1: 全画面表示とスタンプUIの機能衝突、P2: Phase2フォールバック・requestTokenの実挙動テスト不足)に対応。P2の2件は`cc-cycle12-stamp-and-protect`上で先に修正済み(commit `6073dda`)。P1は、Kazumaxの承認を得て新設した統合専用branch `cc-cycle12-main-integration`(origin/mainから作成)上で、mainの全画面表示(v4.44)とCycle12のスタンプモードを統合中。文字競合はversion表示2箇所とCURRENT_STATUS.mdのみで、いずれも解消済み。
+- Version: v4.46（更新済み。統合元の2つのbranchより新しい値へ採番した。詳細は下記「採番の経緯」参照）
+- 採番の経緯: main起点は当時v4.44、mergeしたcc-cycle12-stamp-and-protect側はv4.45だったため、両方より新しい値としてv4.46を採用した。
+- Next: 全画面表示中でもスタンプ開始・筆選択・連続スタンプ・終了が操作できるようUIを実装済み。320/375/768pxで全画面ON/OFF×スタンプ操作を実機確認済み。Dex(P4)へ再レビューを依頼する。
+- **重要**: `main`・`cc-cycle12-stamp-and-protect`のどちらにも、Kazumaxの明示承認まではmerge・pushしない。統合専用branch`cc-cycle12-main-integration`はpush対象だが、これも`main`への統合そのものではない。
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
+- Air Blueprint (Cycle 12): `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
+- Dex P2 Instructions (Cycle 12): `docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md`
+- Dex P4 Review (Take1): `docs/handoff/P4_Dex_Review/cycle_12_protection_and_stamp_review.md`
 
-## P2 Confirmed Rules (Cycle 10 継承)
+## P2 Confirmed Rules (Cycle 11 継承)
 
 - 画面下部アクションバーの廃止およびハンバーガーメニューへの移管はスマホ表示時のみ適用する。
 - 氏名固定列は通常時の現行幅（スマホ82px、PC140px）を維持し、Cycle 11の折りたたみ時だけ28pxとする。
 - 自由時間の編集、Undo/Redo (20件原子保持)、希望休のランダム・空きシャッフルロジックは一切破壊しないこと。
 
-## アグ担当機能（v4.12最新統合）
+## v4.38未評価差分（Cycle 12で是正・回帰テスト必須）
 - **土日祝の全員50%以上出勤ルール（v4.12新機能）**
   - 土曜日・日曜日・日本の祝日（振替休日含む）において、全従業員数の50%以上（切り上げ）が必ず出勤する下限制約を自動適用
 - **時間帯区分（早番・中番・遅番）の出勤人数自動均等配分ロジック（v4.11新機能）**
@@ -41,10 +46,8 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P1_Air_Blueprint/cycle_11_health_alerts_and_collapsible_names.md`
-- `docs/handoff/P2_Dex_to_CC/cycle_11_health_and_collapsible_instructions.md`
-- `docs/handoff/P4_Dex_Review/cycle_11_health_and_collapsible_review.md`
-- `docs/handoff/P4_Rollback/cycle_11_health_and_collapsible_take2.md`
+- `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
+- `docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md`
 
 ## Stop Conditions
 

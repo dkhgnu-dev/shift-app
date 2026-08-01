@@ -20,6 +20,12 @@ def generate_shift(input_data: ShiftInput):
         if result["status"] == "FAILED":
             raise HTTPException(status_code=400, detail="Constraints could not be satisfied. Please check for conflicting rules.")
         return result
+    except HTTPException:
+        raise
+    except ValueError as e:
+        # Cycle12 3章: 不正な入力(固定割当の不整合等)はfail-closedとし、
+        # 明確な4xxで停止する(黙って一部無視して200を返さない)。
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
