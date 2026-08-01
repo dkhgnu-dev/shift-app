@@ -10,10 +10,11 @@
 
 ## Current State
 
-- Cycle: 12 進行中 (Dex P2事前監査完了 -> CC P3実装待ち)
-- Status: DexがAir設計と現行コードを監査し、手動セル保護、スタンプ操作、v4.38未評価差分の是正を統合した最終指示書を作成。通常生成は手動/由来不明セルのみ保護し、不正固定はfail-closed。v4.38のday max持ち越し・祝日欠落・特殊シフト混入も必須是正とする。
-- Version: v4.38（進行中。設計提案のみのため変更なし。CC実装完了時に次バージョンへ更新指定）
-- Next: CC(P3)が `docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md` に従い、CCクルー必須で実装・検証し、P3報告をDexへ渡す
+- Cycle: 12 CC P3 実装・検証完了 -> Dex P4レビュー待ち
+- Status: 手動/由来不明セル(isFixed!==false)の通常生成保護、fail-closedな固定割当検証、スタンプ(一括塗り)モード、v4.38未評価差分3件(day_max持ち越し・祝日判定・特殊シフト混入)を是正。詳細は `docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_report.md` を参照。`main`未統合。
+- **重要**: 実装中にmainがv4.38→v4.40へ進んでいたことを検知しKazumaxへ確認のうえ`v4.41`を採番したが、その後もアグがmainへ直接push(全画面表示モード等)を継続し、確認時点でmainは`v4.44`まで進行(v4.41は既にmain側で使用済みで衝突)。CCクルー3の指摘により検知し、同方針([main最新+1]で採番・継続)で`v4.45`へ再採番した。mainが非常に活発に更新され続けているため、merge時のApp.jsx/index.cssの衝突リスクが高い。Dex(P4)はmerge方針の判断時にこの点を要確認。
+- Version: v4.45（更新済み。採番の経緯は上記参照）
+- Next: Dex(P4)が `docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_report.md` を確認し、DIFFレビューを行う。特にmainとの分岐(v4.40の全画面表示ボタン機能)を踏まえたmerge方針の判断が必要。
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
 - Working branch: `cc-cycle12-stamp-and-protect`（最新 `main` より作成）
 - Air Blueprint (Cycle 12): `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`

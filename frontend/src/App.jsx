@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2, Menu, GripVertical, ArrowUp, ArrowDown, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Users, Settings, Plus, X, Edit, Trash2, AlertCircle, Wand2, Menu, GripVertical, ArrowUp, ArrowDown, RotateCcw, ChevronLeft, ChevronRight, Paintbrush } from 'lucide-react';
 import { computeHourChange, computeMinuteChange, formatTime, isValidSpecialHours, parseFourDigitTime, parseStrictNumber } from './timeUtils';
 import {
     classifyPointerUp,
@@ -14,6 +14,14 @@ import {
     redoStep,
 } from './cycle9Utils';
 import { buildHealthAlerts, formatRestMinutesAsLabel, extractSurname } from './cycle11Utils';
+import {
+    buildProtectedFixedAssignments,
+    reconcileGeneratedMatrix,
+    buildStampCandidates,
+    isStampAllowedForEmployee,
+    isStampNoOp,
+    buildStampedCell,
+} from './cycle12Utils';
 
 const SHIFT_MASTER = {
     '①': '8:15～12:15', '②': '8:15～14:15', '③': '8:15～16:15',
@@ -276,6 +284,10 @@ export default function App() {
     // Cycle9: スマホ2点タップ交換・PCキーボード2点交換の「交換元」待ち状態。
     const [swapPending, setSwapPending] = useState(null); // { i, d } | null
 
+    // Cycle12 5.1: スタンプ(一括塗り)モード。ONの間はactiveStampが必ず明示される。
+    const [stampModeEnabled, setStampModeEnabled] = useState(false);
+    const [activeStamp, setActiveStamp] = useState(null); // { shiftId, label } | null
+
     // Cycle9: pointerdown〜pointerupで短タップ/スワイプを判定するための追跡状態(refのみ、stateにしない)。
     const pointerTrackRef = useRef(null);
     const activePointersRef = useRef(new Set());
@@ -302,7 +314,11 @@ export default function App() {
 
     // 進行中のセル編集・交換待ち・drag状態をすべて閉じる(月変更・タブ変更・生成開始・
     // 従業員構成変更・リセット・Undo/Redoで共通して呼ぶ)。
-    const closeInteractiveState = () => {
+    // Cycle12 5.3: Undo/Redo後は連続入力性を優先してスタンプモードを維持してよいため、
+    // 呼び出し側がkeepStampMode=trueを渡した場合だけスタンプ状態を残す。それ以外の
+    // 呼び出し(月変更・タブ変更・自動生成開始・従業員構成変更・デフォルトリセット)は
+    // 既定どおりスタンプモードを終了する。
+    const closeInteractiveState = (keepStampMode = false) => {
         setCellEditor(null);
         setSwapPending(null);
         dragItem.current = null;
@@ -310,6 +326,10 @@ export default function App() {
         dragKindRef.current = null;
         cellDragSourceRef.current = null;
         pointerTrackRef.current = null;
+        if (!keepStampMode) {
+            setStampModeEnabled(false);
+            setActiveStamp(null);
+        }
     };
 
     const currentHistorySnapshot = () => ({
@@ -323,7 +343,8 @@ export default function App() {
         setGeneratedResult(snap.generatedResult);
         setEmployees(snap.employees);
         setShiftMaster(snap.shiftMaster);
-        closeInteractiveState();
+        // Cycle12 5.3: Undo/Redoではスタンプモード・active stampを維持する。
+        closeInteractiveState(true);
     };
 
     const handleUndo = () => {
@@ -752,6 +773,9 @@ export default function App() {
         return allRequestsOff;
     };
 
+    // Cycle12 2.4: 連打等で複数要求が返っても最新の要求だけを反映するためのトークン。
+    const generateRequestTokenRef = useRef(0);
+
     const generateShift = async (allowWarningDraft = false) => {
         // Take3 P1-1: 通常シフトが1件も無い場合、allowed_shiftsを明示しようがなく、
         // solverが必ず「全シフト可」へフォールバックしてしまう。fetch自体を送らず、
@@ -760,12 +784,25 @@ export default function App() {
             alert('通常のシフトパターンが1件もありません。ルール設定でシフトパターンを追加してから実行してください。');
             return;
         }
+        const requestToken = ++generateRequestTokenRef.current;
         setIsGenerating(true);
-        closeInteractiveState(); // Cycle9: 生成中はセル編集・交換・drag状態を発生させない
+        closeInteractiveState(); // Cycle9: 生成中はセル編集・交換・drag状態を発生させない(Cycle12: スタンプモードも解除)
         // P4 Take4指摘: 応答を受け取る前に表を消してはいけない。INFEASIBLE・HTTPエラー・
         // 通信例外のいずれでも、既存の表(手編集済みセル含む)とlocalStorageの内容を保持する。
         // 表の置換は、成功した通常生成、または利用者が明示選択した警告付き仮シフトの
         // 応答を受け取った時点(下のSUCCESS/FEASIBLE_WITH_WARNINGS分岐)でのみ行う。
+
+        // Cycle12 2.1/2.2: 通常生成で保護するのは「手動由来または由来不明の入力済みセル」
+        // (cell.isFixed !== false、旧localStorageのisFixed未設定も安全側で保護)だけとする。
+        // isFixed:falseの自動生成セルは保護せず再最適化を許可する。fetch開始時点の
+        // matrixからスナップショット化し、応答処理でも同じ座標・同じ元オブジェクトを使う。
+        const currentMatrix = getCurrentMatrixOrBlank();
+        const employeeIds = employees.map((e, idx) => `emp_${idx}`);
+        const { fixedAssignments, protectedCellsByCoord } = buildProtectedFixedAssignments(currentMatrix, employeeIds);
+        // Take2 P1-2踏襲: 保護セルとして現に参照中の自由時間IDだけをshift_typesへ許可する。
+        const referencedCustomIds = fixedAssignments
+            .map(fa => fa.shift_id)
+            .filter(id => typeof id === 'string' && id.startsWith('__custom__'));
 
         try {
             const periodDatesForSubmit = getPeriodDates(currentYear, currentMonth);
@@ -780,12 +817,12 @@ export default function App() {
                     is_registered_seller: e.isRS,
                     allowed_shifts: resolveAllowedShifts(e.shifts)
                 })),
-                shift_types: buildShiftTypesPayload(),
+                shift_types: buildShiftTypesPayload(referencedCustomIds),
                 requests_off: buildRequestsOff(periodDatesForSubmit),
                 thick_staffing_days: thickDays,
                 weekday_ranks: weekdayRanks,
                 weekday_min_staff: weekdayMinStaff,
-                fixed_assignments: [],
+                fixed_assignments: fixedAssignments,
                 allow_warning_draft: allowWarningDraft
             };
 
@@ -797,19 +834,25 @@ export default function App() {
 
             const data = await res.json();
 
-            if (res.ok && data.status === "INFEASIBLE") {
+            // Cycle12 2.4: 連打等で複数要求が発生し、この応答を受け取るまでの間に
+            // 新しい要求が開始されていた場合、この古い応答は一切反映しない。
+            if (requestToken !== generateRequestTokenRef.current) return;
+
+            if (!res.ok) {
+                alert("シフト生成に失敗しました: \n" + (data.detail || data.message || "制約が厳しすぎるため解が見つかりませんでした。希望休や登録販売者の数を見直してください。"));
+            } else if (data.status === "INFEASIBLE") {
                 // Kazumax確定仕様: 通常出力は停止し、現在の表は更新しない。
                 // 違反箇所を提示し、利用者が明示選択した場合のみ警告付き仮シフトを表示する。
                 // Take2 P2-2: 関数自体をstateへ保存すると、Undo等で状態が変わった後に
                 // 再試行しても古いrenderのemployees/matrix/shiftMasterを使ってしまうため、
                 // 種別(kind)だけを保存し、再試行ボタン押下時に最新renderから呼び出す。
                 setInfeasibleInfo({ violations: data.violations || [], message: data.message, kind: 'generate' });
-            } else if (res.ok && (data.status === "SUCCESS" || data.status === "FEASIBLE_WITH_WARNINGS")) {
+            } else if (data.status === "SUCCESS" || data.status === "FEASIBLE_WITH_WARNINGS") {
                 setInfeasibleInfo(null);
-                const rawMatrix = employees.map((emp, idx) => {
-                    const empShifts = data.shifts[`emp_${idx}`] || [];
-                    return empShifts.map(s => ({ shift: s, isError: false, isFixed: false }));
-                });
+                // Cycle12 2.3: 保護座標はfetch開始時点の元セルオブジェクトで丸ごと再合成する
+                // (shiftだけでなくhours/note/isFixed/isError等の全属性を保持)。
+                const empShiftsList = employees.map((emp, idx) => data.shifts[`emp_${idx}`] || []);
+                const rawMatrix = reconcileGeneratedMatrix(empShiftsList, protectedCellsByCoord);
                 // Take2 P1-1: バックエンドは希望休を常に'休'として返すため、生成開始時点の
                 // 希望休日(employees[].requests、生成前のclosure値)を、成功レスポンスの
                 // 該当セルが'休'であれば'希望休'へ戻してから履歴コミットする。
@@ -829,9 +872,15 @@ export default function App() {
                 alert("シフト生成に失敗しました: \n" + (data.detail || data.message || "制約が厳しすぎるため解が見つかりませんでした。希望休や登録販売者の数を見直してください。"));
             }
         } catch (e) {
-            alert("通信エラーが発生しました: " + e.message);
+            if (requestToken === generateRequestTokenRef.current) {
+                alert("通信エラーが発生しました: " + e.message);
+            }
         } finally {
-            setIsGenerating(false);
+            // Cycle12 2.4: 古い要求のfinallyが、後発の新しい要求のisGenerating中に
+            // 割り込んでフラグを誤って解除しないよう、最新トークンの時だけ解除する。
+            if (requestToken === generateRequestTokenRef.current) {
+                setIsGenerating(false);
+            }
         }
     };
 
@@ -843,8 +892,11 @@ export default function App() {
             alert('通常のシフトパターンが1件もありません。ルール設定でシフトパターンを追加してから実行してください。');
             return;
         }
+        // Cycle12 2.4: generateShift()と同じトークンを使い、generate/fillBlanksをまたいだ
+        // 連打・切り替えでも最新の要求だけが反映されるようにする。
+        const requestToken = ++generateRequestTokenRef.current;
         setIsGenerating(true);
-        closeInteractiveState(); // Cycle9: 生成中はセル編集・交換・drag状態を発生させない
+        closeInteractiveState(); // Cycle9: 生成中はセル編集・交換・drag状態を発生させない(Cycle12: スタンプモードも解除)
 
         try {
             const periodDatesForSubmit = getPeriodDates(currentYear, currentMonth);
@@ -897,6 +949,10 @@ export default function App() {
 
             const data = await res.json();
 
+            // Cycle12 2.4: この応答を受け取るまでの間に新しい要求が開始されていた場合、
+            // この古い応答は一切反映しない。
+            if (requestToken !== generateRequestTokenRef.current) return;
+
             if (res.ok && data.status === "INFEASIBLE") {
                 // 通常出力は停止し、現在の表(保護セルを含む)は一切変更しない。
                 // Take2 P2-2: 関数自体をstateへ保存せず、種別(kind)だけを保存する。
@@ -930,9 +986,13 @@ export default function App() {
                 alert("空欄自動作成に失敗しました: \n" + (data.detail || data.message || "制約が厳しすぎるため解が見つかりませんでした。"));
             }
         } catch (e) {
-            alert("通信エラーが発生しました: " + e.message);
+            if (requestToken === generateRequestTokenRef.current) {
+                alert("通信エラーが発生しました: " + e.message);
+            }
         } finally {
-            setIsGenerating(false);
+            if (requestToken === generateRequestTokenRef.current) {
+                setIsGenerating(false);
+            }
         }
     };
 
@@ -1071,6 +1131,67 @@ export default function App() {
         });
     };
 
+    // Cycle12 5.2: スタンプ(一括塗り)モードでの1セル更新。既存のclassifyPointerUp()による
+    // 短タップ判定を通過した場合だけ呼ばれる(pointermove中は塗らない)。
+    const applyStamp = (i, d) => {
+        if (isGenerating || !stampModeEnabled || !activeStamp) return;
+        const emp = employees[i];
+        if (!emp) return;
+        const shiftId = activeStamp.shiftId;
+
+        // 通常シフトは対象従業員の有効な許可シフトだけ塗れる(resolveAllowedShifts()と
+        // 異なる判定を新たに作らない)。許可外は変更せず理由を表示する。
+        if (!isStampAllowedForEmployee(shiftId, resolveAllowedShifts(emp.shifts))) {
+            alert(`「${emp.name}」さんは「${activeStamp.label}」を勤務可能シフトとして許可されていないため、スタンプできません。`);
+            return;
+        }
+
+        const currentMatrix = getCurrentMatrixOrBlank();
+        const existingCell = currentMatrix[i]?.[d] || null;
+
+        // 同じシフトを同じセルへ重ねた場合はno-op(matrix・履歴・Redo・noteを変更しない)。
+        if (isStampNoOp(existingCell, shiftId)) return;
+
+        const newCell = buildStampedCell(shiftId);
+        commitHistory(`${emp.name} ${dayLabels[d] || ''}に「${activeStamp.label}」をスタンプ`, () => {
+            const newMatrix = currentMatrix.map(row => [...row]);
+            if (!newMatrix[i]) newMatrix[i] = [];
+            newMatrix[i][d] = newCell;
+            setGeneratedResult(prev => ({ ...(prev || {}), matrix: newMatrix }));
+            // Cycle12 5.2: スタンプ後はbuildRequestsFromMatrix()を通し、希望休と
+            // employees[].requestsを即時一致させる(希望休スタンプ・Undo/Redoいずれでも)。
+            setEmployees(prevEmployees => buildRequestsFromMatrix(newMatrix, prevEmployees));
+        });
+    };
+
+    // Cycle12 5.1: モードONへ切り替える際、セルエディター・swap待ち・セルdrag・行drag・
+    // pointer追跡を解除する(closeInteractiveState(true)でスタンプ自体は維持したまま)。
+    // ON時はactive stampが必ず明示されるよう、最初の候補(常に「休」)を自動選択する。
+    const toggleStampMode = () => {
+        if (isGenerating) return;
+        if (stampModeEnabled) {
+            setStampModeEnabled(false);
+            setActiveStamp(null);
+            return;
+        }
+        const candidates = buildStampCandidates(shiftMaster);
+        closeInteractiveState(true);
+        setStampModeEnabled(true);
+        setActiveStamp(candidates[0] || null);
+    };
+
+    // Cycle12 5.3: active stampのshift IDがルール設定で削除されたら、
+    // active stampをnullにしてモードを安全停止する。
+    useEffect(() => {
+        if (!stampModeEnabled || !activeStamp) return;
+        if (activeStamp.shiftId === '休' || activeStamp.shiftId === '希望休') return;
+        if (!(activeStamp.shiftId in shiftMaster)) {
+            setStampModeEnabled(false);
+            setActiveStamp(null);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [shiftMaster, stampModeEnabled, activeStamp]);
+
     // --- Cycle9: Pointer Eventsによる短タップ/スワイプ判定(座標・時刻はrefで追跡し、
     // pointermoveごとにstateやlocalStorageを書き換えない) ---
     const handleCellPointerDown = (e, i, d) => {
@@ -1114,7 +1235,12 @@ export default function App() {
             pointerIdMismatch: false
         });
         if (verdict === 'tap' && state.i === i && state.d === d) {
-            openCellEditor(i, d);
+            // Cycle12 5.3: スタンプON中は短タップでもエディターを開かない。
+            if (stampModeEnabled) {
+                if (activeStamp) applyStamp(i, d);
+            } else {
+                openCellEditor(i, d);
+            }
         }
     };
 
@@ -1129,12 +1255,19 @@ export default function App() {
     // マウス/タッチのクリックはdetail>=1になるため、pointerup側で既に処理済み(二重発火防止)。
     const handleCellButtonClick = (e, i, d) => {
         if (e.detail !== 0) return;
-        openCellEditor(i, d);
+        // Cycle12 5.2: キーボードのEnter/Space(click(detail===0))でも同じスタンプを1回実行する。
+        // 通常モードでは従来どおりエディターを開く。
+        if (stampModeEnabled) {
+            if (activeStamp) applyStamp(i, d);
+        } else {
+            openCellEditor(i, d);
+        }
     };
 
     // --- Cycle9: PC専用のセル交換drag&drop(行の並べ替えdragとは別種別として扱う) ---
     const handleCellDragStart = (e, i, d) => {
-        if (isMobileView || isGenerating) { e.preventDefault(); return; }
+        // Cycle12 5.3: スタンプON中はPCセルdragを開始しない。
+        if (isMobileView || isGenerating || stampModeEnabled) { e.preventDefault(); return; }
         dragKindRef.current = 'cell';
         cellDragSourceRef.current = { i, d };
         e.dataTransfer.effectAllowed = 'move';
@@ -1542,7 +1675,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.38</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.45</span></div>
                 </div>
             )}
 
@@ -1553,7 +1686,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.38</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.45</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -1632,7 +1765,42 @@ export default function App() {
                                 aria-label="やり直す(Redo)"
                                 title={historyFuture.length > 0 ? `やり直す: ${historyFuture[0].label}` : 'やり直す'}
                             >↪ 進む</button>
+                            <button
+                                type="button"
+                                className={`btn ${stampModeEnabled ? '' : 'outline'} stamp-mode-toggle-btn`}
+                                onClick={toggleStampMode}
+                                disabled={isGenerating}
+                                aria-pressed={stampModeEnabled}
+                                aria-label={stampModeEnabled ? 'スタンプモードを終了する' : 'スタンプモードを開始する'}
+                                title={stampModeEnabled ? 'スタンプモードを終了する' : 'スタンプモードを開始する(選んだ筆でセルをワンタップ塗り)'}
+                            >
+                                <Paintbrush size={16}/> {stampModeEnabled ? 'スタンプ中' : 'スタンプ'}
+                            </button>
                         </div>
+
+                        {/* Cycle12 5: スタンプパレット。表の固定列・ズーム・左右フロートボタンとは
+                            独立した領域に置き、折り返しで表の幅を押し広げない。 */}
+                        {stampModeEnabled && (
+                            <div className="stamp-palette glass-card" role="group" aria-label="スタンプの筆を選ぶ">
+                                <div className="stamp-palette-current" aria-live="polite">
+                                    現在の筆: <strong>{activeStamp ? activeStamp.label : '未選択'}</strong>
+                                </div>
+                                <div className="stamp-palette-list">
+                                    {buildStampCandidates(shiftMaster).map(candidate => (
+                                        <button
+                                            key={candidate.shiftId}
+                                            type="button"
+                                            className={`stamp-palette-btn ${activeStamp?.shiftId === candidate.shiftId ? 'selected' : ''}`}
+                                            aria-pressed={activeStamp?.shiftId === candidate.shiftId}
+                                            onClick={() => setActiveStamp(candidate)}
+                                            disabled={isGenerating}
+                                        >
+                                            {candidate.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {swapPending && (
                             <div className="glass-card" style={{padding: '10px 16px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', background: '#EEF2FF'}}>
@@ -1806,7 +1974,7 @@ export default function App() {
                                                                     <td
                                                                         key={d}
                                                                         style={{position: 'relative', width: '50px', outline: isSwapSource ? '2px dashed #7C3AED' : 'none'}}
-                                                                        draggable={!isMobileView && !isGenerating}
+                                                                        draggable={!isMobileView && !isGenerating && !stampModeEnabled}
                                                                         onDragStart={(e) => handleCellDragStart(e, i, d)}
                                                                         onDragOver={handleCellDragOver}
                                                                         onDrop={(e) => handleCellDrop(e, i, d)}

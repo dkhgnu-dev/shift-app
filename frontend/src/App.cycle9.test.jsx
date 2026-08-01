@@ -543,7 +543,13 @@ describe('Take2 P1-1: 希望休は生成後も保持される', () => {
 });
 
 describe('Take2 P1-2: 自由時間は通常の自動生成候補から除外される', () => {
-    it('通常生成(最適化シフトを生成)のpayloadには自由時間IDが一切含まれない', async () => {
+    // Cycle12 2.2(Dex P2): 通常生成(最適化シフトを生成)でも保護セル(isFixed:true)として
+    // 参照中の自由時間IDはfillBlanks()と同じくshift_typesへ許可される(手動配置保護のため)。
+    // Cycle11以前は`fixed_assignments: []`固定で自由時間IDが常に完全除外されていたが、
+    // それは「手動固定を通常生成が無条件に上書きする」という緊急バグそのものだったため、
+    // Cycle12でfillBlanks()と同じ保護方式へ統一した(このテストの旧アサーションは
+    // 意図的に反転する)。
+    it('通常生成(最適化シフトを生成)でも、保護セル(isFixed:true)で参照中の自由時間IDはshift_typesへ含まれる', async () => {
         const row0 = [{ shift: '__custom__10_00_15_00', isFixed: true, isError: false }, ...blankRow().slice(1)];
         seedSmallFixture([row0, blankRow()]);
         // shiftMasterへ自由時間IDを登録した状態を再現する
@@ -559,7 +565,10 @@ describe('Take2 P1-2: 自由時間は通常の自動生成候補から除外さ�
         await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
         const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-        expect(body.shift_types.some(s => s.id.startsWith('__custom__'))).toBe(false);
+        const customIds = body.shift_types.filter(s => s.id.startsWith('__custom__')).map(s => s.id);
+        expect(customIds).toEqual(['__custom__10_00_15_00']);
+        const fixedCustom = body.fixed_assignments.find(fa => fa.employee_id === 'emp_0' && fa.day_index === 0);
+        expect(fixedCustom).toEqual({ employee_id: 'emp_0', day_index: 0, shift_id: '__custom__10_00_15_00' });
     });
 
     it('空欄自動作成では、固定セルで参照中の自由時間IDだけがshift_typesへ含まれる(未使用IDは除外)', async () => {

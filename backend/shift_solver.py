@@ -2,6 +2,7 @@ from ortools.sat.python import cp_model
 from models import ShiftInput
 import datetime
 import math
+import jpholiday
 
 # 時間帯ブロック定義: (block_id, 開始分, 終了分)
 BLOCK_DEFS = [
@@ -43,58 +44,6 @@ def classify_shift_category(start_time_str: str, end_time_str: str) -> str:
         return 'EARLY'                       # それ以外（午前メイン） -> 早番
 
 
-def is_japanese_holiday(dt: datetime.date) -> bool:
-    """日本の国民の祝日および振替休日を判定"""
-    year = dt.year
-    month = dt.month
-    day = dt.day
-
-    # 固定祝日
-    fixed = {
-        (1, 1),   # 元日
-        (2, 11),  # 建国記念の日
-        (2, 23),  # 天皇誕生日
-        (4, 29),  # 昭和の日
-        (5, 3),   # 憲法記念日
-        (5, 4),   # みどりの日
-        (5, 5),   # こどもの日
-        (8, 11),  # 山の日
-        (11, 3),  # 文化の日
-        (11, 23), # 勤労感謝の日
-    }
-    if (month, day) in fixed:
-        return True
-
-    # ハッピーマンデー (第N月曜日)
-    weekday = dt.weekday()
-    if weekday == 0:  # 月曜日
-        nth_monday = (day - 1) // 7 + 1
-        if month == 1 and nth_monday == 2:   # 成人の日
-            return True
-        if month == 7 and nth_monday == 3:   # 海の日
-            return True
-        if month == 9 and nth_monday == 3:   # 敬老の日
-            return True
-        if month == 10 and nth_monday == 2:  # スポーツの日
-            return True
-
-    # 春分の日・秋分の日 (2000-2099概算)
-    if month == 3:
-        if day == int(20.8431 + 0.242194 * (year - 1980) - int((year - 1980) / 4)):
-            return True
-    if month == 9:
-        if day == int(23.2488 + 0.242194 * (year - 1980) - int((year - 1980) / 4)):
-            return True
-
-    # 振替休日: 前日が日曜日で祝日
-    if weekday == 0 and day > 1:
-        prev = dt - datetime.timedelta(days=1)
-        if is_japanese_holiday(prev):
-            return True
-
-    return False
-
-
 def get_period_start(year: int, month: int) -> datetime.date:
     """前月16日〜当月15日締めの開始日を返す"""
     prev_month = month - 1
@@ -127,6 +76,57 @@ def _validate_input(input_data: ShiftInput):
 
     if any(s.id == 'OFF' for s in input_data.shift_types):
         raise ValueError("シフトID「OFF」は予約済みのため、shift_typesに含めることはできません。")
+
+
+def _validate_fixed_assignments(input_data: ShiftInput):
+    """fixed_assignments(保護セル)の整合性を検証する。
+
+    Cycle12 3章: 不正な固定データは一部だけを無視して続行せず、1件でも不整合が
+    あればfail-closedでその場停止する(黙って一部無視した表を返さない)。
+    - 未知employee ID / 期間外day index / 未知・削除済みshift ID / 同一セルの重複
+    - 固定非OFFと強制希望休(is_forced=True)が同一セルで衝突する場合
+      (「後勝ち」「手動優先」で黙って続行しない。通常UIはbuildRequestsFromMatrix()で
+      衝突を解消してから送ること)
+    不正な場合はValueErrorを送出する(呼び出し側main.pyでHTTP 4xxへ変換される)。
+    """
+    start_date = get_period_start(input_data.year, input_data.month)
+    end_date = get_period_end(input_data.year, input_data.month)
+    num_days = (end_date - start_date).days + 1
+
+    employee_ids = {e.id for e in input_data.employees}
+    shift_ids = {s.id for s in input_data.shift_types} | {'OFF'}
+
+    seen_fixed_keys = set()
+    fixed_shift_by_key = {}
+    for fa in input_data.fixed_assignments:
+        if fa.employee_id not in employee_ids:
+            raise ValueError(f"不正な固定割当: 未知の従業員ID「{fa.employee_id}」が指定されています。")
+        if fa.day_index < 0 or fa.day_index >= num_days:
+            raise ValueError(f"不正な固定割当: 「{fa.employee_id}」の期間外の日付指定(day_index={fa.day_index})です。")
+        if fa.shift_id not in shift_ids:
+            raise ValueError(f"不正な固定割当: 「{fa.employee_id}」の未知のシフトID「{fa.shift_id}」が指定されています。")
+        key = (fa.employee_id, fa.day_index)
+        if key in seen_fixed_keys:
+            warn_date = start_date + datetime.timedelta(days=fa.day_index)
+            raise ValueError(f"不正な固定割当: 「{fa.employee_id}」の{warn_date.month}/{warn_date.day}に重複した固定指定があります。")
+        seen_fixed_keys.add(key)
+        fixed_shift_by_key[key] = fa.shift_id
+
+    for req in input_data.requests_off:
+        if not req.is_forced:
+            continue
+        try:
+            req_date = datetime.date.fromisoformat(req.date)
+        except ValueError:
+            continue
+        day_index = (req_date - start_date).days
+        key = (req.employee_id, day_index)
+        if key in fixed_shift_by_key and fixed_shift_by_key[key] != 'OFF':
+            warn_date = start_date + datetime.timedelta(days=day_index)
+            raise ValueError(
+                f"不正な固定割当: 「{req.employee_id}」の{warn_date.month}/{warn_date.day}は"
+                f"希望休(強制)と固定シフト「{fixed_shift_by_key[key]}」が衝突しています。"
+            )
 
 
 def _solve_once(input_data: ShiftInput, diagnostic_mode: bool):
@@ -187,43 +187,13 @@ def _solve_once(input_data: ShiftInput, diagnostic_mode: bool):
         except (IndexError, ValueError):
             pass
 
-    # 「空欄自動作成」用の固定割当（既に手動入力されているセルを求解対象から除外する）
-    # 不正な入力（未知の従業員/シフトID、期間外の日付、同一セルの重複）は黙って捨てず、
-    # warningとして記録する。
-    employee_ids = {e.id for e in employees}
-    validation_warnings = []
-    fixed_map = {}
-    seen_fixed_keys = set()
-    for fa in input_data.fixed_assignments:
-        if fa.employee_id not in employee_ids:
-            validation_warnings.append(f"不正な固定割当: 未知の従業員ID「{fa.employee_id}」を無視しました。")
-            continue
-        if fa.day_index < 0 or fa.day_index >= num_days:
-            validation_warnings.append(f"不正な固定割当: 「{fa.employee_id}」の期間外の日付指定(day_index={fa.day_index})を無視しました。")
-            continue
-        if fa.shift_id not in shift_ids:
-            validation_warnings.append(f"不正な固定割当: 「{fa.employee_id}」の未知のシフトID「{fa.shift_id}」を無視しました。")
-            continue
-        key = (fa.employee_id, fa.day_index)
-        if key in seen_fixed_keys:
-            warn_date = start_date + datetime.timedelta(days=fa.day_index)
-            validation_warnings.append(f"不正な固定割当: 「{fa.employee_id}」の{warn_date.month}/{warn_date.day}に重複した固定指定があったため、後の指定を優先しました。")
-        seen_fixed_keys.add(key)
-        fixed_map[key] = shift_ids.index(fa.shift_id)
-
-    # 手動固定と強制希望休が同一セルで衝突した場合は、手動固定（より新しい・明示的な操作）を
-    # 優先する。ただし黙って処理せず、必ずwarningとして残す。
-    conflict_warnings = []
-    for (emp_id, d) in sorted(requested_off):
-        if (emp_id, d) in fixed_map and shift_ids[fixed_map[(emp_id, d)]] != 'OFF':
-            emp_obj = next((e for e in employees if e.id == emp_id), None)
-            emp_label = emp_obj.name if emp_obj else emp_id
-            warn_date = start_date + datetime.timedelta(days=d)
-            fixed_label = shift_ids[fixed_map[(emp_id, d)]]
-            conflict_warnings.append(
-                f"{emp_label}さん: {warn_date.month}/{warn_date.day}は希望休が登録されていますが、"
-                f"手動固定「{fixed_label}」を優先しました。"
-            )
+    # 手動由来・保護対象の固定割当（既に手動入力されているセルを求解対象から除外する）。
+    # Cycle12 3章: 不整合な入力は_validate_fixed_assignments()がsolve_shift()の入口で
+    # 既にfail-closedで停止させているため、ここでは検証済みの前提で直接構築する。
+    fixed_map = {
+        (fa.employee_id, fa.day_index): shift_ids.index(fa.shift_id)
+        for fa in input_data.fixed_assignments
+    }
 
     # 変数定義
     x = {}
@@ -238,7 +208,7 @@ def _solve_once(input_data: ShiftInput, diagnostic_mode: bool):
     consec_penalty_vars = []  # 連勤ソフト制約ペナルティ変数（フェーズ2の目的関数用）
 
     # diagnostic_mode時のみ使用する診断用スラック（違反箇所の特定に使う）
-    diag_head_slacks = {}     # day_index -> (slack_under, slack_over, day_min, max_allowed)
+    diag_head_slacks = {}     # day_index -> (slack_under, slack_over, day_min, day_max)
     diag_consec_slacks = []   # (employee_id, start_d, window_len, limit, slack_var)
     diag_7day_slacks = []     # (employee_id, start_d, slack_var)
     diag_objective_terms = []
@@ -379,11 +349,15 @@ def _solve_once(input_data: ShiftInput, diagnostic_mode: bool):
         base_avg = 1
 
     # 「±1名以内」の厳格制限（ハード制約枠）
+    # Cycle12 4.1(Dex差戻し): この基準上限は全日共通の不変値として扱う。
+    # 土日祝で引き上げるのは日ごとにコピーした`day_max`だけであり、この
+    # `base_max_allowed`自体をループ内で書き換えない(過去の実装は書き換えていたため、
+    # 一度土日祝を通過すると後続の平日にも引き上げ後の上限が持ち越されるバグがあった)。
     min_allowed = max(1, base_avg - 1)
-    max_allowed = base_avg + 1
+    base_max_allowed = base_avg + 1
     max_by_percentage = math.ceil(len(employees) * 0.7)
-    if max_allowed > max_by_percentage and max_by_percentage >= min_allowed:
-        max_allowed = max_by_percentage
+    if base_max_allowed > max_by_percentage and max_by_percentage >= min_allowed:
+        base_max_allowed = max_by_percentage
 
     # 各日の目標出勤人数をモデル作成前に確定（16日〜15日締め期間の実日付ベース）
     target_for_days = []
@@ -417,13 +391,17 @@ def _solve_once(input_data: ShiftInput, diagnostic_mode: bool):
         if (d + 1) in input_data.thick_staffing_days or d >= (num_days - lottery_days_count):
             target_for_day += 1
 
-        target_for_day = max(min_allowed, min(max_allowed, target_for_day))
+        target_for_day = max(min_allowed, min(base_max_allowed, target_for_day))
         target_for_days.append(target_for_day)
 
     # シフト時間帯区分(EARLY/MID/LATE)の判定とインデックス取得
+    # Cycle12 4.2(Dex差戻し): is_special:trueの特殊シフト(有休/公休/応援/研修/勉強会等)は
+    # 実際の店舗勤務ではなく、多くがプレースホルダ時刻(例: 0:00〜0:00)を持つため
+    # classify_shift_categoryにかけるとEARLY/LATEへ誤分類され得る。早番/遅番の平準化は
+    # 実際の通常勤務(固定・自動を問わず)だけを対象とし、特殊シフトは集計から除外する。
     shift_categories = {s.id: classify_shift_category(s.start_time, s.end_time) for s in shifts}
-    early_indices = [shift_ids.index(s.id) for s in shifts if shift_categories.get(s.id) == 'EARLY']
-    late_indices = [shift_ids.index(s.id) for s in shifts if shift_categories.get(s.id) == 'LATE']
+    early_indices = [shift_ids.index(s.id) for s in shifts if not getattr(s, 'is_special', False) and shift_categories.get(s.id) == 'EARLY']
+    late_indices = [shift_ids.index(s.id) for s in shifts if not getattr(s, 'is_special', False) and shift_categories.get(s.id) == 'LATE']
 
     target_diff_vars = []
     category_diff_vars = []
@@ -437,21 +415,26 @@ def _solve_once(input_data: ShiftInput, diagnostic_mode: bool):
         # 曜日別最低出勤人数の適用（ハード制約）
         # weekday_min_staff が設定されていれば、base_avg-1 と比較して大きい方を採用
         day_min = min_allowed  # デフォルトは base_avg - 1
+        # Cycle12 4.1(Dex差戻し): base_max_allowedを日ごとにコピーし、この`day_max`
+        # だけを土日祝で引き上げる。共通のbase_max_allowedはループ内で書き換えない。
+        day_max = base_max_allowed
         if input_data.weekday_min_staff:
             w_min_key = str(weekday)
             if w_min_key in input_data.weekday_min_staff:
                 user_min = int(input_data.weekday_min_staff[w_min_key])
                 if user_min > 0:
-                    # 上限 (max_allowed) を超えないようにクランプ
-                    day_min = max(day_min, min(user_min, max_allowed))
+                    # 上限 (day_max) を超えないようにクランプ
+                    day_min = max(day_min, min(user_min, day_max))
 
         # 【土日祝ルール】土曜・日曜・祝日は全従業員の半分(50%)以上が必ず出勤
+        # Cycle12 4.1(Dex差戻し): 不完全な自前実装ではなく、jpholiday(振替休日・
+        # 国民の休日を含む)で判定する。
         half_staff_min = math.ceil(len(employees) * 0.5)
-        if weekday in [5, 6] or is_japanese_holiday(current_date):
+        if weekday in [5, 6] or jpholiday.is_holiday(current_date):
             day_min = max(day_min, half_staff_min)
-            # max_allowed が day_min より小さい場合は引き上げ
-            if max_allowed < day_min:
-                max_allowed = day_min
+            # 当日のday_maxがday_minより小さい場合だけ、当日限りで引き上げる
+            if day_max < day_min:
+                day_max = day_min
 
         # 出勤人数上限・下限は通常モードでは「ハード制約」として直接固定（スラックなし）
         # → フェーズ1で均等配分に固定されることなく、フェーズ2の順位配分が機能する
@@ -460,13 +443,13 @@ def _solve_once(input_data: ShiftInput, diagnostic_mode: bool):
             slack_head_under = model.NewIntVar(0, len(employees), f'diag_head_under_{d}')
             slack_head_over = model.NewIntVar(0, len(employees), f'diag_head_over_{d}')
             model.Add(daily_workers + slack_head_under >= day_min)
-            model.Add(daily_workers - slack_head_over <= max_allowed)
-            diag_head_slacks[d] = (slack_head_under, slack_head_over, day_min, max_allowed)
+            model.Add(daily_workers - slack_head_over <= day_max)
+            diag_head_slacks[d] = (slack_head_under, slack_head_over, day_min, day_max)
             diag_objective_terms.append(slack_head_under)
             diag_objective_terms.append(slack_head_over)
         else:
             model.Add(daily_workers >= day_min)
-            model.Add(daily_workers <= max_allowed)
+            model.Add(daily_workers <= day_max)
 
         # 目標人数からの差分変数をモデル定義時に一括作成
         target_diff = model.NewIntVar(0, len(employees), f'target_diff_{d}')
@@ -579,8 +562,6 @@ def _solve_once(input_data: ShiftInput, diagnostic_mode: bool):
         'employees': employees,
         'num_days': num_days,
         'start_date': start_date,
-        'validation_warnings': validation_warnings,
-        'conflict_warnings': conflict_warnings,
         'solver': solver,
     }
 
@@ -593,7 +574,9 @@ def _build_shifts_and_warnings(result):
     num_days = result['num_days']
     start_date = result['start_date']
 
-    warnings = list(result['validation_warnings']) + list(result['conflict_warnings'])
+    # Cycle12: fixed_assignmentsの不整合はsolve_shift()入口のfail-closed検証で
+    # 既に停止させているため、ここでの警告は発生しない。
+    warnings = []
 
     for emp in employees:
         u_val, o_val = final_values['slack_contract'][emp.id]
@@ -677,6 +660,9 @@ def _extract_violations(diag_result):
 
 def solve_shift(input_data: ShiftInput):
     _validate_input(input_data)
+    # Cycle12 3章: fixed_assignmentsの不整合はモデル構築前にfail-closedで停止する
+    # (診断モード含め、_solve_once()を一度も呼ばない)。
+    _validate_fixed_assignments(input_data)
 
     result = _solve_once(input_data, diagnostic_mode=False)
 
@@ -698,7 +684,7 @@ def solve_shift(input_data: ShiftInput):
     # 利用者が明示的に選んだ場合だけ、違反一覧付きの警告仮シフトを返す。
     diag_result = _solve_once(input_data, diagnostic_mode=True)
     violations = _extract_violations(diag_result)
-    base_warnings = list(result['validation_warnings']) + list(result['conflict_warnings'])
+    base_warnings = []
 
     if not input_data.allow_warning_draft:
         return {

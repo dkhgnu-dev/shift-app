@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 class ShiftType(BaseModel):
@@ -33,8 +33,8 @@ class ShiftInput(BaseModel):
     employees: List[Employee]
     shift_types: List[ShiftType]
     requests_off: List[RequestOff]
-    thick_staffing_days: List[int] = []
+    thick_staffing_days: List[int] = Field(default_factory=list)
     weekday_ranks: Optional[dict] = None  # 例: {"6": 1, "5": 2, "0": 7} (1位が最優先、7位が最低)
     weekday_min_staff: Optional[dict] = None   # 例: {"6": 5, "5": 4, "0": 3} (曜日別の最低出勤人数。0または未設定=制限なし)
-    fixed_assignments: List[FixedAssignment] = []  # 「空欄自動作成」用: 既に手動入力済みのセルを固定条件として渡す
+    fixed_assignments: List[FixedAssignment] = Field(default_factory=list)  # 手動入力済み・保護対象セルを固定条件として渡す
     allow_warning_draft: bool = False  # true時のみ、INFEASIBLE時に違反一覧付きの警告仮シフトを返す（false時は表を返さない）
