@@ -10,11 +10,11 @@
 
 ## Current State
 
-- Cycle: 12 Take2(main統合) 完了 -> Dex P4再レビュー待ち
-- Status: Dex P4差戻し3点(P1: 全画面表示とスタンプUIの機能衝突、P2: Phase2フォールバック・requestTokenの実挙動テスト不足)すべてに対応済み。統合専用branch `cc-cycle12-main-integration`(origin/mainから新設)上で、mainの全画面表示とCycle12のスタンプモードの共存UIを実装し、全テスト・実機確認済み。詳細は`docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_take2_report.md`を参照。
+- Cycle: 12 Take2 Dex P4再レビュー完了 -> Take3差し戻し
+- Status: Take2でrequest token実挙動と全画面中のポインター操作は改善。再監査で、Phase1 FEASIBLE専用分岐がテスト未到達であること、全画面中に背面の不可視UIへTabフォーカスが移り得ることを確認した。詳細は`docs/handoff/P4_Rollback/cycle_12_protection_and_stamp_take3.md`を参照。
 - Version: v4.46（更新済み。統合元の2つのbranchより新しい値へ採番した。詳細は下記「採番の経緯」参照）
 - 採番の経緯: main起点は当時v4.44、mergeしたcc-cycle12-stamp-and-protect側はv4.45だったため、両方より新しい値としてv4.46を採用した。
-- Next: Dex(P4)が`docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_take2_report.md`を確認し、再DIFFレビューを行う。
+- Next: CC(P3)がTake3の2点を修正・検証し、統合branchへpushしてDex(P4)へ再提出する。mainへのmergeは禁止。DexがP4 OKを出した後も、Kazumaxへmerge可否を確認する。
 - **重要**: `main`・`cc-cycle12-stamp-and-protect`のどちらにも、Kazumaxの明示承認まではmerge・pushしていない。統合専用branch`cc-cycle12-main-integration`はpush済みだが、これは`main`への統合そのものではない。
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
 - Air Blueprint (Cycle 12): `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
