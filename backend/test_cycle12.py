@@ -123,7 +123,7 @@ def test_special_shifts_excluded_from_early_late_diff():
               result['shifts']['emp_0'][:10])
 
 
-# --- 5. Take2(Dex P4差戻し): Phase1 FEASIBLE・Phase2失敗時のフォールバックでも固定値が不変 ---
+# --- 5. Take2/Take3(Dex P4差戻し): Phase1 FEASIBLE専用分岐・Phase2失敗時のフォールバックでも固定値が不変 ---
 def test_phase2_failure_falls_back_to_phase1_snapshot_and_keeps_fixed_values():
     """
     _solve_once()は、Phase1(スラック最小化)を解いた後、必ずPhase1のスナップショットを
@@ -132,9 +132,16 @@ def test_phase2_failure_falls_back_to_phase1_snapshot_and_keeps_fixed_values():
     フォールバックされ、固定セル(fixed_assignments)は絶対制約としてPhase1側でも
     既に強制されているため、フォールバックしても固定値は変化しないはずである。
 
-    Phase2だけを決定的に失敗させるため、`CpSolver.Solve`をモンキーパッチし、
-    1回目の呼び出し(Phase1)は本物のSolve()を実行させ、2回目の呼び出し(Phase2)だけ
-    強制的にUNKNOWNを返す(実際にPhase2が時間切れ等で解を返せなかった状況を模擬する)。
+    Take3(P4差戻し Finding 1)対応: 従来はPhase1の返却statusを実Solve()の結果(OPTIMAL/FEASIBLE
+    どちらも合格扱い)に委ねていたため、Dex再実行時にOPTIMALとなり、shift_solver.py側の
+    「Phase1 FEASIBLE(未証明)専用」目的関数分岐(4.1節『else: FEASIBLE』側)が一度もテストを
+    通過していなかった。本テストでは、
+      1. 1回目のSolve()呼び出し(Phase1)は本物のSolve()を実行して実際に解を得たうえで、
+         `_solve_once()`への返却値だけを決定的に`cp_model.FEASIBLE`へ強制する
+         (実際の解自体は本物のSolveで求めたものをそのまま使うため、値の正当性は損なわない)。
+      2. 2回目のSolve()呼び出し(Phase2)は決定的にUNKNOWNを返し、Phase2失敗を模擬する。
+      3. Phase2失敗(fake_solveの2回目呼び出し)以降、`CpSolver.Value()`が一切呼ばれないことを
+         監視する(誤ってPhase2失敗後にsolver.Value()を読み直す回帰が入ればここで検知する)。
     """
     employees = make_employees(4, contract_days=10)
     fixed = [{'employee_id': 'emp_0', 'day_index': 0, 'shift_id': 'A'}]
@@ -142,25 +149,44 @@ def test_phase2_failure_falls_back_to_phase1_snapshot_and_keeps_fixed_values():
                           requests_off=[], fixed_assignments=fixed)
 
     real_solve = cp_model.CpSolver.Solve
+    real_value = cp_model.CpSolver.Value
     call_count = {'n': 0}
+    real_phase1_status = {'status': None}
+    value_calls = {'total': 0, 'at_phase2_failure': None}
 
     def fake_solve(self, model):
         call_count['n'] += 1
         if call_count['n'] == 1:
-            return real_solve(self, model)  # Phase1は本物のSolve
-        return cp_model.UNKNOWN  # Phase2だけ強制的に失敗させる
+            status = real_solve(self, model)  # Phase1は本物のSolveで実際に解を得る
+            real_phase1_status['status'] = status
+            # 返却値だけを決定的にFEASIBLE(未証明の暫定解)へ強制し、
+            # shift_solver.py の『else: FEASIBLE』分岐を必ず通す。
+            return cp_model.FEASIBLE
+        # Phase2はSolve()を実行させず、決定的にUNKNOWN(失敗)を返す。
+        value_calls['at_phase2_failure'] = value_calls['total']
+        return cp_model.UNKNOWN
 
-    with mock.patch.object(cp_model.CpSolver, 'Solve', fake_solve):
+    def fake_value(self, var):
+        value_calls['total'] += 1
+        return real_value(self, var)
+
+    with mock.patch.object(cp_model.CpSolver, 'Solve', fake_solve), \
+            mock.patch.object(cp_model.CpSolver, 'Value', fake_value):
         result = solve_shift(payload)
 
-    check('5-setup. Phase1は本物のSolveでOPTIMAL/FEASIBLEになっている',
-          result.get('phase1_status') in ('OPTIMAL', 'FEASIBLE'), result.get('phase1_status'))
-    check('5a. Phase2強制失敗(UNKNOWN)がphase2_statusに記録される',
+    check('5-setup. Phase1は本物のSolveで実際にOPTIMAL/FEASIBLEの解を得ている',
+          real_phase1_status['status'] in (cp_model.OPTIMAL, cp_model.FEASIBLE), real_phase1_status['status'])
+    check('5a. phase1_statusは決定的にFEASIBLE(未証明)へ強制されている(OPTIMAL専用分岐を回避)',
+          result.get('phase1_status') == 'FEASIBLE', result.get('phase1_status'))
+    check('5b. Phase2強制失敗(UNKNOWN)がphase2_statusに記録される',
           result.get('phase2_status') == 'UNKNOWN', result.get('phase2_status'))
-    check('5b. クラッシュせず応答が返る(SUCCESS/FEASIBLE_WITH_WARNINGS)',
+    check('5c. Phase2失敗(2回目のSolve呼び出し)以降、solver.Value()が一切呼ばれていない',
+          value_calls['at_phase2_failure'] is not None and value_calls['total'] == value_calls['at_phase2_failure'],
+          value_calls)
+    check('5d. クラッシュせず応答が返る(SUCCESS/FEASIBLE_WITH_WARNINGS)',
           result['status'] in ('SUCCESS', 'FEASIBLE_WITH_WARNINGS'), result['status'])
     if result['status'] in ('SUCCESS', 'FEASIBLE_WITH_WARNINGS'):
-        check('5c. Phase2失敗のフォールバックでも固定セル(emp_0 day0)は不変',
+        check('5e. Phase2失敗のフォールバック(保存済みPhase1 snapshot)でも固定セル(emp_0 day0)は不変',
               result['shifts']['emp_0'][0] == 'A', result['shifts']['emp_0'][0])
 
 

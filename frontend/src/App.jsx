@@ -1677,7 +1677,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.46</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.47</span></div>
                 </div>
             )}
 
@@ -1688,7 +1688,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.46</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.47</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -1751,6 +1751,10 @@ export default function App() {
                         </div>
 
                         <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap'}}>
+                            {/* Take3(Dex P4差戻しFinding2): 全画面表示中、Undo/Redoは`.matrix-glass-card`の
+                                背面に隠れて見えなくなるが、display:noneでは非表示にしていないため
+                                Tabキーでフォーカスが到達してしまう。inert属性でフォーカス・操作対象外にし、
+                                全画面解除時は通常通り操作可能に戻す。 */}
                             <button
                                 type="button"
                                 className="btn outline"
@@ -1758,6 +1762,7 @@ export default function App() {
                                 disabled={historyPast.length === 0 || isGenerating}
                                 aria-label="元に戻す(Undo)"
                                 title={historyPast.length > 0 ? `元に戻す: ${historyPast[historyPast.length - 1].label}` : '元に戻す'}
+                                inert={isFullScreen ? 'true' : undefined}
                             >↩ 戻る</button>
                             <button
                                 type="button"
@@ -1766,6 +1771,7 @@ export default function App() {
                                 disabled={historyFuture.length === 0 || isGenerating}
                                 aria-label="やり直す(Redo)"
                                 title={historyFuture.length > 0 ? `やり直す: ${historyFuture[0].label}` : 'やり直す'}
+                                inert={isFullScreen ? 'true' : undefined}
                             >↪ 進む</button>
                             <button
                                 type="button"
@@ -1818,14 +1824,14 @@ export default function App() {
                         )}
 
                         {swapPending && (
-                            <div className="glass-card" style={{padding: '10px 16px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', background: '#EEF2FF'}}>
+                            <div className="glass-card" style={{padding: '10px 16px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', background: '#EEF2FF'}} inert={isFullScreen ? 'true' : undefined}>
                                 <span style={{fontSize: '0.9rem'}}>🔄 {employees[swapPending.i]?.name} {periodDates[swapPending.d] ? formatDateLabel(periodDates[swapPending.d]) : ''} と交換する相手のセルをタップ/クリックしてください</span>
                                 <button type="button" className="btn outline" onClick={() => setSwapPending(null)}>キャンセル</button>
                             </div>
                         )}
 
                         {infeasibleInfo && (
-                            <div className="infeasible-panel" style={{marginBottom: '16px'}}>
+                            <div className="infeasible-panel" style={{marginBottom: '16px'}} inert={isFullScreen ? 'true' : undefined}>
                                 <div className="infeasible-title"><AlertCircle size={18}/> 自動生成を停止しました（条件を満たせませんでした）</div>
                                 <div style={{fontSize: '0.9rem', marginTop: '4px', marginBottom: '8px'}}>{infeasibleInfo.message}</div>
                                 <ul style={{margin: '8px 0', paddingLeft: '20px'}}>
@@ -1853,7 +1859,7 @@ export default function App() {
                         {generatedResult && (
                             <>
                                 {generatedResult.isWarningDraft && (
-                                    <div className="infeasible-panel" style={{marginBottom: '16px'}}>
+                                    <div className="infeasible-panel" style={{marginBottom: '16px'}} inert={isFullScreen ? 'true' : undefined}>
                                         <div className="infeasible-title"><AlertCircle size={18}/> ⚠️ これは警告付き仮シフトです（未確定・条件未達あり）</div>
                                         <div style={{fontSize: '0.85rem', marginTop: '4px', marginBottom: '8px'}}>以下の条件が満たされていません。内容を確認のうえご利用ください。固定セル・希望休は変更していません。</div>
                                         <ul style={{margin: '8px 0', paddingLeft: '20px'}}>
@@ -1864,7 +1870,7 @@ export default function App() {
                                     </div>
                                 )}
                                 {generatedResult.hasError && generatedResult.warnings && generatedResult.warnings.length > 0 && (
-                                    <div className="warning-panel" style={{display: 'block', marginBottom: '16px'}}>
+                                    <div className="warning-panel" style={{display: 'block', marginBottom: '16px'}} inert={isFullScreen ? 'true' : undefined}>
                                         <div className="warning-title"><AlertCircle size={18}/> 【AIシフト作成・自動診断アドバイス】</div>
                                         {generatedResult.warnings.map((warn, wIdx) => (
                                             <div key={wIdx} className="warning-item" style={{marginTop: '8px', fontSize: '0.9rem'}}>
@@ -1897,6 +1903,7 @@ export default function App() {
                                         aria-expanded={!isNameColumnCollapsed}
                                         aria-label={isNameColumnCollapsed ? '氏名列を展開する' : '氏名列を折りたたむ'}
                                         title={isNameColumnCollapsed ? '氏名列を展開する' : '氏名列を折りたたむ'}
+                                        inert={isFullScreen ? 'true' : undefined}
                                     >
                                         {/* Take2(Dex P4差戻し): 独自の絵文字・記号ではなく、既にimport済みの
                                             Lucideアイコン(ChevronLeft/ChevronRight)を使う。見える日本語ラベルは維持する。 */}

@@ -10,17 +10,19 @@
 
 ## Current State
 
-- Cycle: 12 Take2 Dex P4再レビュー完了 -> Take3差し戻し
-- Status: Take2でrequest token実挙動と全画面中のポインター操作は改善。再監査で、Phase1 FEASIBLE専用分岐がテスト未到達であること、全画面中に背面の不可視UIへTabフォーカスが移り得ることを確認した。詳細は`docs/handoff/P4_Rollback/cycle_12_protection_and_stamp_take3.md`を参照。
-- Version: v4.46（更新済み。統合元の2つのbranchより新しい値へ採番した。詳細は下記「採番の経緯」参照）
-- 採番の経緯: main起点は当時v4.44、mergeしたcc-cycle12-stamp-and-protect側はv4.45だったため、両方より新しい値としてv4.46を採用した。
-- Next: CC(P3)がTake3の2点を修正・検証し、統合branchへpushしてDex(P4)へ再提出する。CCはmainへmergeしない。DexがP4 OKを出したら、追加の許可確認なしでDex(P5)が最新mainを再確認してmerge・pushする。
-- **重要**: 友達側の作業終了をKazumaxが確認済み。CCは統合branchへのpushまでとし、mainへのmergeはP4 OK後にDex(P5)が担当する。
+- Cycle: 12 Take3(P4差戻し2点)対応完了 -> Dex P4再レビュー待ち
+- Status: Take3差戻しの2点に対応済み。(1) `backend/test_cycle12.py`のPhase2フォールバックテストを、Phase1を実Solveしつつ返却statusを決定的にFEASIBLEへ強制し、Phase2失敗(UNKNOWN)後に`solver.Value()`が一切呼ばれないことまで検証する構成へ修正。(2) 全画面表示中に背面へ視覚的に隠れるが`display:none`対象外だったUndo/Redo・氏名列トグル・警告パネル(infeasible-panel/warning-panel)・交換確認パネルへ`inert`属性を付与し、全画面表示中はTabフォーカス・操作対象外にした(全画面用コントロール・スタンプUI・表セルは従来通り操作可能、全画面解除で通常のフォーカスへ復元)。詳細は`docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_take3_report.md`を参照。
+- Version: v4.47
+- 採番の経緯: Take3で製品UI(App.jsx)を変更したため、直前バージョンから1つ進めた。それ以前の経緯は、main起点が当時v4.44、mergeしたcc-cycle12-stamp-and-protect側が v4.45 だったため両方より新しい値を採用し、Take3対応はさらにその次を採用した、というもの。fetch確認時点でもorigin/mainのApp.jsxはv4.44のまま(衝突なし)。
+- Next: Dex(P4)が`docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_take3_report.md`を確認し、統合branch `cc-cycle12-main-integration`を再DIFFレビューする。CCはmainへmergeしない。DexがP4 OKを出した後も、Kazumaxの明示承認なしにmainへmergeしてはいけない(CURRENT_STATUS旧版のDex P5委任記述より、Kazumaxからのこの回の明示指示を優先する)。
+- **重要**: 友達側の作業終了をKazumaxが確認済み。CCは統合branchへのpushまでとし、mainへのmergeは別途Kazumaxの明示承認後に行う。
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
 - Air Blueprint (Cycle 12): `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
 - Dex P2 Instructions (Cycle 12): `docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md`
 - Dex P4 Review (Take1): `docs/handoff/P4_Dex_Review/cycle_12_protection_and_stamp_review.md`
+- Dex P4 Rollback (Take3): `docs/handoff/P4_Rollback/cycle_12_protection_and_stamp_take3.md`
 - P3 Take2報告: `docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_take2_report.md`
+- P3 Take3報告: `docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_take3_report.md`
 
 ## P2 Confirmed Rules (Cycle 11 継承)
 

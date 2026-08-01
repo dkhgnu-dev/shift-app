@@ -291,6 +291,64 @@ describe('Cycle12 Take2(main統合P1): 全画面表示中もスタンプ開始�
     });
 });
 
+describe('Cycle12 Take3(P4差戻しFinding2): 全画面表示中、背面の不可視UIへTabフォーカスが移らない', () => {
+    // Dex P4差戻しFinding2: 全画面表示中、Undo/Redo・氏名列トグル・警告パネル等は
+    // `.matrix-glass-card`(position:fixed; z-index:9999)の背面に視覚的に隠れるが、
+    // display:noneで非表示にはしていないためTabキーでフォーカスが到達し得る状態だった。
+    // inert属性でフォーカス・操作対象外にし、全画面解除後は通常操作へ戻すことを固定する。
+    it('全画面表示ON時、Undo/Redo・氏名列トグルがinertになり、全画面用コントロール・スタンプUIはinertにならない', () => {
+        seedFixture([blankRow(), blankRow()]);
+        render(<App />);
+
+        const fsToggle = screen.getByRole('button', { name: '画面いっぱいに全画面表示する' });
+        const undoBtn = screen.getByRole('button', { name: '元に戻す(Undo)' });
+        const redoBtn = screen.getByRole('button', { name: 'やり直す(Redo)' });
+        const nameColToggle = screen.getByRole('button', { name: '氏名列を折りたたむ' });
+        const stampToggle = screen.getByRole('button', { name: 'スタンプモードを開始する' });
+
+        expect(undoBtn.hasAttribute('inert')).toBe(false);
+        expect(redoBtn.hasAttribute('inert')).toBe(false);
+        expect(nameColToggle.hasAttribute('inert')).toBe(false);
+
+        fireEvent.click(fsToggle);
+
+        expect(undoBtn.hasAttribute('inert')).toBe(true);
+        expect(redoBtn.hasAttribute('inert')).toBe(true);
+        expect(nameColToggle.hasAttribute('inert')).toBe(true);
+        // 全画面を閉じるボタン自身とスタンプ開始ボタンは、全画面中も操作対象であり続ける
+        expect(screen.getByRole('button', { name: '全画面表示を解除する' }).hasAttribute('inert')).toBe(false);
+        expect(stampToggle.hasAttribute('inert')).toBe(false);
+
+        // 全画面解除後は、通常のフォーカス・操作対象へ戻る
+        fireEvent.click(screen.getByRole('button', { name: '全画面表示を解除する' }));
+        expect(undoBtn.hasAttribute('inert')).toBe(false);
+        expect(redoBtn.hasAttribute('inert')).toBe(false);
+        expect(nameColToggle.hasAttribute('inert')).toBe(false);
+    });
+
+    it('全画面表示ON時、警告パネル(infeasible-panel)もinertになる', () => {
+        seedFixture([blankRow(), blankRow()]);
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'INFEASIBLE', shifts: {}, warnings: ['条件を満たす配置が見つかりません'] }) });
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        return vi.waitFor(() => {
+            const panel = document.querySelector('.infeasible-panel');
+            expect(panel).toBeInTheDocument();
+        }).then(() => {
+            const panel = document.querySelector('.infeasible-panel');
+            expect(panel.hasAttribute('inert')).toBe(false);
+
+            fireEvent.click(screen.getByRole('button', { name: '画面いっぱいに全画面表示する' }));
+            expect(document.querySelector('.infeasible-panel').hasAttribute('inert')).toBe(true);
+
+            fireEvent.click(screen.getByRole('button', { name: '全画面表示を解除する' }));
+            expect(document.querySelector('.infeasible-panel').hasAttribute('inert')).toBe(false);
+        });
+    });
+});
+
 describe('Cycle12: スタンプモード', () => {
     it('通常シフト0件でも休/希望休スタンプは使え、自動生成は従来どおりfetchせず停止する', () => {
         const employees = [
