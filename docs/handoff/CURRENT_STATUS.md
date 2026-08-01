@@ -10,9 +10,9 @@
 
 ## Current State
 
-- Cycle: 11 完了 ＋ v4.43（休日一覧が0日になるバグ修正）
-- Status: v4.43リリース完了。main ブランチへ push 済み。
-- Version: v4.43（更新済み）
+- Cycle: 11 完了 ＋ v4.44（全画面表示のレイアウト調整・閉じるボタン被り解消）
+- Status: v4.44レイアウト調整完了・Version Gate検証済み。main ブランチへ push 承認確認待ち。
+- Version: v4.44（更新済み）
 - Next: Render自動デプロイ後に動作確認。
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
 

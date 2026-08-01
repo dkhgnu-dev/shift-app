@@ -1544,7 +1544,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.43</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.44</span></div>
                 </div>
             )}
 
@@ -1555,7 +1555,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.43</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.44</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -1708,7 +1708,7 @@ export default function App() {
                                     28px折りたたみヘッダー内へ押し込んだり日付列に重ねたりしない。 */}
                                 <div className="name-col-toggle-row" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
                                     <button type="button" className="btn outline" onClick={() => setIsFullScreen(v => !v)} style={{padding: '4px 12px', fontSize: '0.82rem', fontWeight: 600, background: isFullScreen ? '#DC2626' : '#EEF2FF', color: isFullScreen ? '#FFFFFF' : '#4F46E5', borderColor: isFullScreen ? '#DC2626' : '#C7D2FE', ...(isFullScreen ? { position: 'fixed', top: '16px', right: '16px', zIndex: 10000, boxShadow: '0 4px 12px rgba(0,0,0,0.5)', borderRadius: '8px' } : {})}} aria-label={isFullScreen ? '全画面表示を解除する' : '画面いっぱいに全画面表示する'}>{isFullScreen ? '❌ 閉じる' : '⛶ 全画面表示'}</button>
-                                    {isFullScreen && (<style>{`.mobile-header, .sidebar, .sidebar-overlay, .month-header, .zoom-controls { display: none !important; } .main-content { padding: 0 !important; margin: 0 !important; } .matrix-glass-card { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 9999 !important; border-radius: 0 !important; margin: 0 !important; background: #ffffff !important; padding: 8px !important; } .matrix-scroll-wrapper { height: calc(100vh - 20px) !important; overflow: auto !important; }`}</style>)}
+                                    {isFullScreen && (<style>{`.mobile-header, .sidebar, .sidebar-overlay, .month-header, .zoom-controls { display: none !important; } .main-content { padding: 0 !important; margin: 0 !important; } .matrix-glass-card { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 9999 !important; border-radius: 0 !important; margin: 0 !important; background: #ffffff !important; padding: 60px 8px 8px 8px !important; } .matrix-scroll-wrapper { height: calc(100vh - 72px) !important; overflow: auto !important; }`}</style>)}
                                     <button
                                         type="button"
                                         className="name-col-toggle-btn"
