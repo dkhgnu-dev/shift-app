@@ -10,28 +10,25 @@
 
 ## Current State
 
-- Cycle: 11 完了
-- Status: Take2をP4 OKと判定し、`cc-cycle11`を競合なしで`main`へ統合済み。詳細は `docs/handoff/P5_Dex_Integration/cycle_11_main_integration.md` を参照。
-- Version: v4.37（更新済み）
-- Next: 次Cycleの要件整理またはAir(P1) Blueprint作成
-- Working branch: `main`
-- Air Blueprint (Cycle 11): `docs/handoff/P1_Air_Blueprint/cycle_11_health_alerts_and_collapsible_names.md`
-- Dex Instructions (Cycle 11): `docs/handoff/P2_Dex_to_CC/cycle_11_health_and_collapsible_instructions.md`
-- P3報告 (Cycle 11): `docs/handoff/P3_CC_to_Dex/cycle_11_health_and_collapsible_report.md`
-- P4 Review (Cycle 11): `docs/handoff/P4_Dex_Review/cycle_11_health_and_collapsible_review.md`
-- Take2 Instructions: `docs/handoff/P4_Rollback/cycle_11_health_and_collapsible_take2.md`
-- P3 Take2報告: `docs/handoff/P3_CC_to_Dex/cycle_11_health_and_collapsible_take2_report.md`
-- P4 Take2再レビュー: `docs/handoff/P4_Dex_Review/cycle_11_health_and_collapsible_take2_review.md`
-- P5 main統合: `docs/handoff/P5_Dex_Integration/cycle_11_main_integration.md`
-- Cycle 11 merge commit: `78d2491`
-- Cycle 10 merge commit: `6b5e23a`
-- Kazumax確認レベル: 確認不要
+- Cycle: 11 完了 ＋ v4.11新ロジックマージ
+- Status: v4.11リリース準備完了。時間帯区分（早番・中番・遅番）の自動均等配分ロジックを統合済み。
+- Version: v4.38 (v4.11新ロジック統合)
+- Next: Render自動デプロイ後に動作確認。
 
 ## P2 Confirmed Rules (Cycle 10 継承)
 
 - 画面下部アクションバーの廃止およびハンバーガーメニューへの移管はスマホ表示時のみ適用する。
 - 氏名固定列は通常時の現行幅（スマホ82px、PC140px）を維持し、Cycle 11の折りたたみ時だけ28pxとする。
 - 自由時間の編集、Undo/Redo (20件原子保持)、希望休のランダム・空きシャッフルロジックは一切破壊しないこと。
+
+## アグ担当機能（v4.11最新統合）
+- **時間帯区分（早番・中番・遅番）の出勤人数自動均等配分ロジック（v4.11新機能）**
+  - シフトの開始・終了時間から `早番 (EARLY)` / `中番 (MID)` / `遅番 (LATE)` を自動分類
+  - 各日の `|早番人数 - 遅番人数|` の差分を最小化し、「午前中2人で夕方以降に集中する」偏りを強力防止
+- 連休制限ルール（希望休除く：社員最大2連休、パート3連休通常/4連休ソフト/5連休禁止）
+- 正社員・準社員の5連勤ソフト抑制、パート等の4連勤ソフト抑制
+- 曜日別最低出勤人数ハード制約（`weekday_min_staff`）
+- 出勤人数「平均±1名以内」のハード制約（均等化ペナルティなし・順位配分が機能する構造）
 
 ## Read First
 

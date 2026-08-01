@@ -31,6 +31,18 @@ def build_shift_coverage(shift_types):
     return coverage
 
 
+def classify_shift_category(start_time_str: str, end_time_str: str) -> str:
+    """シフトの時間帯区分(EARLY/MID/LATE)を判定"""
+    start_min = time_to_minutes(start_time_str)
+    end_min = time_to_minutes(end_time_str)
+    if start_min >= 900 or end_min >= 1320:  # 15:00以降開始 または 22:00以降終了 -> 遅番
+        return 'LATE'
+    elif start_min >= 660 and end_min >= 1080: # 11:00以降開始 かつ 18:00以降終了 -> 中番
+        return 'MID'
+    else:
+        return 'EARLY'                       # それ以外（午前メイン） -> 早番
+
+
 def get_period_start(year: int, month: int) -> datetime.date:
     """前月16日〜当月15日締めの開始日を返す"""
     prev_month = month - 1
@@ -356,7 +368,13 @@ def _solve_once(input_data: ShiftInput, diagnostic_mode: bool):
         target_for_day = max(min_allowed, min(max_allowed, target_for_day))
         target_for_days.append(target_for_day)
 
+    # シフト時間帯区分(EARLY/MID/LATE)の判定とインデックス取得
+    shift_categories = {s.id: classify_shift_category(s.start_time, s.end_time) for s in shifts}
+    early_indices = [shift_ids.index(s.id) for s in shifts if shift_categories.get(s.id) == 'EARLY']
+    late_indices = [shift_ids.index(s.id) for s in shifts if shift_categories.get(s.id) == 'LATE']
+
     target_diff_vars = []
+    category_diff_vars = []
     for d in range(num_days):
         current_date = start_date + datetime.timedelta(days=d)
         weekday = current_date.weekday()
@@ -394,6 +412,14 @@ def _solve_once(input_data: ShiftInput, diagnostic_mode: bool):
         target_diff = model.NewIntVar(0, len(employees), f'target_diff_{d}')
         model.AddAbsEquality(target_diff, daily_workers - target_for_days[d])
         target_diff_vars.append(target_diff)
+
+        # 早番人数と遅番人数の平準化（人数差を最小化）
+        if early_indices and late_indices:
+            early_workers = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in early_indices)
+            late_workers = sum(x[(e_idx, d, s_idx)] for e_idx in range(len(employees)) for s_idx in late_indices)
+            cat_diff = model.NewIntVar(0, len(employees), f'cat_diff_{d}')
+            model.AddAbsEquality(cat_diff, early_workers - late_workers)
+            category_diff_vars.append(cat_diff)
 
         # 登録販売者カバレッジ (スラック付き・動的ブロック判定)
         for block in range(1, 11):
@@ -454,6 +480,8 @@ def _solve_once(input_data: ShiftInput, diagnostic_mode: bool):
 
         # 連勤ペナルティ係数: 15（1連勤発生 = 目標人数ズレ15人分のコスト）
         consec_penalty_sum = sum(15 * v for v in consec_penalty_vars) if consec_penalty_vars else 0
+        # 時間帯区分(早/遅)の平準化ペナルティ係数: 10
+        cat_diff_sum = sum(10 * cd for cd in category_diff_vars) if category_diff_vars else 0
 
         # 診断モードでは、フェーズ1で見つかった診断スラックの合計を悪化させないよう固定した上で、
         # 通常の目標人数・連勤抑制の最適化へ進む。
@@ -466,14 +494,14 @@ def _solve_once(input_data: ShiftInput, diagnostic_mode: bool):
             model.Add(sum(total_slack) <= best_slack)
             if diag_best is not None:
                 model.Add(sum(diag_objective_terms) <= diag_best)
-            model.Minimize(sum(target_diff_vars) + consec_penalty_sum)
+            model.Minimize(sum(target_diff_vars) + consec_penalty_sum + cat_diff_sum)
         else:
             # FEASIBLE（未証明の暫定解）の場合、この時点のスラックを固定してしまうと
             # 「本当はもっと減らせたはずのスラック」が確定してしまう。
             # そのためフェーズ2でも total_slack を圧倒的に大きい重みで目的関数に含め、
             # 曜日目標人数や連勤抑制より優先してスラック削減を継続させる。
             diag_term = 100000 * sum(diag_objective_terms) if diag_objective_terms else 0
-            model.Minimize(diag_term + 100000 * sum(total_slack) + sum(target_diff_vars) + consec_penalty_sum)
+            model.Minimize(diag_term + 100000 * sum(total_slack) + sum(target_diff_vars) + consec_penalty_sum + cat_diff_sum)
 
         solver.parameters.max_time_in_seconds = 15.0
         phase2_status = solver.Solve(model)

@@ -1542,7 +1542,11 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
+<<<<<<< Updated upstream
                     <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.37</span></div>
+=======
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.11</span></div>
+>>>>>>> Stashed changes
                 </div>
             )}
 
@@ -1553,8 +1557,13 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
+<<<<<<< Updated upstream
                 <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.37</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
+=======
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.11</span></div>
+                <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false);}}>
+>>>>>>> Stashed changes
                     <Calendar size={18} /> 全体シフト表
                 </div>
                 <div className={`nav-item ${activeTab === 'employees' ? 'active' : ''}`} onClick={() => {setActiveTab('employees'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
@@ -1975,6 +1984,7 @@ export default function App() {
                                     <div style={{marginTop: '6px'}}><strong style={{color: 'var(--text-main)'}}>【自動評価・イベントルール（ソフト制約）】</strong></div>
                                     <div style={{paddingLeft: '12px'}}>
                                         ・<strong>連勤・連休のソフト抑制：</strong> 社員の5連勤・パートの4連勤・パートの4連休はペナルティ加算により極力回避します。<br/>
+                                        ・<strong>時間帯区分（早番・中番・遅番）の自動均等配分：</strong> 各日において午前メイン（早番）と夕方メイン（遅番）の出勤人数の偏りを自動評価し、極力均等に分散配置します。<br/>
                                         ・<strong>曜日優先順位による人員配分（最大1名差）：</strong><br/>
                                         &nbsp;&nbsp;🥇 1位〜2位（上位）： 平均 +1名 / ⚪ 3位〜5位（中位）： 平均ピタリ / 🔴 6位〜7位（下位）： 平均 -1名<br/>
                                         ・<strong>月末の抽選会・大抽選会：</strong> 通常月は対象期間末4日間、7月・12月は「大抽選会」として末5日間の人員を自動的に手厚く配分します。<br/>
