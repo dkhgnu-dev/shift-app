@@ -11,7 +11,7 @@
 ## Current State
 
 - Cycle: 11 完了 ＋ v4.40（全画面表示ボタン配置修正完了）
-- Status: v4.40修正完了・Version Gate検証済み。main ブランチへ push 承認確認待ち。
+- Status: v4.40リリース完了。main ブランチへ push 済み。
 - Version: v4.40（更新済み）
 - Next: Render自動デプロイ後に動作確認。
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
