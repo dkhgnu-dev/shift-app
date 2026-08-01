@@ -10,11 +10,11 @@
 
 ## Current State
 
-- Cycle: 12 CC P3 実装・検証完了 -> Dex P4レビュー待ち
-- Status: 手動/由来不明セル(isFixed!==false)の通常生成保護、fail-closedな固定割当検証、スタンプ(一括塗り)モード、v4.38未評価差分3件(day_max持ち越し・祝日判定・特殊シフト混入)を是正。詳細は `docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_report.md` を参照。`main`未統合。
-- **重要**: 実装中にmainがv4.38→v4.40へ進んでいたことを検知しKazumaxへ確認のうえ`v4.41`を採番したが、その後もアグがmainへ直接push(全画面表示モード等)を継続し、確認時点でmainは`v4.44`まで進行(v4.41は既にmain側で使用済みで衝突)。CCクルー3の指摘により検知し、同方針([main最新+1]で採番・継続)で`v4.45`へ再採番した。mainが非常に活発に更新され続けているため、merge時のApp.jsx/index.cssの衝突リスクが高い。Dex(P4)はmerge方針の判断時にこの点を要確認。
+- Cycle: 12 Dex P4レビュー完了 -> 最新mainとの統合前Take2対応・Kazumax判断待ち
+- Status: Cycle 12単体の主要実装は適合。ただしmain側の全画面表示とCycle 12のスタンプUIに機能衝突があり、全画面中にスタンプ開始・筆変更ができなくなるため差し戻し。Phase 2失敗フォールバックとrequest tokenの専用回帰テストも追加が必要。詳細は `docs/handoff/P4_Dex_Review/cycle_12_protection_and_stamp_review.md` を参照。`main`未統合。
+- **重要**: 実装中にmainがv4.38→v4.44まで進行し、Cycle 12は`v4.45`へ再採番した。P4時点の3-way確認では、文字競合は主に`App.jsx`のversion表示2か所と`CURRENT_STATUS.md`（main側の`index.css`変更はなし）。ただしmainの全画面表示とCycle 12のスタンプUIには、Gitが自動検出できない機能衝突がある。友達側の作業終了とKazumaxの明示承認までmergeしない。
 - Version: v4.45（更新済み。採番の経緯は上記参照）
-- Next: Dex(P4)が `docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_report.md` を確認し、DIFFレビューを行う。特にmainとの分岐(v4.40の全画面表示ボタン機能)を踏まえたmerge方針の判断が必要。
+- Next: 友達側のmain作業終了・push完了を待ち、Kazumaxの明示承認後に最新mainを統合専用branchへ取り込む。全画面＋スタンプ共存と不足テストをTake2で修正し、Dexが再レビューする。作業branch/mainのどちらにも、承認前のmergeは禁止。
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
 - Working branch: `cc-cycle12-stamp-and-protect`（最新 `main` より作成）
 - Air Blueprint (Cycle 12): `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
