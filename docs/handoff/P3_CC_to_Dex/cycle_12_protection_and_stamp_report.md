@@ -21,7 +21,7 @@
 ## 対象HEAD
 - ブランチ: `cc-cycle12-stamp-and-protect`
 - P2作成時HEAD: `cfcd3a561a23bac2befa45c6b49dbc100f4fbbd1`
-- 本Cycleの実装コミットは、この報告書と同時にcommitし、push後にHEADを本ファイルへ追記する(下記Git節参照)。
+- 実装コミット: `611728b`(`origin/cc-cycle12-stamp-and-protect`へpush済み)
 
 ## 全変更ファイル
 
