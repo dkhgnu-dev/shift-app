@@ -1,9 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import App from './App';
+
+// Take2(Dex P4差戻し): 通常UIでは`disabled={isGenerating}`によりネイティブbuttonへの
+// click自体が(jsdomでも)発火しないため、2つ目の要求をUI操作だけで開始させられない。
+// requestTokenガードの実挙動(古い応答が後から届いてもstateへ反映されない)を
+// DOM/state観測で直接証明するため、Reactが内部に保持しているイベントハンドラを
+// (disabled判定を経由するネイティブdispatchではなく)直接呼び出すヘルパーを使う。
+// これはハンドラの実体(onClick propそのもの)を呼ぶだけであり、本番の
+// generateShift/fillBlanksの処理自体は一切変更していない。
+function invokeClickHandlerDirectly(element) {
+    const propsKey = Object.keys(element).find(k => k.startsWith('__reactProps'));
+    act(() => { element[propsKey].onClick(); });
+}
 
 // Cycle12 P2確定仕様(docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md)
 // のApp結合契約テスト。純粋関数の網羅はcycle12Utils.test.jsxが担当するため、ここでは
@@ -197,12 +206,42 @@ describe('Cycle12: 生成中の古い応答を無視する(2.4)', () => {
         await vi.waitFor(() => expect(genBtn).not.toBeDisabled());
     });
 
-    it('requestTokenガード: App.jsxのgenerateShift/fillBlanksが古いトークンの応答・finallyを無視する分岐を持つ', () => {
-        const appPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'App.jsx');
-        const source = readFileSync(appPath, 'utf-8');
-        expect(source).toMatch(/generateRequestTokenRef\.current/);
-        expect(source.match(/requestToken !== generateRequestTokenRef\.current/g)?.length).toBeGreaterThanOrEqual(2);
-        expect(source.match(/requestToken === generateRequestTokenRef\.current/g)?.length).toBeGreaterThanOrEqual(2);
+    // Take2(Dex P4差戻し): ソース文字列確認だけでは実挙動を証明できないという指摘に対応。
+    // 通常UIの`disabled`ガードを意図的に外して2要求(generateShift→fillBlanks)を強制的に
+    // 開始させ、後発の要求(B)を先に解決、先発の要求(A)を後から解決させることで、
+    // 「古い応答(A)が後から届いてもstateへ反映されない」ことをDOM/localStorage観測で証明する。
+    it('generateShiftとfillBlanksをまたぐ2要求で、古い応答(先発)が後から解決してもstateを上書きしない', async () => {
+        seedFixture([blankRow(), blankRow()]);
+        let resolveA, resolveB;
+        const fetchMock = vi.fn()
+            .mockImplementationOnce(() => new Promise(res => { resolveA = res; }))
+            .mockImplementationOnce(() => new Promise(res => { resolveB = res; }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<App />);
+        const genBtn = screen.getByRole('button', { name: /最適化シフトを生成/ });
+        fireEvent.click(genBtn); // 要求A(generateShift)開始・未解決
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(genBtn).toBeDisabled();
+
+        // 通常UIではdisabledのため2件目を開始できない(jsdomはネイティブbuttonの
+        // disabled中click抑止をReactのイベント委譲層でも再現するため、DOM属性を
+        // 直接書き換えるだけではclickが発火しないことを別途確認済み)。
+        // requestTokenガードの実挙動(古い応答の破棄)自体を検証するため、
+        // テストでは意図的にReactのonClickハンドラを直接呼び出し、
+        // Aが未解決のままBを強制的に開始させる。
+        const fillBtn = screen.getByRole('button', { name: /空欄自動作成/ });
+        invokeClickHandlerDirectly(fillBtn); // 要求B(fillBlanks)開始・Aより後に開始・未解決
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+        // Bを先に解決させる(後発の要求が先に完了するケース)
+        resolveB({ ok: true, json: async () => ({ status: 'SUCCESS', shifts: { emp_0: ['①'], emp_1: [] } }) });
+        await vi.waitFor(() => expect(readStoredResult()?.matrix?.[0]?.[0]?.shift).toBe('①'));
+
+        // Aが後から解決しても、Bより古い(先発の)要求なのでstateへ反映されない
+        resolveA({ ok: true, json: async () => ({ status: 'SUCCESS', shifts: { emp_0: ['⑦'], emp_1: [] } }) });
+        await new Promise(r => setTimeout(r, 30));
+        expect(readStoredResult().matrix[0][0].shift).toBe('①');
     });
 });
 

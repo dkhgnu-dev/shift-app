@@ -15,8 +15,10 @@ test_invalid_fixed_assignments_fail_closed)で既にカバーしているため�
 """
 import sys
 import datetime
+from unittest import mock
 
 import jpholiday
+from ortools.sat.python import cp_model
 
 from models import ShiftInput
 from shift_solver import solve_shift, classify_shift_category, get_period_start
@@ -121,11 +123,53 @@ def test_special_shifts_excluded_from_early_late_diff():
               result['shifts']['emp_0'][:10])
 
 
+# --- 5. Take2(Dex P4差戻し): Phase1 FEASIBLE・Phase2失敗時のフォールバックでも固定値が不変 ---
+def test_phase2_failure_falls_back_to_phase1_snapshot_and_keeps_fixed_values():
+    """
+    _solve_once()は、Phase1(スラック最小化)を解いた後、必ずPhase1のスナップショットを
+    `final_values`として保持してからPhase2(目標人数・連勤抑制の最適化)を解く。
+    Phase2が解を返せなかった場合、`final_values`はPhase1のスナップショットのまま
+    フォールバックされ、固定セル(fixed_assignments)は絶対制約としてPhase1側でも
+    既に強制されているため、フォールバックしても固定値は変化しないはずである。
+
+    Phase2だけを決定的に失敗させるため、`CpSolver.Solve`をモンキーパッチし、
+    1回目の呼び出し(Phase1)は本物のSolve()を実行させ、2回目の呼び出し(Phase2)だけ
+    強制的にUNKNOWNを返す(実際にPhase2が時間切れ等で解を返せなかった状況を模擬する)。
+    """
+    employees = make_employees(4, contract_days=10)
+    fixed = [{'employee_id': 'emp_0', 'day_index': 0, 'shift_id': 'A'}]
+    payload = ShiftInput(year=2026, month=7, employees=employees, shift_types=[SHIFT_A],
+                          requests_off=[], fixed_assignments=fixed)
+
+    real_solve = cp_model.CpSolver.Solve
+    call_count = {'n': 0}
+
+    def fake_solve(self, model):
+        call_count['n'] += 1
+        if call_count['n'] == 1:
+            return real_solve(self, model)  # Phase1は本物のSolve
+        return cp_model.UNKNOWN  # Phase2だけ強制的に失敗させる
+
+    with mock.patch.object(cp_model.CpSolver, 'Solve', fake_solve):
+        result = solve_shift(payload)
+
+    check('5-setup. Phase1は本物のSolveでOPTIMAL/FEASIBLEになっている',
+          result.get('phase1_status') in ('OPTIMAL', 'FEASIBLE'), result.get('phase1_status'))
+    check('5a. Phase2強制失敗(UNKNOWN)がphase2_statusに記録される',
+          result.get('phase2_status') == 'UNKNOWN', result.get('phase2_status'))
+    check('5b. クラッシュせず応答が返る(SUCCESS/FEASIBLE_WITH_WARNINGS)',
+          result['status'] in ('SUCCESS', 'FEASIBLE_WITH_WARNINGS'), result['status'])
+    if result['status'] in ('SUCCESS', 'FEASIBLE_WITH_WARNINGS'):
+        check('5c. Phase2失敗のフォールバックでも固定セル(emp_0 day0)は不変',
+              result['shifts']['emp_0'][0] == 'A', result['shifts']['emp_0'][0])
+
+
 if __name__ == '__main__':
     test_day_max_does_not_carry_over_to_next_weekday()
     test_holiday_weekday_triggers_half_staff_rule()
     test_classify_shift_category_boundaries()
     test_special_shifts_excluded_from_early_late_diff()
+    test_phase2_failure_falls_back_to_phase1_snapshot_and_keeps_fixed_values()
 
     print()
     if failures:
