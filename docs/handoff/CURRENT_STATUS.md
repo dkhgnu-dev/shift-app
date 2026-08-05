@@ -4,24 +4,25 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `cc-cycle12-main-integration`（`origin/main`(v4.44)起点、`cc-cycle12-stamp-and-protect`をmerge）
+- Working Branch: `main`
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 12 Take3 Dex P4再レビューOK -> Kazumaxのmain統合承認待ち
-- Status: Take3差戻し2点の解消をDexが確認し、追加FindingなしでP4 OK。Phase2失敗後に`solver.Value()`を呼ばず固定セルを保持する決定的テスト、および全画面中の背面UIを`inert`で操作対象外にする修正を、差分・自動テスト・build・実ブラウザで確認済み。正式レビューは`docs/handoff/P4_Dex_Review/cycle_12_protection_and_stamp_take3_review.md`を参照。
+- Cycle: 12 完了・main統合済み
+- Status: Kazumaxの明示承認後、Dex(P5)がレビュー済み統合branchをmainへ競合なしで統合。手動配置シフトの自動生成上書き防止と、スタンプ式の連続一括入力をv4.47として反映した。
 - Version: v4.47
 - 採番の経緯: Take3で製品UI(App.jsx)を変更したため、直前バージョンから1つ進めた。それ以前の経緯は、main起点が当時v4.44、mergeしたcc-cycle12-stamp-and-protect側が v4.45 だったため両方より新しい値を採用し、Take3対応はさらにその次を採用した、というもの。fetch確認時点でもorigin/mainのApp.jsxはv4.44のまま(衝突なし)。
-- Next: Kazumaxがmain統合の可否を判断する。明示承認後、Dex(P5)が最新`origin/main`をfetchし、進行・conflictの有無を再確認してから統合branch `cc-cycle12-main-integration`をmainへmerge/pushする。承認前はmergeしない。
-- **重要**: 友達側の作業終了をKazumaxが確認済み。CCは統合branchへのpushまでとし、mainへのmergeは別途Kazumaxの明示承認後に行う。
+- Next: Render等の公開環境がmainのv4.47へ自動デプロイされたことを確認する。人間確認は、画面にv4.47と「スタンプ」ボタンが表示されることだけでよい。
+- **重要**: Cycle 12のmain統合は完了。次サイクル開始時は最新mainをpullしてから作業branchを作る。
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
 - Air Blueprint (Cycle 12): `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
 - Dex P2 Instructions (Cycle 12): `docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md`
 - Dex P4 Review (Take1): `docs/handoff/P4_Dex_Review/cycle_12_protection_and_stamp_review.md`
 - Dex P4 Rollback (Take3): `docs/handoff/P4_Rollback/cycle_12_protection_and_stamp_take3.md`
 - Dex P4 Review (Take3): `docs/handoff/P4_Dex_Review/cycle_12_protection_and_stamp_take3_review.md`
+- Dex P5 Integration: `docs/handoff/P5_Dex_Integration/cycle_12_main_merge.md`
 - P3 Take2報告: `docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_take2_report.md`
 - P3 Take3報告: `docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_take3_report.md`
 
