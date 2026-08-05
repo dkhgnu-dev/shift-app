@@ -94,28 +94,15 @@ export function isEraseNoOp(existingCell) {
     return !(existingCell && existingCell.shift);
 }
 
-// Cycle13 4-1: 早番①の時間帯から特殊シフトスタンプの初期計上時間(h)を安全に算出する。
-// shiftMasterに①が無い/不正な形式/終了<=開始の場合は、呼び出し側が渡すfallbackHoursへ
-// フォールバックする(固定の4を散在させない)。
-export function computeEarlyShiftHours(shiftMaster, fallbackHours) {
-    const timeStr = shiftMaster && shiftMaster['①'];
-    if (typeof timeStr !== 'string' || !timeStr.includes('～')) return fallbackHours;
-    const [startStr, endStr] = timeStr.split('～');
-    const toMinutes = (t) => {
-        if (typeof t !== 'string') return null;
-        const parts = t.split(':');
-        if (parts.length !== 2) return null;
-        const h = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10);
-        if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-        return h * 60 + m;
-    };
-    const startMin = toMinutes(startStr);
-    const endMin = toMinutes(endStr);
-    if (startMin === null || endMin === null) return fallbackHours;
-    const diffMin = endMin - startMin;
-    if (!(diffMin > 0)) return fallbackHours;
-    return diffMin / 60;
+// Cycle13 4-1 (Take2): 特殊シフトスタンプ4種の初期計上時間は固定8hの製品ルール。
+// 承認時の参照は③(8:15～16:15)だが、値は shiftMaster から一切算出しない。
+// ①や③の設定を変更・削除しても、この既定値は8hのまま変わらない。
+export const SPECIAL_STAMP_DEFAULT_HOURS = 8;
+
+// スタンプで書き込むセルの初期hoursを決める。特殊シフトスタンプ4種だけ固定8hを明示保存し、
+// それ以外(通常/自由時間/休/希望休)はhoursを持たせない(undefined)。
+export function resolveStampHours(shiftId) {
+    return isSpecialStampShift(shiftId) ? SPECIAL_STAMP_DEFAULT_HOURS : undefined;
 }
 
 // 5.2/Cycle13 4-1: スタンプで書き込むセルオブジェクト(常にisFixed:trueの手動確定セルとして作る)。

@@ -23,7 +23,7 @@ import {
     isEraseStamp,
     isEraseNoOp,
     isSpecialStampShift,
-    computeEarlyShiftHours,
+    resolveStampHours,
     buildStampedCell,
 } from './cycle12Utils';
 
@@ -1198,10 +1198,9 @@ export default function App() {
             return;
         }
 
-        // Cycle13 4-1: 特殊シフトスタンプ(有休/応援/勉強会/店長会)は、早番①相当の
-        // 時間帯から初期計上時間を算出して明示保存する(不正・欠損時はDEFAULT_SPECIAL_HOURSへ)。
-        const hours = isSpecialStampShift(shiftId) ? computeEarlyShiftHours(shiftMaster, DEFAULT_SPECIAL_HOURS) : undefined;
-        const newCell = buildStampedCell(shiftId, hours);
+        // Cycle13 4-1 (Take2): 特殊シフトスタンプ(有休/応援/勉強会/店長会)は固定8hを明示保存する。
+        // shiftMasterの①/③からは算出しない(それらを変更・削除しても既定値は8hのまま)。
+        const newCell = buildStampedCell(shiftId, resolveStampHours(shiftId));
         commitHistory(`${emp.name} ${dayLabels[d] || ''}に「${activeStamp.label}」をスタンプ`, () => {
             const newMatrix = currentMatrix.map(row => [...row]);
             if (!newMatrix[i]) newMatrix[i] = [];
@@ -1752,7 +1751,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.48</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.49</span></div>
                 </div>
             )}
 
@@ -1763,7 +1762,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.48</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.49</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>

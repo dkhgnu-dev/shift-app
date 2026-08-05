@@ -10,22 +10,24 @@
 
 ## Current State
 
-- Cycle: 13 Dex(P4)差戻し -> CC(P3) Take2修正待ち
-- Status: 生成UI整理、スタンプの同値トグル空欄化、消しゴム、特殊スタンプ4種は実装済み。Dex(P4)で、特殊スタンプが早番①相当の4hで保存されることを検出した。Kazumax確定の「③相当・固定8h」へTake2で統一するまで未承認（①/③の設定変更から計算しない）。その他のCCクルーレビュー対象はP4で大きな問題なし。
-- Version: v4.48（更新済み）
-- Next: CC(P3)が`docs/handoff/P4_Rollback/cycle_13_generation_ui_and_stamp_toggle_take2.md`のP1（特殊スタンプ4種の初期計上時間を8hへ統一）を修正し、Take2報告をDex(P4)へ提出する。mainへはmergeしない。
+- Cycle: 13 Take2 CC(P3)修正完了 -> Dex(P4)再レビュー待ち
+- Status: P4差戻しのP1（特殊スタンプが早番①由来の4hで保存される）を修正。有休・応援・勉強会・店長会の初期計上時間を**固定8h**の製品ルールへ統一し、`computeEarlyShiftHours()`を廃止して`SPECIAL_STAMP_DEFAULT_HOURS = 8` / `resolveStampHours(shiftId)`へ置換（shiftMasterを一切参照しない）。①/③を変更・削除しても8hのままという回帰テストを追加。パレット表示は短い名前のみ、スタンプ後の個別hours編集は維持。Take1で受理済みの生成UI整理・トグル空欄化・消しゴムは変更なし。
+- Version: v4.49（Take2で+1）
+- Next: Dex(P4)が`cc-cycle13-generation-ui-stamp-toggle`(HEAD: `TAKE2_HASH`)の差分を再レビューする。mainへはmergeしない。
 - Air Blueprint (Cycle 13): `docs/handoff/P1_Air_Blueprint/cycle_13_generation_ui_and_stamp_toggle.md`
 - Dex P2 Instructions (Cycle 13): `docs/handoff/P2_Dex_to_CC/cycle_13_generation_ui_and_stamp_toggle_instructions.md`
-- P3報告 (Cycle 13): `docs/handoff/P3_CC_to_Dex/cycle_13_generation_ui_and_stamp_toggle_report.md`
+- P4差戻し (Cycle 13 Take2): `docs/handoff/P4_Rollback/cycle_13_generation_ui_and_stamp_toggle_take2.md`
+- P3報告 (Cycle 13 Take2): `docs/handoff/P3_CC_to_Dex/cycle_13_generation_ui_and_stamp_toggle_take2_report.md`
+- P3報告 (Cycle 13 Take1): `docs/handoff/P3_CC_to_Dex/cycle_13_generation_ui_and_stamp_toggle_report.md`
 - Cycle 12関連文書一式(main統合済み): `docs/handoff/P1_Air_Blueprint/`・`P2_Dex_to_CC/`・`P3_CC_to_Dex/`・`P4_Dex_Review/`・`P4_Rollback/`・`P5_Dex_Integration/`配下の`cycle_12_*`ファイルを参照
 
-## Verification (Cycle 13, CC P3)
+## Verification (Cycle 13 Take2, CC P3)
 
-- version gate: PASS (`node scripts/check_version_gate.mjs` -> App/CURRENT_STATUSともv4.48)
-- frontend test: 248/248 PASS（2回連続、約243〜254秒）
+- version gate: PASS (`node scripts/check_version_gate.mjs` -> App/CURRENT_STATUSともv4.49)
+- frontend test: 254/254 PASS（2回連続、約213〜230秒）
 - frontend build: PASS
 - `git diff --check`: PASS（CRLF/LF警告のみ）
-- CCクルー: 使用(推奨どおり)。生成UI整理/トグル空欄化/消しゴム/特殊スタンプの4領域すべてadequately implemented判定。指摘2件(version不一致・全画面テスト不足)は本コミットで解消済み
+- CCクルー: 未使用。今回はP4差戻しのP1 1件（固定値化）に限定した小さな変更で、判定ロジックの新規分岐を増やしていないため
 - ブラウザ実機確認: 無関係な別アプリ(「シフトカレンダー」)がBrowser paneに固定され未実施。コードレベル検証とjsdomテストで代替(既承認の既知制約)
 
 ## P2 Confirmed Rules (Cycle 11 継承)

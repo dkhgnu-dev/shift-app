@@ -9,10 +9,11 @@ import {
     isEraseStamp,
     isEraseNoOp,
     isSpecialStampShift,
-    computeEarlyShiftHours,
+    resolveStampHours,
     buildStampedCell,
     ERASE_STAMP_ID,
     SPECIAL_STAMP_SHIFT_IDS,
+    SPECIAL_STAMP_DEFAULT_HOURS,
 } from './cycle12Utils';
 
 // Cycle12 P2確定仕様(docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md)
@@ -165,18 +166,22 @@ describe('cycle12Utils: isSpecialStampShift (Cycle13 4-1)', () => {
     });
 });
 
-describe('cycle12Utils: computeEarlyShiftHours (Cycle13 4-1)', () => {
-    it('早番①(8:15〜12:15)から4hを算出する', () => {
-        expect(computeEarlyShiftHours({ '①': '8:15～12:15' }, 8)).toBe(4);
+describe('cycle12Utils: resolveStampHours (Cycle13 4-1 Take2: 固定8h)', () => {
+    it('特殊シフトスタンプ4種はすべて固定8hを返す', () => {
+        expect(SPECIAL_STAMP_DEFAULT_HOURS).toBe(8);
+        SPECIAL_STAMP_SHIFT_IDS.forEach(id => {
+            expect(resolveStampHours(id)).toBe(8);
+        });
     });
-    it('①の時間帯が変わっても正しく差分を再計算する', () => {
-        expect(computeEarlyShiftHours({ '①': '9:00～13:30' }, 8)).toBe(4.5);
+    it('通常シフト・自由時間・休・希望休・消しゴムはhoursを持たせない', () => {
+        ['①', '③', '__custom__1', '休', '希望休', ERASE_STAMP_ID].forEach(id => {
+            expect(resolveStampHours(id)).toBeUndefined();
+        });
     });
-    it('①が欠損・不正・逆転している場合はfallbackHoursへ安全にフォールバックする', () => {
-        expect(computeEarlyShiftHours({}, 8)).toBe(8);
-        expect(computeEarlyShiftHours({ '①': '不正な値' }, 8)).toBe(8);
-        expect(computeEarlyShiftHours({ '①': '12:15～8:15' }, 8)).toBe(8); // 終了<=開始
-        expect(computeEarlyShiftHours(null, 8)).toBe(8);
+    it('shiftMasterを一切参照しない純粋関数である(①/③の設定に依存しない)', () => {
+        // 引数はshiftIdのみ。①や③をどう変えても呼び出し結果が変わる余地がない。
+        expect(resolveStampHours.length).toBe(1);
+        SPECIAL_STAMP_SHIFT_IDS.forEach(id => expect(resolveStampHours(id)).toBe(8));
     });
 });
 
@@ -185,7 +190,7 @@ describe('cycle12Utils: buildStampedCell (5.2, Cycle13でhours対応)', () => {
         expect(buildStampedCell('④')).toEqual({ shift: '④', isFixed: true, isError: false });
     });
     it('hoursが有限数の場合は明示保存する(特殊シフトスタンプ用)', () => {
-        expect(buildStampedCell('有休', 4)).toEqual({ shift: '有休', isFixed: true, isError: false, hours: 4 });
+        expect(buildStampedCell('有休', 8)).toEqual({ shift: '有休', isFixed: true, isError: false, hours: 8 });
     });
     it('hoursが非数値・非有限の場合は保存しない', () => {
         expect(buildStampedCell('④', undefined)).not.toHaveProperty('hours');

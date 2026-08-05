@@ -308,7 +308,7 @@ describe('Cycle12 Take2(main統合P1): 全画面表示中もスタンプ開始�
         const btn1 = getCellButton(0, 1);
         fireEvent.pointerDown(btn1, { pointerId: 3, clientX: 100, clientY: 100 });
         fireEvent.pointerUp(btn1, { pointerId: 3, clientX: 101, clientY: 100 });
-        expect(readStoredResult().matrix[0][1]).toEqual({ shift: '有休', isFixed: true, isError: false, hours: 4 });
+        expect(readStoredResult().matrix[0][1]).toEqual({ shift: '有休', isFixed: true, isError: false, hours: 8 });
 
         // 全画面表示中もスタンプモードを終了できる(背面UIへ操作を戻せる)。
         fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを終了する' }));
@@ -599,27 +599,36 @@ describe('Cycle13 4/4-1: 消しゴムと特殊シフトスタンプ4種', () => 
         expect(screen.getByRole('button', { name: '消しゴム（空欄にする）' })).toHaveAttribute('aria-pressed', 'true');
     });
 
-    it('特殊シフトスタンプは早番①由来の初期hoursを明示保存し、許可シフト一覧に無くても使える', () => {
-        const employees = [
-            { name: '太郎', type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: null }, // 有休は許可リストに無い
-            { name: '花子', type: '準社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: null },
-        ];
-        seedFixture([blankRow(), blankRow()], employees);
-        render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
-        fireEvent.click(screen.getByRole('button', { name: '有休' }));
+    // Cycle13 4-1 Take2: 4種すべて固定8h。①/③の設定からは一切算出しない。
+    it.each(['有休', '応援', '勉強会', '店長会'])(
+        '特殊シフトスタンプ「%s」は初期hours:8を明示保存し、許可シフト一覧に無くても使える',
+        (stampLabel) => {
+            const employees = [
+                { name: '太郎', type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: null }, // 特殊シフトは許可リストに無い
+                { name: '花子', type: '準社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: null },
+            ];
+            seedFixture([blankRow(), blankRow()], employees);
+            render(<App />);
+            fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
+            fireEvent.click(screen.getByRole('button', { name: stampLabel }));
 
-        const btn0 = getCellButton(0, 0);
-        fireEvent.pointerDown(btn0, { pointerId: 1, clientX: 100, clientY: 100 });
-        fireEvent.pointerUp(btn0, { pointerId: 1, clientX: 101, clientY: 100 });
+            const btn0 = getCellButton(0, 0);
+            fireEvent.pointerDown(btn0, { pointerId: 1, clientX: 100, clientY: 100 });
+            fireEvent.pointerUp(btn0, { pointerId: 1, clientX: 101, clientY: 100 });
 
-        // 既定のSHIFT_MASTERの①は8:15〜12:15 -> 4h
-        expect(readStoredResult().matrix[0][0]).toEqual({ shift: '有休', isFixed: true, isError: false, hours: 4 });
-    });
+            expect(readStoredResult().matrix[0][0]).toEqual({ shift: stampLabel, isFixed: true, isError: false, hours: 8 });
+        }
+    );
 
-    it('①の時間帯が不正/欠損の場合、特殊スタンプの初期hoursは既定(8h)へフォールバックする', () => {
+    // Cycle13 4-1 Take2 回帰テスト: 承認された参照は③(8:15～16:15)だが値は算出しないため、
+    // ①や③を変更・削除しても特殊スタンプの既定hoursは8hのまま変わらない。
+    it.each([
+        ['①を短縮(8:15～10:15)しても8hのまま', { '①': '8:15～10:15', '③': '8:15～16:15', '④': '8:15～17:30' }],
+        ['③を短縮(8:15～10:15)しても8hのまま', { '①': '8:15～12:15', '③': '8:15～10:15', '④': '8:15～17:30' }],
+        ['①/③をどちらも削除しても8hのまま', { '④': '8:15～17:30' }],
+    ])('%s', (_name, master) => {
         seedFixture([blankRow(), blankRow()]);
-        window.localStorage.setItem('shift_custom_master', JSON.stringify({ '④': '8:15～17:30' })); // ①が無い
+        window.localStorage.setItem('shift_custom_master', JSON.stringify(master));
         render(<App />);
         fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
         fireEvent.click(screen.getByRole('button', { name: '応援' }));
@@ -631,14 +640,24 @@ describe('Cycle13 4/4-1: 消しゴムと特殊シフトスタンプ4種', () => 
         expect(readStoredResult().matrix[0][0]).toEqual({ shift: '応援', isFixed: true, isError: false, hours: 8 });
     });
 
+    it('パレット表示は短い名前のみで、時間や時間帯を付けない', () => {
+        seedFixture([blankRow(), blankRow()]);
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
+        ['有休', '応援', '勉強会', '店長会'].forEach(label => {
+            const btn = screen.getByRole('button', { name: label });
+            expect(btn.textContent).toBe(label); // '有休 8h' や時間帯付きにしない
+        });
+    });
+
     it('特殊スタンプで作ったセルは通常編集で任意のhoursへ変更でき、同値再タップではhours/noteを残さず空欄化する', () => {
-        const row0 = [{ shift: '有休', isFixed: true, isError: false, hours: 4 }, ...blankRow().slice(1)];
+        const row0 = [{ shift: '有休', isFixed: true, isError: false, hours: 8 }, ...blankRow().slice(1)];
         seedFixture([row0, blankRow()]);
         render(<App />);
 
         // スタンプOFFのまま通常どおりセルを開き、hoursを個別に変更できる。
         fireEvent.click(getCellButton(0, 0));
-        const hoursInput = screen.getByDisplayValue('4');
+        const hoursInput = screen.getByDisplayValue('8');
         fireEvent.change(hoursInput, { target: { value: '6' } });
         fireEvent.click(screen.getByRole('button', { name: '保存する' }));
         expect(readStoredResult().matrix[0][0]).toEqual({ shift: '有休', isFixed: true, isError: false, hours: 6 });
