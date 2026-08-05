@@ -10,13 +10,14 @@
 
 ## Current State
 
-- Cycle: 13 Take2 CC(P3)修正完了 -> Dex(P4)再レビュー待ち
-- Status: P4差戻しのP1（特殊スタンプが早番①由来の4hで保存される）を修正。有休・応援・勉強会・店長会の初期計上時間を**固定8h**の製品ルールへ統一し、`computeEarlyShiftHours()`を廃止して`SPECIAL_STAMP_DEFAULT_HOURS = 8` / `resolveStampHours(shiftId)`へ置換（shiftMasterを一切参照しない）。①/③を変更・削除しても8hのままという回帰テストを追加。パレット表示は短い名前のみ、スタンプ後の個別hours編集は維持。Take1で受理済みの生成UI整理・トグル空欄化・消しゴムは変更なし。
+- Cycle: 13 Take2 Dex(P4)承認 -> P5統合判断待ち
+- Status: P4差戻しのP1（特殊スタンプが早番①由来の4hで保存される）を修正。有休・応援・勉強会・店長会の初期計上時間を**固定8h**の製品ルールへ統一し、`computeEarlyShiftHours()`を廃止して`SPECIAL_STAMP_DEFAULT_HOURS = 8` / `resolveStampHours(shiftId)`へ置換（shiftMasterを一切参照しない）。①/③を変更・削除しても8hのままという回帰テストを追加。P4承認。既存4hセルは利用者の手入力と区別できないため自動移行せず、新規スタンプだけを8hにする。パレット表示は短い名前のみ、スタンプ後の個別hours編集は維持。Take1で受理済みの生成UI整理・トグル空欄化・消しゴムは変更なし。
 - Version: v4.49（Take2で+1）
-- Next: Dex(P4)が`cc-cycle13-generation-ui-stamp-toggle`(HEAD: `181a826`)の差分を再レビューする。mainへはmergeしない。
+- Next: Cycle 13はP5統合判断へ進める。mainは未統合のまま。
 - Air Blueprint (Cycle 13): `docs/handoff/P1_Air_Blueprint/cycle_13_generation_ui_and_stamp_toggle.md`
 - Dex P2 Instructions (Cycle 13): `docs/handoff/P2_Dex_to_CC/cycle_13_generation_ui_and_stamp_toggle_instructions.md`
 - P4差戻し (Cycle 13 Take2): `docs/handoff/P4_Rollback/cycle_13_generation_ui_and_stamp_toggle_take2.md`
+- P4承認 (Cycle 13 Take2): `docs/handoff/P4_Dex_Review/cycle_13_generation_ui_and_stamp_toggle_take2_review.md`
 - P3報告 (Cycle 13 Take2): `docs/handoff/P3_CC_to_Dex/cycle_13_generation_ui_and_stamp_toggle_take2_report.md`
 - P3報告 (Cycle 13 Take1): `docs/handoff/P3_CC_to_Dex/cycle_13_generation_ui_and_stamp_toggle_report.md`
 - Cycle 12関連文書一式(main統合済み): `docs/handoff/P1_Air_Blueprint/`・`P2_Dex_to_CC/`・`P3_CC_to_Dex/`・`P4_Dex_Review/`・`P4_Rollback/`・`P5_Dex_Integration/`配下の`cycle_12_*`ファイルを参照
