@@ -10,10 +10,10 @@
 
 ## Current State
 
-- Cycle: 13 CC(P3)実装完了 -> Dex(P4)レビュー待ち
-- Status: CC(P3)がDex(P2)最終指示書に従い、生成UI整理(空欄自動作成を主操作・最適化シフトを再生成を詳細操作の上級操作へ)、スタンプの同値トグル空欄化、消しゴムスタンプ、有休・応援・勉強会・店長会の特殊スタンプ(早番①相当の初期hours)を実装。CCクルーレビュー実施済み(生成UI/トグル空欄化/消しゴム/特殊スタンプいずれもadequately implemented判定、全画面時の消しゴム・特殊スタンプ操作テストを追加で補強)。
+- Cycle: 13 Dex(P4)差戻し -> CC(P3) Take2修正待ち
+- Status: 生成UI整理、スタンプの同値トグル空欄化、消しゴム、特殊スタンプ4種は実装済み。Dex(P4)で、特殊スタンプが早番①相当の4hで保存されることを検出した。Kazumax確定の③相当8hへTake2で統一するまで未承認。その他のCCクルーレビュー対象はP4で大きな問題なし。
 - Version: v4.48（更新済み）
-- Next: Dex(P4)が`cc-cycle13-generation-ui-stamp-toggle`(HEAD: `f36d6f4`)の差分をレビューする。
+- Next: CC(P3)が`docs/handoff/P4_Rollback/cycle_13_generation_ui_and_stamp_toggle_take2.md`のP1（特殊スタンプ4種の初期計上時間を8hへ統一）を修正し、Take2報告をDex(P4)へ提出する。mainへはmergeしない。
 - Air Blueprint (Cycle 13): `docs/handoff/P1_Air_Blueprint/cycle_13_generation_ui_and_stamp_toggle.md`
 - Dex P2 Instructions (Cycle 13): `docs/handoff/P2_Dex_to_CC/cycle_13_generation_ui_and_stamp_toggle_instructions.md`
 - P3報告 (Cycle 13): `docs/handoff/P3_CC_to_Dex/cycle_13_generation_ui_and_stamp_toggle_report.md`
