@@ -3,6 +3,7 @@
 ## 対象
 
 - branch: `cc-cycle13-generation-ui-stamp-toggle`(基点: `origin/air-cycle13-ui-stamp-toggle`)
+- 実装commit: `f36d6f4`
 - 指示書: `docs/handoff/P2_Dex_to_CC/cycle_13_generation_ui_and_stamp_toggle_instructions.md`
 - Version: v4.47 → **v4.48**(製品コード変更のためversion gate要件どおり+1)
 - `main`へはmergeしていません。
