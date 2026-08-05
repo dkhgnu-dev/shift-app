@@ -131,35 +131,44 @@ def test_infeasible_warning_draft_when_opted_in():
     check('3b. violationsに具体的な理由が含まれる', len(result.get('violations', [])) > 0, result.get('violations'))
 
 
-# --- 4. fixedと強制希望休の衝突 ---
+# --- 4. fixedと強制希望休の衝突(Cycle12: fail-closedへ仕様変更) ---
+# Take1(Cycle2/Cycle9時点)は「手動固定を優先しwarningで続行」だったが、
+# Cycle12 P2指示書3章により、この衝突は一部無視して続行せず入力不整合として
+# 安全停止(fail-closed)する仕様へ確定した。
 def test_fixed_vs_requested_off_conflict():
     requests_off = [{'employee_id': 'emp_5', 'date': '2026-06-20'}]  # period day_index=4 (6/16始まり)
     fixed = [{'employee_id': 'emp_5', 'day_index': 4, 'shift_id': '⑦'}]
-    result = solve_shift(ShiftInput(**build_full_payload(fixed_assignments=fixed, requests_off=requests_off)))
-    shifts = result['shifts']
-    check('4. 衝突時は手動固定が優先される', shifts['emp_5'][4] == '⑦', shifts['emp_5'][4])
-    conflict_warned = any('希望休が登録されています' in w for w in result['warnings'])
-    check('4. 衝突がwarningとして記録される', conflict_warned, result['warnings'])
+    try:
+        solve_shift(ShiftInput(**build_full_payload(fixed_assignments=fixed, requests_off=requests_off)))
+        check('4. 固定非OFFと強制希望休の衝突はfail-closedで例外になる(Cycle12)', False, '例外が発生しなかった')
+    except ValueError as e:
+        check('4. 固定非OFFと強制希望休の衝突はfail-closedで例外になる(Cycle12)', '希望休' in str(e) and '衝突' in str(e), str(e))
 
 
-# --- 5. 期間外day、未知employee/shift、重複fixed ---
-def test_invalid_fixed_assignments():
-    fixed = [
-        {'employee_id': 'emp_999', 'day_index': 0, 'shift_id': '④'},     # 未知employee
-        {'employee_id': 'emp_0', 'day_index': 9999, 'shift_id': '④'},    # 期間外day
-        {'employee_id': 'emp_0', 'day_index': 2, 'shift_id': '存在しないID'},  # 未知shift
-        {'employee_id': 'emp_0', 'day_index': 3, 'shift_id': '④'},       # 重複1回目
-        {'employee_id': 'emp_0', 'day_index': 3, 'shift_id': '⑦'},       # 重複2回目（後勝ち）
+# --- 5. 期間外day、未知employee/shift、重複fixed(Cycle12: fail-closedへ仕様変更) ---
+# Take1(Cycle2/Cycle9時点)は「不正な1件だけを無視してwarning記録、続行」だったが、
+# Cycle12 P2指示書3章により、これらはいずれも1件でも検出した時点でfail-closed
+# (その場で例外、表を更新しない)仕様へ確定した。各不正パターンを個別に検証する。
+def test_invalid_fixed_assignments_fail_closed():
+    cases = [
+        ('未知employee', [{'employee_id': 'emp_999', 'day_index': 0, 'shift_id': '④'}], '未知の従業員ID'),
+        ('期間外day', [{'employee_id': 'emp_0', 'day_index': 9999, 'shift_id': '④'}], '期間外の日付指定'),
+        ('未知shift', [{'employee_id': 'emp_0', 'day_index': 2, 'shift_id': '存在しないID'}], '未知のシフトID'),
+        (
+            '重複fixed',
+            [
+                {'employee_id': 'emp_0', 'day_index': 3, 'shift_id': '④'},
+                {'employee_id': 'emp_0', 'day_index': 3, 'shift_id': '⑦'},
+            ],
+            '重複した固定指定',
+        ),
     ]
-    result = solve_shift(ShiftInput(**build_full_payload(fixed_assignments=fixed)))
-    check('5. クラッシュせずに応答が返る', result['status'] in ('SUCCESS', 'FEASIBLE_WITH_WARNINGS', 'INFEASIBLE'), result['status'])
-    warn_text = ' '.join(result['warnings'])
-    check('5. 未知employeeのwarningがある', '未知の従業員ID' in warn_text, warn_text)
-    check('5. 期間外dayのwarningがある', '期間外の日付指定' in warn_text, warn_text)
-    check('5. 未知shiftのwarningがある', '未知のシフトID' in warn_text, warn_text)
-    check('5. 重複fixedのwarningがある', '重複した固定指定' in warn_text, warn_text)
-    if result['status'] != 'INFEASIBLE':
-        check('5. 重複fixedは後勝ちで⑦になる', result['shifts']['emp_0'][3] == '⑦', result['shifts']['emp_0'][3])
+    for label, fixed, expected_fragment in cases:
+        try:
+            solve_shift(ShiftInput(**build_full_payload(fixed_assignments=fixed)))
+            check(f'5. {label}はfail-closedで例外になる(Cycle12)', False, '例外が発生しなかった')
+        except ValueError as e:
+            check(f'5. {label}はfail-closedで例外になる(Cycle12)', expected_fragment in str(e), str(e))
 
 
 # --- 6. 特殊シフトの店舗人数・登録販売者カバレッジ除外、有休の勤務日数計上 ---
@@ -279,7 +288,7 @@ if __name__ == '__main__':
     test_infeasible_default_stops_and_lists_violations()
     test_infeasible_warning_draft_when_opted_in()
     test_fixed_vs_requested_off_conflict()
-    test_invalid_fixed_assignments()
+    test_invalid_fixed_assignments_fail_closed()
     test_special_shift_excluded_from_store_counts()
     test_koukyuu_kibou_yukyu_confirmed_spec()
     test_seven_day_rest_rule_scenarios()

@@ -4,25 +4,34 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `main`
+- Working Branch: `cc-cycle12-main-integration`（`origin/main`(v4.44)起点、`cc-cycle12-stamp-and-protect`をmerge）
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 11 完了 ＋ v4.44（全画面表示のレイアウト調整・閉じるボタン被り解消）
-- Status: v4.44リリース完了。main ブランチへ push 済み。
-- Version: v4.44（更新済み）
-- Next: Render自動デプロイ後に動作確認。
+- Cycle: 12 Take3 Dex P4再レビューOK -> Kazumaxのmain統合承認待ち
+- Status: Take3差戻し2点の解消をDexが確認し、追加FindingなしでP4 OK。Phase2失敗後に`solver.Value()`を呼ばず固定セルを保持する決定的テスト、および全画面中の背面UIを`inert`で操作対象外にする修正を、差分・自動テスト・build・実ブラウザで確認済み。正式レビューは`docs/handoff/P4_Dex_Review/cycle_12_protection_and_stamp_take3_review.md`を参照。
+- Version: v4.47
+- 採番の経緯: Take3で製品UI(App.jsx)を変更したため、直前バージョンから1つ進めた。それ以前の経緯は、main起点が当時v4.44、mergeしたcc-cycle12-stamp-and-protect側が v4.45 だったため両方より新しい値を採用し、Take3対応はさらにその次を採用した、というもの。fetch確認時点でもorigin/mainのApp.jsxはv4.44のまま(衝突なし)。
+- Next: Kazumaxがmain統合の可否を判断する。明示承認後、Dex(P5)が最新`origin/main`をfetchし、進行・conflictの有無を再確認してから統合branch `cc-cycle12-main-integration`をmainへmerge/pushする。承認前はmergeしない。
+- **重要**: 友達側の作業終了をKazumaxが確認済み。CCは統合branchへのpushまでとし、mainへのmergeは別途Kazumaxの明示承認後に行う。
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
+- Air Blueprint (Cycle 12): `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
+- Dex P2 Instructions (Cycle 12): `docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md`
+- Dex P4 Review (Take1): `docs/handoff/P4_Dex_Review/cycle_12_protection_and_stamp_review.md`
+- Dex P4 Rollback (Take3): `docs/handoff/P4_Rollback/cycle_12_protection_and_stamp_take3.md`
+- Dex P4 Review (Take3): `docs/handoff/P4_Dex_Review/cycle_12_protection_and_stamp_take3_review.md`
+- P3 Take2報告: `docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_take2_report.md`
+- P3 Take3報告: `docs/handoff/P3_CC_to_Dex/cycle_12_protection_and_stamp_take3_report.md`
 
-## P2 Confirmed Rules (Cycle 10 継承)
+## P2 Confirmed Rules (Cycle 11 継承)
 
 - 画面下部アクションバーの廃止およびハンバーガーメニューへの移管はスマホ表示時のみ適用する。
 - 氏名固定列は通常時の現行幅（スマホ82px、PC140px）を維持し、Cycle 11の折りたたみ時だけ28pxとする。
 - 自由時間の編集、Undo/Redo (20件原子保持)、希望休のランダム・空きシャッフルロジックは一切破壊しないこと。
 
-## アグ担当機能（v4.12最新統合）
+## v4.38未評価差分（Cycle 12で是正・回帰テスト必須）
 - **土日祝の全員50%以上出勤ルール（v4.12新機能）**
   - 土曜日・日曜日・日本の祝日（振替休日含む）において、全従業員数の50%以上（切り上げ）が必ず出勤する下限制約を自動適用
 - **時間帯区分（早番・中番・遅番）の出勤人数自動均等配分ロジック（v4.11新機能）**
@@ -41,10 +50,8 @@
 - `manuals/STARTUP_CHECKLIST.md`
 - `docs/PROJECT_RULES.md`
 - `docs/handoff/WORKFLOW_RULES.md`
-- `docs/handoff/P1_Air_Blueprint/cycle_11_health_alerts_and_collapsible_names.md`
-- `docs/handoff/P2_Dex_to_CC/cycle_11_health_and_collapsible_instructions.md`
-- `docs/handoff/P4_Dex_Review/cycle_11_health_and_collapsible_review.md`
-- `docs/handoff/P4_Rollback/cycle_11_health_and_collapsible_take2.md`
+- `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
+- `docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md`
 
 ## Stop Conditions
 
