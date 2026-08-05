@@ -18,11 +18,11 @@ The current code calculates the initial value from shift `①` (`8:15-12:15`) in
 
 ### Required Take2 changes
 
-1. Make all four special stamps initially create `hours: 8` under the ordinary default configuration. Do not calculate this from shift `①`.
+1. Make all four special stamps initially create `hours: 8` as a fixed product rule. The approved reference is shift `③` (8:15-16:15), but the implementation must not calculate this value from either `①` or `③`; changing or deleting either normal-shift setting must not change the special-stamp default.
 2. Preserve the existing individual cell editor so users can change a stamped special shift's hours after placement.
 3. Keep palette labels exactly compact: `有休`, `応援`, `勉強会`, `店長会`; do not append `8h` or a time range.
 4. Update or remove the old `①`-derived calculation and its pure tests so the code and tests state the approved 8h rule unambiguously.
-5. Replace all Cycle 13 UI expectations of `hours: 4` with the appropriate 8h expectations. Add a table-driven or equivalent regression test covering all four stamps, plus verify the existing edit-after-stamp path still accepts a user-changed value.
+5. Replace all Cycle 13 UI expectations of `hours: 4` with the appropriate 8h expectations. Add a table-driven or equivalent regression test covering all four stamps, prove that changing or deleting `①`/`③` does not alter the fixed 8h default, and verify the existing edit-after-stamp path still accepts a user-changed value.
 6. Run the full frontend test suite, production build, version gate, and `git diff --check`. Increase the visible app version exactly once because the shipped behaviour changes.
 
 ## Checked And Accepted In This Review
@@ -39,6 +39,12 @@ The current code calculates the initial value from shift `①` (`8:15-12:15`) in
 - Static DIFF review against `origin/main...f36d6f4`
 - Changed test assertions and stamp event paths inspected
 - `git diff --check origin/main...f36d6f4`: PASS
+- Targeted regression tests: `61/61` PASS (`cycle12Utils` and `App.cycle12`)
+- Production build: PASS
 
 No other release-blocking finding was identified in this pass.
 
+## Dex Crew Record
+
+- Used: yes. This review changes employee-hour totals and has state/history interactions, so two independent crew checks covered stamp/history logic and UI/input behavior in parallel.
+- Result: both checks independently found the same 4h policy mismatch and found no additional release-blocking defect. The P1 instruction above is the consolidated decision.

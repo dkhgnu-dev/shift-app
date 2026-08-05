@@ -11,7 +11,7 @@
 ## Current State
 
 - Cycle: 13 Dex(P4)差戻し -> CC(P3) Take2修正待ち
-- Status: 生成UI整理、スタンプの同値トグル空欄化、消しゴム、特殊スタンプ4種は実装済み。Dex(P4)で、特殊スタンプが早番①相当の4hで保存されることを検出した。Kazumax確定の③相当8hへTake2で統一するまで未承認。その他のCCクルーレビュー対象はP4で大きな問題なし。
+- Status: 生成UI整理、スタンプの同値トグル空欄化、消しゴム、特殊スタンプ4種は実装済み。Dex(P4)で、特殊スタンプが早番①相当の4hで保存されることを検出した。Kazumax確定の「③相当・固定8h」へTake2で統一するまで未承認（①/③の設定変更から計算しない）。その他のCCクルーレビュー対象はP4で大きな問題なし。
 - Version: v4.48（更新済み）
 - Next: CC(P3)が`docs/handoff/P4_Rollback/cycle_13_generation_ui_and_stamp_toggle_take2.md`のP1（特殊スタンプ4種の初期計上時間を8hへ統一）を修正し、Take2報告をDex(P4)へ提出する。mainへはmergeしない。
 - Air Blueprint (Cycle 13): `docs/handoff/P1_Air_Blueprint/cycle_13_generation_ui_and_stamp_toggle.md`
