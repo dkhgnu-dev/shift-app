@@ -13,7 +13,7 @@
 - Cycle: 13 Take2 CC(P3)修正完了 -> Dex(P4)再レビュー待ち
 - Status: P4差戻しのP1（特殊スタンプが早番①由来の4hで保存される）を修正。有休・応援・勉強会・店長会の初期計上時間を**固定8h**の製品ルールへ統一し、`computeEarlyShiftHours()`を廃止して`SPECIAL_STAMP_DEFAULT_HOURS = 8` / `resolveStampHours(shiftId)`へ置換（shiftMasterを一切参照しない）。①/③を変更・削除しても8hのままという回帰テストを追加。パレット表示は短い名前のみ、スタンプ後の個別hours編集は維持。Take1で受理済みの生成UI整理・トグル空欄化・消しゴムは変更なし。
 - Version: v4.49（Take2で+1）
-- Next: Dex(P4)が`cc-cycle13-generation-ui-stamp-toggle`(HEAD: `TAKE2_HASH`)の差分を再レビューする。mainへはmergeしない。
+- Next: Dex(P4)が`cc-cycle13-generation-ui-stamp-toggle`(HEAD: `181a826`)の差分を再レビューする。mainへはmergeしない。
 - Air Blueprint (Cycle 13): `docs/handoff/P1_Air_Blueprint/cycle_13_generation_ui_and_stamp_toggle.md`
 - Dex P2 Instructions (Cycle 13): `docs/handoff/P2_Dex_to_CC/cycle_13_generation_ui_and_stamp_toggle_instructions.md`
 - P4差戻し (Cycle 13 Take2): `docs/handoff/P4_Rollback/cycle_13_generation_ui_and_stamp_toggle_take2.md`

@@ -5,7 +5,7 @@
 - branch: `cc-cycle13-generation-ui-stamp-toggle`
 - 差戻し指示: `docs/handoff/P4_Rollback/cycle_13_generation_ui_and_stamp_toggle_take2.md`
 - 差戻しレビュー対象コード: `f36d6f4`
-- Take2実装commit: `TAKE2_HASH`
+- Take2実装commit: `181a826`
 - Version: v4.48 → **v4.49**（出荷挙動が変わるため1回だけ+1）
 - `main`へはmergeしていません。
 
