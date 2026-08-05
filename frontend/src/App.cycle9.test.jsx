@@ -45,6 +45,17 @@ function getShiftSelect() {
     return document.querySelector('.modal select');
 }
 
+// Cycle13 2-2: 「最適化シフトを生成」は「詳細操作」トグル配下の
+// 「最適化シフトを再生成」(要確認)へ移動した。呼び出し側でwindow.confirmを
+// 事前にモックしておくこと。
+function clickRegenerate() {
+    const toggle = screen.queryByRole('button', { name: /詳細操作/ });
+    if (toggle && toggle.getAttribute('aria-expanded') === 'false') {
+        fireEvent.click(toggle);
+    }
+    fireEvent.click(screen.getByRole('button', { name: /最適化シフトを再生成/ }));
+}
+
 beforeEach(() => {
     window.localStorage.clear();
     setViewportWidth(1280);
@@ -406,9 +417,10 @@ describe('生成中(isGenerating)の操作禁止 (Cycle9)', () => {
         seedSmallFixture([blankRow(), blankRow()]);
         const fetchMock = vi.fn(() => new Promise(() => {})); // 応答が返らない = isGenerating継続
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
 
         expect(getCellButton(0, 0)).toBeDisabled();
         expect(screen.getByRole('button', { name: '元に戻す(Undo)' })).toBeDisabled();
@@ -456,9 +468,10 @@ describe('Take2 P1-1: 希望休は生成後も保持される', () => {
             }),
         });
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(readMatrix()).not.toBeNull());
 
         expect(readMatrix()[0][0].shift).toBe('希望休'); // '休'のまま消費されない
@@ -480,13 +493,14 @@ describe('Take2 P1-1: 希望休は生成後も保持される', () => {
             }),
         });
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
         await vi.waitFor(() => expect(readMatrix()).not.toBeNull());
 
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
         await vi.waitFor(() => expect(readMatrix()[0][0].shift).toBe('希望休'));
 
@@ -511,9 +525,10 @@ describe('Take2 P1-1: 希望休は生成後も保持される', () => {
             }),
         });
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(readMatrix()).not.toBeNull());
 
         expect(readMatrix()[0][0].shift).toBe('希望休');
@@ -559,9 +574,10 @@ describe('Take2 P1-2: 自由時間は通常の自動生成候補から除外さ�
         }));
         const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'SUCCESS', shifts: { emp_0: [], emp_1: [] } }) });
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
         const body = JSON.parse(fetchMock.mock.calls[0][1].body);
@@ -640,9 +656,10 @@ describe('Take3 P1-1: 削除済み/未知IDだけの場合も「全シフト可�
         seedWithShifts(['⑨_削除済み']); // shiftMasterに存在しないID
         const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'SUCCESS', shifts: { emp_0: [], emp_1: [] } }) });
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
         const body = JSON.parse(fetchMock.mock.calls[0][1].body);
@@ -656,9 +673,10 @@ describe('Take3 P1-1: 削除済み/未知IDだけの場合も「全シフト可�
         seedWithShifts(['④', '⑨_削除済み', '④']);
         const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'SUCCESS', shifts: { emp_0: [], emp_1: [] } }) });
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
         const body = JSON.parse(fetchMock.mock.calls[0][1].body);
@@ -684,9 +702,9 @@ describe('Take3 P1-1: 削除済み/未知IDだけの場合も「全シフト可�
     // 必要。matrixだけでなくshift_generatedResult全体、およびUndo/Redoボタンの状態
     // (履歴を追加・消去しない)が実行前後で変わらないことも直接検証する。
     it.each([
-        ['最適化シフトを生成', /最適化シフトを生成/],
-        ['空欄自動作成', /空欄自動作成/],
-    ])('通常シフトが1件も無い場合、「%s」はfetchせずに安全停止し、生成結果・Undo\\/Redo履歴・isGeneratingを変更しない', (_label, buttonNameRegex) => {
+        ['最適化シフトを再生成', 'generate'],
+        ['空欄自動作成', 'fill'],
+    ])('通常シフトが1件も無い場合、「%s」はfetchせずに安全停止し、生成結果・Undo\\/Redo履歴・isGeneratingを変更しない', (_label, kind) => {
         seedSmallFixture([blankRow(), blankRow()]);
         // shiftMasterを空にする(通常シフト0件の状態)
         window.localStorage.setItem('shift_custom_master', JSON.stringify({}));
@@ -703,6 +721,7 @@ describe('Take3 P1-1: 削除済み/未知IDだけの場合も「全シフト可�
         const fetchMock = vi.fn();
         vi.stubGlobal('fetch', fetchMock);
         vi.spyOn(window, 'alert').mockImplementation(() => {});
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         // 生成前の状態を実行前後比較用に記録する。
         const generatedResultBefore = window.localStorage.getItem('shift_generatedResult');
@@ -710,7 +729,11 @@ describe('Take3 P1-1: 削除済み/未知IDだけの場合も「全シフト可�
         const redoDisabledBefore = screen.getByRole('button', { name: 'やり直す(Redo)' }).disabled;
         expect(undoDisabledBefore).toBe(false); // 事前のセル編集でUndoが有効になっている
 
-        fireEvent.click(screen.getByRole('button', { name: buttonNameRegex }));
+        if (kind === 'generate') {
+            clickRegenerate();
+        } else {
+            fireEvent.click(screen.getByRole('button', { name: /空欄自動作成/ }));
+        }
 
         expect(fetchMock).not.toHaveBeenCalled();
         expect(window.alert).toHaveBeenCalled();
@@ -763,8 +786,9 @@ describe('Take2 P2-2: INFEASIBLE再試行は最新render状態を使う', () => 
             json: async () => ({ status: 'INFEASIBLE', message: 'テスト不可能', violations: ['違反A'] }),
         });
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(screen.getByText(/自動生成を停止しました/)).toBeInTheDocument());
 
         // INFEASIBLE表示中にUndoで状態を変える(古いrenderのclosureに閉じ込められていないか検証)

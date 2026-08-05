@@ -47,7 +47,8 @@ describe('Cycle10 Take2: スマホ下部バー撤去とハンバーガー統合�
 
         expect(screen.getByRole('button', { name: /希望休ランダム入力/ })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /空欄自動作成/ })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /最適化シフトを生成/ })).toBeInTheDocument();
+        // Cycle13: 「最適化シフトを生成」は上級・再調整セクションの「最適化シフトを再生成」へ改名。
+        expect(screen.getByRole('button', { name: /最適化シフトを再生成/ })).toBeInTheDocument();
     });
 
     it('768px以下・従業員管理タブ: 下部固定バーがあり、main-contentにhas-mobile-bottom-barが付く', () => {
@@ -80,7 +81,10 @@ describe('Cycle10 Take2: スマホ下部バー撤去とハンバーガー統合�
 
         expect(screen.getByRole('button', { name: /希望休ランダム入力/ })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /空欄自動作成/ })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /最適化シフトを生成/ })).toBeInTheDocument();
+        // Cycle13: PCでは「詳細操作」トグルの先に「最適化シフトを再生成」がある(常時表示ではない)。
+        expect(screen.getByRole('button', { name: /詳細操作/ })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /詳細操作/ }));
+        expect(screen.getByRole('button', { name: /最適化シフトを再生成/ })).toBeInTheDocument();
         expect(document.querySelector('.mobile-bottom-bar')).toBeNull();
         expect(document.querySelector('.sidebar-mobile-actions')).toBeNull();
 

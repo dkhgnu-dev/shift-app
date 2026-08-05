@@ -31,6 +31,17 @@ function readMatrixFromStorage() {
     return JSON.parse(raw).matrix;
 }
 
+// Cycle13 2-2: 「最適化シフトを生成」は「詳細操作」トグル配下の
+// 「最適化シフトを再生成」(要確認)へ移動した。呼び出し側でwindow.confirmを
+// 事前にモックしておくこと。
+function clickRegenerate() {
+    const toggle = screen.queryByRole('button', { name: /詳細操作/ });
+    if (toggle && toggle.getAttribute('aria-expanded') === 'false') {
+        fireEvent.click(toggle);
+    }
+    fireEvent.click(screen.getByRole('button', { name: /最適化シフトを再生成/ }));
+}
+
 // Take2 P1-3(Dex差戻し): 24名×31日の巨大fixture(デフォルトINITIAL_DATA)のままだと
 // 標準テスト一括実行時に希望休テストが20秒のtestTimeoutへ達していた(Dex環境で実測)。
 // 個別の氏名('K.D.'等)や生成条件を検証しない大半のテストは、目的を変えずこの
@@ -364,9 +375,10 @@ describe('targetHoursのデータ契約 (Cycle8 Take2)', () => {
             json: async () => ({ status: 'SUCCESS', shifts: { emp_0: [] } }),
         });
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
 
         const sentBody = JSON.parse(fetchMock.mock.calls[0][1].body);

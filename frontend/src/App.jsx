@@ -19,7 +19,11 @@ import {
     reconcileGeneratedMatrix,
     buildStampCandidates,
     isStampAllowedForEmployee,
-    isStampNoOp,
+    isStampToggleClear,
+    isEraseStamp,
+    isEraseNoOp,
+    isSpecialStampShift,
+    computeEarlyShiftHours,
     buildStampedCell,
 } from './cycle12Utils';
 
@@ -288,6 +292,10 @@ export default function App() {
     const [stampModeEnabled, setStampModeEnabled] = useState(false);
     const [activeStamp, setActiveStamp] = useState(null); // { shiftId, label } | null
 
+    // Cycle13 2-2: PCの「詳細操作」トグル(上級操作パネルの開閉)。タブ切替・生成開始・
+    // 全画面切替などで背面に残って誤操作できないよう、closeInteractiveState()で必ず閉じる。
+    const [advancedOpen, setAdvancedOpen] = useState(false);
+
     // Cycle9: pointerdown〜pointerupで短タップ/スワイプを判定するための追跡状態(refのみ、stateにしない)。
     const pointerTrackRef = useRef(null);
     const activePointersRef = useRef(new Set());
@@ -326,6 +334,7 @@ export default function App() {
         dragKindRef.current = null;
         cellDragSourceRef.current = null;
         pointerTrackRef.current = null;
+        setAdvancedOpen(false); // Cycle13 2-2: 詳細操作パネルも常にここで閉じる。
         if (!keepStampMode) {
             setStampModeEnabled(false);
             setActiveStamp(null);
@@ -998,6 +1007,16 @@ export default function App() {
         }
     };
 
+    // Cycle13 2-2: 「最適化シフトを再生成」は上級操作。実行前に必ず確認を出し、
+    // キャンセル時はgenerateShift()自体を呼ばないため、fetch・履歴・表・isGeneratingの
+    // いずれも変更しない。
+    const REGENERATE_CONFIRM_MESSAGE = '手動入力済みセルは保持したまま、自動生成された部分だけを再配置して作り直します。よろしいですか？';
+    const confirmAndRegenerate = () => {
+        if (isGenerating) return;
+        if (!window.confirm(REGENERATE_CONFIRM_MESSAGE)) return;
+        generateShift();
+    };
+
     // Cycle9: セル同士の内容比較(no-op判定用)。両者ともshiftが無ければ等価として扱う。
     const cellsAreEquivalent = (a, b) => {
         const na = a && a.shift ? a : {};
@@ -1133,28 +1152,56 @@ export default function App() {
         });
     };
 
-    // Cycle12 5.2: スタンプ(一括塗り)モードでの1セル更新。既存のclassifyPointerUp()による
+    // Cycle13 3/4: 空欄オブジェクトへの完全初期化をcommitHistory1回で行う共通処理
+    // (トグル消去・消しゴムのどちらも属性を一切残さない)。
+    const clearCellByStamp = (i, d, currentMatrix, label) => {
+        commitHistory(label, () => {
+            const newMatrix = currentMatrix.map(row => [...row]);
+            if (!newMatrix[i]) newMatrix[i] = [];
+            newMatrix[i][d] = {};
+            setGeneratedResult(prev => ({ ...(prev || {}), matrix: newMatrix }));
+            // 希望休を消した場合もemployees[].requestsを即時一致させる。
+            setEmployees(prevEmployees => buildRequestsFromMatrix(newMatrix, prevEmployees));
+        });
+    };
+
+    // Cycle12/13 5.2: スタンプ(一括塗り)モードでの1セル更新。既存のclassifyPointerUp()による
     // 短タップ判定を通過した場合だけ呼ばれる(pointermove中は塗らない)。
     const applyStamp = (i, d) => {
         if (isGenerating || !stampModeEnabled || !activeStamp) return;
         const emp = employees[i];
         if (!emp) return;
         const shiftId = activeStamp.shiftId;
+        const currentMatrix = getCurrentMatrixOrBlank();
+        const existingCell = currentMatrix[i]?.[d] || null;
+
+        // Cycle13 4: 消しゴムは許可判定を通さず、入力済みセルを{}へ完全初期化する。
+        // 空欄セルを選んだ場合は真のno-op(履歴・Redo・matrix・requestsを変えない)。
+        if (isEraseStamp(shiftId)) {
+            if (isEraseNoOp(existingCell)) return;
+            clearCellByStamp(i, d, currentMatrix, `${emp.name} ${dayLabels[d] || ''}を消しゴムで空欄にする`);
+            return;
+        }
+
+        // Cycle13 3: 同じスタンプが既に入っているセルはトグル消去。通常シフトの許可判定より
+        // 先に判定するため、許可シフト設定が後から変わっていても同値セルは消去できる。
+        if (isStampToggleClear(existingCell, shiftId)) {
+            clearCellByStamp(i, d, currentMatrix, `${emp.name} ${dayLabels[d] || ''}の「${activeStamp.label}」を消去`);
+            return;
+        }
 
         // 通常シフトは対象従業員の有効な許可シフトだけ塗れる(resolveAllowedShifts()と
-        // 異なる判定を新たに作らない)。許可外は変更せず理由を表示する。
+        // 異なる判定を新たに作らない)。休/希望休/自由時間/消しゴム/特殊シフトスタンプ4種は
+        // 常に許可される。許可外は変更せず理由を表示する。
         if (!isStampAllowedForEmployee(shiftId, resolveAllowedShifts(emp.shifts))) {
             alert(`「${emp.name}」さんは「${activeStamp.label}」を勤務可能シフトとして許可されていないため、スタンプできません。`);
             return;
         }
 
-        const currentMatrix = getCurrentMatrixOrBlank();
-        const existingCell = currentMatrix[i]?.[d] || null;
-
-        // 同じシフトを同じセルへ重ねた場合はno-op(matrix・履歴・Redo・noteを変更しない)。
-        if (isStampNoOp(existingCell, shiftId)) return;
-
-        const newCell = buildStampedCell(shiftId);
+        // Cycle13 4-1: 特殊シフトスタンプ(有休/応援/勉強会/店長会)は、早番①相当の
+        // 時間帯から初期計上時間を算出して明示保存する(不正・欠損時はDEFAULT_SPECIAL_HOURSへ)。
+        const hours = isSpecialStampShift(shiftId) ? computeEarlyShiftHours(shiftMaster, DEFAULT_SPECIAL_HOURS) : undefined;
+        const newCell = buildStampedCell(shiftId, hours);
         commitHistory(`${emp.name} ${dayLabels[d] || ''}に「${activeStamp.label}」をスタンプ`, () => {
             const newMatrix = currentMatrix.map(row => [...row]);
             if (!newMatrix[i]) newMatrix[i] = [];
@@ -1182,11 +1229,14 @@ export default function App() {
         setActiveStamp(candidates[0] || null);
     };
 
-    // Cycle12 5.3: active stampのshift IDがルール設定で削除されたら、
-    // active stampをnullにしてモードを安全停止する。
+    // Cycle12/13 5.3: active stampのshift IDがルール設定で削除されたら、
+    // active stampをnullにしてモードを安全停止する。消しゴムと特殊シフトスタンプ4種は
+    // shiftMasterに存在しない特殊候補のため、shiftMaster変更だけでモードを終了させない。
     useEffect(() => {
         if (!stampModeEnabled || !activeStamp) return;
         if (activeStamp.shiftId === '休' || activeStamp.shiftId === '希望休') return;
+        if (isEraseStamp(activeStamp.shiftId)) return;
+        if (isSpecialStampShift(activeStamp.shiftId)) return;
         if (!(activeStamp.shiftId in shiftMaster)) {
             setStampModeEnabled(false);
             setActiveStamp(null);
@@ -1624,22 +1674,47 @@ export default function App() {
 
     const renderActions = () => {
         if (activeTab === 'dashboard') {
+            // Cycle13 2: 日常操作は「空欄自動作成」を主ボタン(強い見た目)として残し、
+            // 「希望休ランダム入力」も日常操作として並べる。「最適化シフトを生成」(再最適化)は
+            // 同じ列・同じ強さの常時ボタンとして出さず、「詳細操作」トグルの先の上級操作へ移す。
+            // このdashboard分岐はPC専用(isNarrowViewport===falseの時だけ呼ばれる。
+            // スマホはsidebar-mobile-actionsが別途担当)。
             return (
-                <div style={{display: 'flex', gap: '8px', width: isNarrowViewport ? '100%' : 'auto', flexWrap: 'wrap'}}>
-                    <button
-                        className="btn"
-                        style={{flex: isNarrowViewport ? 1 : 'none', justifyContent: 'center', minWidth: isNarrowViewport ? 'auto' : '160px', background: 'linear-gradient(135deg, #7C3AED, #1E3A8A)', color: '#fff', border: 'none'}}
-                        onClick={randomizeHolidayRequests}
-                        disabled={isGenerating}
-                    >
-                        🎲 希望休ランダム入力
-                    </button>
-                    <button className="btn outline" style={{flex: isNarrowViewport ? 1 : 'none', justifyContent: 'center'}} onClick={() => fillBlanks()} disabled={isGenerating}>
-                        <Wand2 size={16}/> 空欄自動作成
-                    </button>
-                    <button className="btn" style={{flex: isNarrowViewport ? 1 : 'none', justifyContent: 'center'}} onClick={() => generateShift()} disabled={isGenerating}>
-                        <Wand2 size={16}/> 最適化シフトを生成
-                    </button>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '8px', width: 'auto'}}>
+                    <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                        <button
+                            className="btn"
+                            style={{justifyContent: 'center', minWidth: '160px', background: 'linear-gradient(135deg, #7C3AED, #1E3A8A)', color: '#fff', border: 'none'}}
+                            onClick={() => fillBlanks()}
+                            disabled={isGenerating}
+                        >
+                            <Wand2 size={16}/> 空欄自動作成
+                        </button>
+                        <button className="btn outline" style={{justifyContent: 'center'}} onClick={randomizeHolidayRequests} disabled={isGenerating}>
+                            🎲 希望休ランダム入力
+                        </button>
+                        <button
+                            type="button"
+                            className="btn outline"
+                            style={{justifyContent: 'center'}}
+                            onClick={() => setAdvancedOpen(v => !v)}
+                            aria-expanded={advancedOpen}
+                            aria-controls="advanced-operations-panel"
+                            disabled={isGenerating}
+                        >
+                            ⚙ 詳細操作
+                        </button>
+                    </div>
+                    {advancedOpen && (
+                        <div id="advanced-operations-panel" className="glass-card advanced-operations-panel" role="group" aria-label="上級操作">
+                            <div className="advanced-operations-desc">
+                                再最適化は、手動で入力済みのセルはそのまま保持し、自動生成された部分だけを再配置して作り直します。
+                            </div>
+                            <button type="button" className="btn outline" onClick={confirmAndRegenerate} disabled={isGenerating}>
+                                <Wand2 size={16}/> 最適化シフトを再生成
+                            </button>
+                        </div>
+                    )}
                 </div>
             );
         }
@@ -1677,7 +1752,7 @@ export default function App() {
                     <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)}>
                         <Menu size={24} />
                     </button>
-                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.47</span></div>
+                    <div className="logo" style={{display: 'flex', alignItems: 'center'}}><Calendar size={20} /><span style={{fontSize: '0.75rem', marginLeft: '6px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.48</span></div>
                 </div>
             )}
 
@@ -1688,7 +1763,7 @@ export default function App() {
 
             {/* Sidebar */}
             <div className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.47</span></div>
+                <div className="logo pc-only" style={{display: 'flex', alignItems: 'center'}}><Calendar style={{color:'var(--primary)'}}/> Shift-Ag <span style={{fontSize: '0.75rem', marginLeft: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '2px 6px', borderRadius: '4px', fontWeight: 600}}>v4.48</span></div>
                 <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false); closeInteractiveState();}}>
                     <Calendar size={18} /> 全体シフト表
                 </div>
@@ -1699,22 +1774,17 @@ export default function App() {
                     <Settings size={18} /> ルール設定
                 </div>
 
-                {/* Cycle10: スマホ表示では下部固定バーを廃止し、ダッシュボードの3アクションを
-                    ハンバーガーメニュー内へ統合する(PC表示のrenderActions()は従来通り維持)。 */}
+                {/* Cycle10: スマホ表示では下部固定バーを廃止し、ダッシュボードのアクションを
+                    ハンバーガーメニュー内へ統合する(PC表示のrenderActions()は従来通り維持)。
+                    Cycle13 2-2: 日常操作(空欄自動作成/希望休ランダム)と上級・再調整
+                    (最適化再生成)をセクションとして視覚的に分ける。上級操作は実行前に
+                    必ず確認を出し、確認後(承認・キャンセルいずれも)メニューを閉じる。 */}
                 {isMobileView && activeTab === 'dashboard' && (
                     <div className="sidebar-mobile-actions">
-                        <div className="sidebar-section-label">シフト操作</div>
+                        <div className="sidebar-section-label">日常操作</div>
                         <button
                             type="button"
                             className="sidebar-action-btn primary"
-                            onClick={() => { randomizeHolidayRequests(); setIsMobileMenuOpen(false); }}
-                            disabled={isGenerating}
-                        >
-                            🎲 希望休ランダム入力
-                        </button>
-                        <button
-                            type="button"
-                            className="sidebar-action-btn"
                             onClick={() => { fillBlanks(); setIsMobileMenuOpen(false); }}
                             disabled={isGenerating}
                         >
@@ -1723,10 +1793,19 @@ export default function App() {
                         <button
                             type="button"
                             className="sidebar-action-btn"
-                            onClick={() => { generateShift(); setIsMobileMenuOpen(false); }}
+                            onClick={() => { randomizeHolidayRequests(); setIsMobileMenuOpen(false); }}
                             disabled={isGenerating}
                         >
-                            <Wand2 size={16}/> 最適化シフトを生成
+                            🎲 希望休ランダム入力
+                        </button>
+                        <div className="sidebar-section-label sidebar-section-label-advanced">上級・再調整</div>
+                        <button
+                            type="button"
+                            className="sidebar-action-btn sidebar-action-btn-advanced"
+                            onClick={() => { confirmAndRegenerate(); setIsMobileMenuOpen(false); }}
+                            disabled={isGenerating}
+                        >
+                            <Wand2 size={16}/> 最適化シフトを再生成
                         </button>
                     </div>
                 )}
@@ -1811,8 +1890,9 @@ export default function App() {
                                         <button
                                             key={candidate.shiftId}
                                             type="button"
-                                            className={`stamp-palette-btn ${activeStamp?.shiftId === candidate.shiftId ? 'selected' : ''}`}
+                                            className={`stamp-palette-btn ${activeStamp?.shiftId === candidate.shiftId ? 'selected' : ''} ${candidate.isErase ? 'stamp-palette-btn-erase' : ''}`}
                                             aria-pressed={activeStamp?.shiftId === candidate.shiftId}
+                                            title={candidate.label}
                                             onClick={() => setActiveStamp(candidate)}
                                             disabled={isGenerating}
                                         >
@@ -1894,7 +1974,7 @@ export default function App() {
                                 {/* Cycle11 5.1: 氏名列とは独立した専用トグル。表の直上・左端に置き、
                                     28px折りたたみヘッダー内へ押し込んだり日付列に重ねたりしない。 */}
                                 <div className="name-col-toggle-row" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
-                                    <button type="button" className="btn outline" onClick={() => setIsFullScreen(v => !v)} style={{padding: '4px 12px', fontSize: '0.82rem', fontWeight: 600, background: isFullScreen ? '#DC2626' : '#EEF2FF', color: isFullScreen ? '#FFFFFF' : '#4F46E5', borderColor: isFullScreen ? '#DC2626' : '#C7D2FE', ...(isFullScreen ? { position: 'fixed', top: '16px', right: '16px', zIndex: 10000, boxShadow: '0 4px 12px rgba(0,0,0,0.5)', borderRadius: '8px' } : {})}} aria-label={isFullScreen ? '全画面表示を解除する' : '画面いっぱいに全画面表示する'}>{isFullScreen ? '❌ 閉じる' : '⛶ 全画面表示'}</button>
+                                    <button type="button" className="btn outline" onClick={() => { setIsFullScreen(v => !v); setAdvancedOpen(false); }} style={{padding: '4px 12px', fontSize: '0.82rem', fontWeight: 600, background: isFullScreen ? '#DC2626' : '#EEF2FF', color: isFullScreen ? '#FFFFFF' : '#4F46E5', borderColor: isFullScreen ? '#DC2626' : '#C7D2FE', ...(isFullScreen ? { position: 'fixed', top: '16px', right: '16px', zIndex: 10000, boxShadow: '0 4px 12px rgba(0,0,0,0.5)', borderRadius: '8px' } : {})}} aria-label={isFullScreen ? '全画面表示を解除する' : '画面いっぱいに全画面表示する'}>{isFullScreen ? '❌ 閉じる' : '⛶ 全画面表示'}</button>
                                     {isFullScreen && (<style>{`.mobile-header, .sidebar, .sidebar-overlay, .month-header, .zoom-controls { display: none !important; } .main-content { padding: 0 !important; margin: 0 !important; } .matrix-glass-card { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 9999 !important; border-radius: 0 !important; margin: 0 !important; background: #ffffff !important; padding: 60px 8px 8px 8px !important; } .matrix-scroll-wrapper { height: calc(100vh - 72px) !important; overflow: auto !important; }`}</style>)}
                                     <button
                                         type="button"

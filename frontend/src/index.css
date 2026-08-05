@@ -156,6 +156,16 @@ table.name-col-collapsed th.name-col {
     box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
 }
 .stamp-palette-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Cycle13 4: 消しゴムは通常候補と見分けられるよう、控えめな危険色の枠だけを使う
+   (選択中は他候補と同じ強調表示に統一し、常時目立たせすぎない)。 */
+.stamp-palette-btn-erase { border-color: #FCA5A5; color: #B91C1C; }
+.stamp-palette-btn-erase:hover { border-color: #DC2626; color: #DC2626; }
+.stamp-palette-btn-erase.selected { background: #DC2626; border-color: #DC2626; color: white; box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3); }
+
+/* Cycle13 2-2: PCの「詳細操作」トグルで開閉する上級操作パネル(再最適化)。
+   日常操作(空欄自動作成・希望休ランダム)と視覚的に分離するための最小限のスタイル。 */
+.advanced-operations-panel { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.advanced-operations-desc { font-size: 0.82rem; color: var(--text-sub); margin: 0; }
 
 /* Cycle7: PCのズームコントロール(+/-/100%フィット)。スマホでは非表示。 */
 .zoom-controls { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-bottom: 8px; max-width: 100%; }
@@ -287,6 +297,9 @@ th:nth-child(1), th:nth-child(2) { z-index: 40; }
   .sidebar-action-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--primary); background: transparent; color: var(--primary); font-weight: 600; font-size: 0.9rem; cursor: pointer; }
   .sidebar-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .sidebar-action-btn.primary { background: linear-gradient(135deg, #7C3AED, #1E3A8A); color: #fff; border: none; }
+  /* Cycle13 2-2: 上級・再調整セクションを日常操作と視覚的に分ける。 */
+  .sidebar-section-label-advanced { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--glass-border); }
+  .sidebar-action-btn-advanced { border-color: #9CA3AF; color: #4B5563; }
   .pc-only { display: none !important; }
   
   .logo { margin-bottom: 24px; justify-content: flex-start; }

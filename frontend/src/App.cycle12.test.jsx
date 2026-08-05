@@ -51,6 +51,21 @@ function getCellButton(rowIndex, dayIndex) {
     return dayTds[dayIndex].querySelector('button');
 }
 
+// Cycle13 2-2: 「最適化シフトを生成」は常時ボタンから「詳細操作」トグル配下の
+// 「最適化シフトを再生成」(要確認)へ移動した。PCでは詳細操作を開いてから押す。
+// window.confirmは呼び出し側の責任で事前にモックしておくこと(承認/拒否の両方を
+// このヘルパー越しに検証できるようにするため、ここではconfirmへ触れない)。
+function openAdvancedPanelIfNeeded() {
+    const toggle = screen.queryByRole('button', { name: /詳細操作/ });
+    if (toggle && toggle.getAttribute('aria-expanded') === 'false') {
+        fireEvent.click(toggle);
+    }
+}
+function clickRegenerate() {
+    openAdvancedPanelIfNeeded();
+    fireEvent.click(screen.getByRole('button', { name: /最適化シフトを再生成/ }));
+}
+
 beforeEach(() => {
     window.localStorage.clear();
     setViewportWidth(1280);
@@ -73,9 +88,10 @@ describe('Cycle12: 通常生成の手動セル保護(payload構築)', () => {
         seedFixture([row0, blankRow()]);
         const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'SUCCESS', shifts: { emp_0: [], emp_1: [] } }) });
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
         const body = JSON.parse(fetchMock.mock.calls[0][1].body);
@@ -93,9 +109,10 @@ describe('Cycle12: 通常生成の手動セル保護(payload構築)', () => {
         seedFixture([row0, blankRow()]);
         const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'SUCCESS', shifts: { emp_0: [], emp_1: [] } }) });
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
         const body = JSON.parse(fetchMock.mock.calls[0][1].body);
@@ -116,9 +133,10 @@ describe('Cycle12: 通常生成の応答再合成(2.3)', () => {
             json: async () => ({ status: 'SUCCESS', shifts: { emp_0: emp0Shifts, emp_1: [] } }),
         });
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
         // day0(保護セル)は生成前から既にprotectedCellと一致しているため、
         // 生成完了の目印にはday1(生成前は空セル{}、成功後は'④')の変化を待つ。
@@ -137,9 +155,10 @@ describe('Cycle12: 通常生成の応答再合成(2.3)', () => {
             json: async () => ({ status: 'FEASIBLE_WITH_WARNINGS', shifts: { emp_0: emp0Shifts, emp_1: [] }, warnings: ['dummy'] }),
         });
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
         // day1(生成前は空セル、成功後は'①')の変化を生成完了の目印にする。
         await vi.waitFor(() => expect(readStoredResult().matrix[0][1]).toEqual({ shift: '①', isError: false, isFixed: false }));
@@ -154,9 +173,10 @@ describe('Cycle12: 失敗経路でmatrix/employees/Undo・Redoが不変', () => 
         seedFixture([original, blankRow()]);
         const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'INFEASIBLE', shifts: {}, violations: ['x'], message: 'x' }) });
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
         expect(readStoredResult().matrix[0][0]).toEqual(original[0]);
@@ -169,9 +189,10 @@ describe('Cycle12: 失敗経路でmatrix/employees/Undo・Redoが不変', () => 
         const fetchMock = vi.fn().mockRejectedValue(new Error('network down'));
         vi.stubGlobal('fetch', fetchMock);
         vi.spyOn(window, 'alert').mockImplementation(() => {});
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
         await vi.waitFor(() => expect(window.alert).toHaveBeenCalled());
 
@@ -187,23 +208,28 @@ describe('Cycle12: 生成中の古い応答を無視する(2.4)', () => {
     // ここでは(a)isGenerating中は追加送信が構造的に起きないことをUIで確認し、
     // (b)requestTokenガード自体(古い応答を判定・無視するロジック)が実装されている
     // ことをコード上のガード条件で確認する形にする。
-    it('isGenerating中はボタンがdisabledになり、生成完了までは追加のfetchが発生しない', async () => {
+    it('isGenerating中は詳細操作トグルがdisabledになり(パネルも閉じる)、生成完了までは追加のfetchが発生しない', async () => {
         seedFixture([blankRow(), blankRow()]);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
         let resolveFetch;
         const fetchMock = vi.fn().mockImplementation(() => new Promise(res => { resolveFetch = res; }));
         vi.stubGlobal('fetch', fetchMock);
 
         render(<App />);
-        const genBtn = screen.getByRole('button', { name: /最適化シフトを生成/ });
-        fireEvent.click(genBtn);
-        expect(genBtn).toBeDisabled();
+        clickRegenerate();
+        expect(fetchMock).toHaveBeenCalledTimes(1);
 
-        // disabledのため2回目のclickはネイティブDOM仕様上発火しない
-        fireEvent.click(genBtn);
+        // Cycle13: 生成開始時にcloseInteractiveState()が詳細操作パネルも閉じるため、
+        // 「最適化シフトを再生成」ボタン自体は一旦DOMから消える。生成中はトグル自体が
+        // disabledになり、再度パネルを開いて2回目の要求を送ることはできない。
+        const advancedToggle = screen.getByRole('button', { name: /詳細操作/ });
+        expect(advancedToggle).toBeDisabled();
+        expect(screen.queryByRole('button', { name: /最適化シフトを再生成/ })).not.toBeInTheDocument();
+        fireEvent.click(advancedToggle); // disabledのためネイティブDOM仕様上発火しない
         expect(fetchMock).toHaveBeenCalledTimes(1);
 
         resolveFetch({ ok: true, json: async () => ({ status: 'SUCCESS', shifts: { emp_0: [], emp_1: [] } }) });
-        await vi.waitFor(() => expect(genBtn).not.toBeDisabled());
+        await vi.waitFor(() => expect(advancedToggle).not.toBeDisabled());
     });
 
     // Take2(Dex P4差戻し): ソース文字列確認だけでは実挙動を証明できないという指摘に対応。
@@ -212,6 +238,7 @@ describe('Cycle12: 生成中の古い応答を無視する(2.4)', () => {
     // 「古い応答(A)が後から届いてもstateへ反映されない」ことをDOM/localStorage観測で証明する。
     it('generateShiftとfillBlanksをまたぐ2要求で、古い応答(先発)が後から解決してもstateを上書きしない', async () => {
         seedFixture([blankRow(), blankRow()]);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
         let resolveA, resolveB;
         const fetchMock = vi.fn()
             .mockImplementationOnce(() => new Promise(res => { resolveA = res; }))
@@ -219,10 +246,9 @@ describe('Cycle12: 生成中の古い応答を無視する(2.4)', () => {
         vi.stubGlobal('fetch', fetchMock);
 
         render(<App />);
-        const genBtn = screen.getByRole('button', { name: /最適化シフトを生成/ });
-        fireEvent.click(genBtn); // 要求A(generateShift)開始・未解決
+        clickRegenerate(); // 要求A(generateShift)開始・未解決
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        expect(genBtn).toBeDisabled();
+        expect(screen.getByRole('button', { name: /詳細操作/ })).toBeDisabled();
 
         // 通常UIではdisabledのため2件目を開始できない(jsdomはネイティブbuttonの
         // disabled中click抑止をReactのイベント委譲層でも再現するため、DOM属性を
@@ -271,6 +297,22 @@ describe('Cycle12 Take2(main統合P1): 全画面表示中もスタンプ開始�
         fireEvent.pointerDown(btn0, { pointerId: 1, clientX: 100, clientY: 100 });
         fireEvent.pointerUp(btn0, { pointerId: 1, clientX: 101, clientY: 100 });
         expect(readStoredResult().matrix[0][0]).toEqual({ shift: '休', isFixed: true, isError: false });
+
+        // Cycle13 5-2 #13: 全画面表示中も消しゴム・特殊シフトスタンプの選択・消去が操作できる。
+        fireEvent.click(screen.getByRole('button', { name: '消しゴム（空欄にする）' }));
+        fireEvent.pointerDown(btn0, { pointerId: 2, clientX: 100, clientY: 100 });
+        fireEvent.pointerUp(btn0, { pointerId: 2, clientX: 101, clientY: 100 });
+        expect(readStoredResult().matrix[0][0]).toEqual({});
+
+        fireEvent.click(screen.getByRole('button', { name: '有休' }));
+        const btn1 = getCellButton(0, 1);
+        fireEvent.pointerDown(btn1, { pointerId: 3, clientX: 100, clientY: 100 });
+        fireEvent.pointerUp(btn1, { pointerId: 3, clientX: 101, clientY: 100 });
+        expect(readStoredResult().matrix[0][1]).toEqual({ shift: '有休', isFixed: true, isError: false, hours: 4 });
+
+        // 全画面表示中もスタンプモードを終了できる(背面UIへ操作を戻せる)。
+        fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを終了する' }));
+        expect(screen.queryByRole('button', { name: 'スタンプモードを終了する' })).not.toBeInTheDocument();
 
         // jsdomは<style>タグ除去後もCSSOMルールを保持し続けることがあるため、
         // 他テストへの汚染を防ぐ目的で全画面表示を明示的にOFFへ戻してから終える
@@ -330,9 +372,10 @@ describe('Cycle12 Take3(P4差戻しFinding2): 全画面表示中、背面の不�
         seedFixture([blankRow(), blankRow()]);
         const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'INFEASIBLE', shifts: {}, warnings: ['条件を満たす配置が見つかりません'] }) });
         vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         return vi.waitFor(() => {
             const panel = document.querySelector('.infeasible-panel');
             expect(panel).toBeInTheDocument();
@@ -359,9 +402,10 @@ describe('Cycle12: スタンプモード', () => {
         const fetchMock = vi.fn();
         vi.stubGlobal('fetch', fetchMock);
         vi.spyOn(window, 'alert').mockImplementation(() => {});
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         render(<App />);
-        fireEvent.click(screen.getByRole('button', { name: /最適化シフトを生成/ }));
+        clickRegenerate();
         expect(fetchMock).not.toHaveBeenCalled();
 
         fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
@@ -418,8 +462,11 @@ describe('Cycle12: スタンプモード', () => {
         expect(readStoredResult().matrix[0][2].shift).toBe('休');
     });
 
-    it('同じシフトを同じセルへ重ねてもno-op(履歴・Redoを増減しない)', () => {
-        seedFixture([[{ shift: '休', isFixed: true, isError: false }, ...blankRow().slice(1)], blankRow()]);
+    // Cycle13 3(Dex P2最終指示書): 旧isStampNoOp仕様(同じシフトを同じセルへ重ねてもno-op)は
+    // 廃止された。同値スタンプは完全空欄化(トグル消去)する新仕様に置換する。
+    it('同じシフトを同じセルへ重ねると完全空欄化される(トグル消去、1履歴・Undoで復元)', () => {
+        const original = { shift: '休', isFixed: true, isError: false, note: 'メモ' };
+        seedFixture([[original, ...blankRow().slice(1)], blankRow()]);
         render(<App />);
         fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
 
@@ -427,8 +474,15 @@ describe('Cycle12: スタンプモード', () => {
         const btn0 = getCellButton(0, 0);
         fireEvent.pointerDown(btn0, { pointerId: 1, clientX: 100, clientY: 100 });
         fireEvent.pointerUp(btn0, { pointerId: 1, clientX: 101, clientY: 100 });
-        // 既にactive stamp='休'かつ既存セルも'休' -> no-op
-        expect(screen.getByRole('button', { name: '元に戻す(Undo)' })).toBeDisabled();
+        // 既にactive stamp='休'かつ既存セルも'休' -> 属性(note含む)を残さず完全空欄化
+        expect(readStoredResult().matrix[0][0]).toEqual({});
+        expect(screen.getByRole('button', { name: '元に戻す(Undo)' })).not.toBeDisabled();
+
+        // Undoで元の属性付きセルへ完全復元し、Redoで再び空欄へ戻る。
+        fireEvent.click(screen.getByRole('button', { name: '元に戻す(Undo)' }));
+        expect(readStoredResult().matrix[0][0]).toEqual(original);
+        fireEvent.click(screen.getByRole('button', { name: 'やり直す(Redo)' }));
+        expect(readStoredResult().matrix[0][0]).toEqual({});
     });
 
     it('希望休スタンプ後、employees[].requestsがmatrixと即時一致する', () => {
@@ -467,5 +521,261 @@ describe('Cycle12: スタンプモード', () => {
 
         fireEvent.click(screen.getByRole('button', { name: '④ 8:15～17:30' }));
         expect(screen.getByText('④ 8:15～17:30', { selector: 'strong' })).toBeInTheDocument();
+    });
+});
+
+describe('Cycle13 3: 同値スタンプのトグル空欄化', () => {
+    it('同値「希望休」スタンプはmatrixを空欄化し、employees[].requestsから即時に該当日を消す(1履歴・Undo/Redoで往復)', () => {
+        const row0 = [{ shift: '希望休', isFixed: true, isError: false }, ...blankRow().slice(1)];
+        const employees = [
+            { name: '太郎', type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④', '⑦'], requests: '1', targetHours: null },
+            { name: '花子', type: '準社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: null },
+        ];
+        seedFixture([row0, blankRow()], employees);
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
+        fireEvent.click(screen.getByRole('button', { name: '希望休' }));
+
+        const btn0 = getCellButton(0, 0);
+        fireEvent.pointerDown(btn0, { pointerId: 1, clientX: 100, clientY: 100 });
+        fireEvent.pointerUp(btn0, { pointerId: 1, clientX: 101, clientY: 100 });
+
+        expect(readStoredResult().matrix[0][0]).toEqual({});
+        expect(JSON.parse(window.localStorage.getItem('shift_employees'))[0].requests).toBe('');
+        expect(screen.getByRole('button', { name: '元に戻す(Undo)' })).not.toBeDisabled();
+
+        fireEvent.click(screen.getByRole('button', { name: '元に戻す(Undo)' }));
+        expect(readStoredResult().matrix[0][0].shift).toBe('希望休');
+        expect(JSON.parse(window.localStorage.getItem('shift_employees'))[0].requests).toBe('1');
+
+        fireEvent.click(screen.getByRole('button', { name: 'やり直す(Redo)' }));
+        expect(readStoredResult().matrix[0][0]).toEqual({});
+    });
+
+    it('許可リストから外れた通常シフトでも同値セルの消去はalertなしで成功し、異なる通常スタンプは従来どおり拒否される', () => {
+        const employees = [
+            { name: '太郎', type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['⑦'], requests: '', targetHours: null }, // ④は許可外
+            { name: '花子', type: '準社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: null },
+        ];
+        const row0 = [{ shift: '④', isFixed: true, isError: false }, {}, ...blankRow().slice(2)];
+        seedFixture([row0, blankRow()], employees);
+        vi.spyOn(window, 'alert').mockImplementation(() => {});
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
+        fireEvent.click(screen.getByRole('button', { name: '④ 8:15～17:30' }));
+
+        // day0は既に④(太郎には許可外だが同値) -> 消去は許可判定より先に成功し、alertは出ない
+        const btn0 = getCellButton(0, 0);
+        fireEvent.pointerDown(btn0, { pointerId: 1, clientX: 100, clientY: 100 });
+        fireEvent.pointerUp(btn0, { pointerId: 1, clientX: 101, clientY: 100 });
+        expect(readStoredResult().matrix[0][0]).toEqual({});
+        expect(window.alert).not.toHaveBeenCalled();
+
+        // day1は空欄(同値ではない) -> 通常どおり許可判定へ進み、許可外のため拒否されalertが出る
+        const btn1 = getCellButton(0, 1);
+        fireEvent.pointerDown(btn1, { pointerId: 2, clientX: 100, clientY: 100 });
+        fireEvent.pointerUp(btn1, { pointerId: 2, clientX: 101, clientY: 100 });
+        expect(readStoredResult().matrix[0][1]).toEqual({});
+        expect(window.alert).toHaveBeenCalled();
+    });
+});
+
+describe('Cycle13 4/4-1: 消しゴムと特殊シフトスタンプ4種', () => {
+    it('パレットに消しゴムと有休/応援/勉強会/店長会が表示され、選択状態と現在の筆表示が切り替わる', () => {
+        seedFixture([blankRow(), blankRow()]);
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
+
+        ['消しゴム（空欄にする）', '有休', '応援', '勉強会', '店長会'].forEach(label => {
+            expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: '有休' }));
+        expect(screen.getByText('有休', { selector: 'strong' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '有休' })).toHaveAttribute('aria-pressed', 'true');
+
+        fireEvent.click(screen.getByRole('button', { name: '消しゴム（空欄にする）' }));
+        expect(screen.getByText('消しゴム（空欄にする）', { selector: 'strong' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '消しゴム（空欄にする）' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('特殊シフトスタンプは早番①由来の初期hoursを明示保存し、許可シフト一覧に無くても使える', () => {
+        const employees = [
+            { name: '太郎', type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: null }, // 有休は許可リストに無い
+            { name: '花子', type: '準社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: null },
+        ];
+        seedFixture([blankRow(), blankRow()], employees);
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
+        fireEvent.click(screen.getByRole('button', { name: '有休' }));
+
+        const btn0 = getCellButton(0, 0);
+        fireEvent.pointerDown(btn0, { pointerId: 1, clientX: 100, clientY: 100 });
+        fireEvent.pointerUp(btn0, { pointerId: 1, clientX: 101, clientY: 100 });
+
+        // 既定のSHIFT_MASTERの①は8:15〜12:15 -> 4h
+        expect(readStoredResult().matrix[0][0]).toEqual({ shift: '有休', isFixed: true, isError: false, hours: 4 });
+    });
+
+    it('①の時間帯が不正/欠損の場合、特殊スタンプの初期hoursは既定(8h)へフォールバックする', () => {
+        seedFixture([blankRow(), blankRow()]);
+        window.localStorage.setItem('shift_custom_master', JSON.stringify({ '④': '8:15～17:30' })); // ①が無い
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
+        fireEvent.click(screen.getByRole('button', { name: '応援' }));
+
+        const btn0 = getCellButton(0, 0);
+        fireEvent.pointerDown(btn0, { pointerId: 1, clientX: 100, clientY: 100 });
+        fireEvent.pointerUp(btn0, { pointerId: 1, clientX: 101, clientY: 100 });
+
+        expect(readStoredResult().matrix[0][0]).toEqual({ shift: '応援', isFixed: true, isError: false, hours: 8 });
+    });
+
+    it('特殊スタンプで作ったセルは通常編集で任意のhoursへ変更でき、同値再タップではhours/noteを残さず空欄化する', () => {
+        const row0 = [{ shift: '有休', isFixed: true, isError: false, hours: 4 }, ...blankRow().slice(1)];
+        seedFixture([row0, blankRow()]);
+        render(<App />);
+
+        // スタンプOFFのまま通常どおりセルを開き、hoursを個別に変更できる。
+        fireEvent.click(getCellButton(0, 0));
+        const hoursInput = screen.getByDisplayValue('4');
+        fireEvent.change(hoursInput, { target: { value: '6' } });
+        fireEvent.click(screen.getByRole('button', { name: '保存する' }));
+        expect(readStoredResult().matrix[0][0]).toEqual({ shift: '有休', isFixed: true, isError: false, hours: 6 });
+
+        // スタンプONで同値(有休)を再タップすると、hoursを残さず完全空欄化される。
+        fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
+        fireEvent.click(screen.getByRole('button', { name: '有休' }));
+        const btn0 = getCellButton(0, 0);
+        fireEvent.pointerDown(btn0, { pointerId: 1, clientX: 100, clientY: 100 });
+        fireEvent.pointerUp(btn0, { pointerId: 1, clientX: 101, clientY: 100 });
+        expect(readStoredResult().matrix[0][0]).toEqual({});
+    });
+
+    it('消しゴムは通常シフト・希望休・自由時間・特殊シフト4種のいずれも完全に消去し、希望休はrequestsも同期する', () => {
+        const row0 = [
+            { shift: '④', isFixed: true, isError: false }, // 通常
+            { shift: '希望休', isFixed: true, isError: false }, // 希望休
+            { shift: '__custom__10_00_15_00', isFixed: true, isError: false }, // 自由時間
+            { shift: '有休', isFixed: true, isError: false, hours: 5, note: 'メモ' }, // 特殊
+            ...blankRow().slice(4),
+        ];
+        const employees = [
+            { name: '太郎', type: '正社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④', '⑦'], requests: '2', targetHours: null },
+            { name: '花子', type: '準社員', isRS: false, isKeyHolder: false, days: 23, shifts: ['④'], requests: '', targetHours: null },
+        ];
+        seedFixture([row0, blankRow()], employees);
+        window.localStorage.setItem('shift_custom_master', JSON.stringify({
+            '①': '8:15～12:15', '④': '8:15～17:30', '⑦': '15:30～24:00',
+            '__custom__10_00_15_00': '10:00～15:00',
+        }));
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
+        fireEvent.click(screen.getByRole('button', { name: '消しゴム（空欄にする）' }));
+
+        [0, 1, 2, 3].forEach(d => {
+            const btn = getCellButton(0, d);
+            fireEvent.pointerDown(btn, { pointerId: d + 1, clientX: 100, clientY: 100 });
+            fireEvent.pointerUp(btn, { pointerId: d + 1, clientX: 101, clientY: 100 });
+        });
+
+        [0, 1, 2, 3].forEach(d => {
+            expect(readStoredResult().matrix[0][d]).toEqual({});
+        });
+        expect(JSON.parse(window.localStorage.getItem('shift_employees'))[0].requests).toBe('');
+    });
+
+    it('消しゴムで空欄セルを選んでも履歴・Redo・matrix・requestsを変えない(真のno-op)', () => {
+        seedFixture([blankRow(), blankRow()]);
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
+        fireEvent.click(screen.getByRole('button', { name: '消しゴム（空欄にする）' }));
+
+        expect(screen.getByRole('button', { name: '元に戻す(Undo)' })).toBeDisabled();
+        const btn0 = getCellButton(0, 0);
+        fireEvent.pointerDown(btn0, { pointerId: 1, clientX: 100, clientY: 100 });
+        fireEvent.pointerUp(btn0, { pointerId: 1, clientX: 101, clientY: 100 });
+        expect(screen.getByRole('button', { name: '元に戻す(Undo)' })).toBeDisabled();
+        expect(readStoredResult().matrix[0][0]).toEqual({});
+    });
+
+    it('消しゴムはキーボードEnter/Space(click detail:0)とpointer短タップで同じ消去が起き、横スワイプでは起きない', () => {
+        const row0 = [{ shift: '④', isFixed: true, isError: false }, { shift: '④', isFixed: true, isError: false }, ...blankRow().slice(2)];
+        seedFixture([row0, blankRow()]);
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
+        fireEvent.click(screen.getByRole('button', { name: '消しゴム（空欄にする）' }));
+
+        // キーボード(detail:0のclick)で消去される。
+        fireEvent.click(getCellButton(0, 0), { detail: 0 });
+        expect(readStoredResult().matrix[0][0]).toEqual({});
+
+        // 40px横スワイプでは消去されない(短タップ判定を通過しないため)。
+        const btn1 = getCellButton(0, 1);
+        fireEvent.pointerDown(btn1, { pointerId: 1, clientX: 100, clientY: 100 });
+        fireEvent.pointerUp(btn1, { pointerId: 1, clientX: 140, clientY: 100 });
+        expect(readStoredResult().matrix[0][1].shift).toBe('④');
+    });
+
+    it('スタンプON中は消しゴム・特殊スタンプでもセル編集モーダルが開かない', () => {
+        seedFixture([blankRow(), blankRow()]);
+        render(<App />);
+        fireEvent.click(screen.getByRole('button', { name: 'スタンプモードを開始する' }));
+
+        fireEvent.click(screen.getByRole('button', { name: '消しゴム（空欄にする）' }));
+        const btn0 = getCellButton(0, 0);
+        fireEvent.pointerDown(btn0, { pointerId: 1, clientX: 100, clientY: 100 });
+        fireEvent.pointerUp(btn0, { pointerId: 1, clientX: 101, clientY: 100 });
+        expect(screen.queryByText(/太郎.*の勤務を編集/)).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: '有休' }));
+        const btn1 = getCellButton(0, 1);
+        fireEvent.pointerDown(btn1, { pointerId: 2, clientX: 100, clientY: 100 });
+        fireEvent.pointerUp(btn1, { pointerId: 2, clientX: 101, clientY: 100 });
+        expect(screen.queryByText(/太郎.*の勤務を編集/)).not.toBeInTheDocument();
+    });
+});
+
+describe('Cycle13 2: 生成UI整理(空欄自動作成が主操作、再最適化は上級操作)', () => {
+    it('PCでは空欄自動作成が主操作として常時表示され、詳細操作を開くと再最適化が現れる', () => {
+        seedFixture([blankRow(), blankRow()]);
+        render(<App />);
+        expect(screen.getByRole('button', { name: /空欄自動作成/ })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /最適化シフトを再生成/ })).not.toBeInTheDocument();
+
+        const toggle = screen.getByRole('button', { name: /詳細操作/ });
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.click(toggle);
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByRole('button', { name: /最適化シフトを再生成/ })).toBeInTheDocument();
+    });
+
+    it('確認ダイアログをキャンセルすると、fetch・履歴・表・isGeneratingを一切変更しない', () => {
+        const original = [{ shift: '④', isFixed: true, isError: false }, ...blankRow().slice(1)];
+        seedFixture([original, blankRow()]);
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(window, 'confirm').mockReturnValue(false);
+        render(<App />);
+
+        clickRegenerate();
+
+        expect(window.confirm).toHaveBeenCalled();
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(readStoredResult().matrix[0][0]).toEqual(original[0]);
+        expect(screen.queryByText(/最適化を実行中/)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '元に戻す(Undo)' })).toBeDisabled();
+    });
+
+    it('スマホのハンバーガーメニューでも日常操作と上級・再調整セクションが分かれて表示される', () => {
+        setViewportWidth(375);
+        seedFixture([blankRow(), blankRow()]);
+        render(<App />);
+        fireEvent.click(document.querySelector('.hamburger-btn'));
+
+        const sectionLabels = Array.from(document.querySelectorAll('.sidebar-section-label')).map(el => el.textContent);
+        expect(sectionLabels).toEqual(expect.arrayContaining(['日常操作', '上級・再調整']));
+        expect(screen.getByRole('button', { name: /空欄自動作成/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /最適化シフトを再生成/ })).toBeInTheDocument();
     });
 });
