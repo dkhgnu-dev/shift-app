@@ -4,18 +4,18 @@
 
 - Name: 友達シフト
 - Repository: `dkhgnu-dev/shift-app`
-- Working Branch: `main`
+- Working Branch: `air-cycle13-ui-stamp-toggle`
 - Main agents: Air / CC / アグ
 - External reviewer/integrator: Dex
 
 ## Current State
 
-- Cycle: 12 完了・main統合済み
-- Status: Kazumaxの明示承認後、Dex(P5)がレビュー済み統合branchをmainへ競合なしで統合。手動配置シフトの自動生成上書き防止と、スタンプ式の連続一括入力をv4.47として反映した。
+- Cycle: 13 要望確定 -> Air(P1) Blueprint待ち
+- Status: Kazumaxが「空欄自動作成を主操作にし、再最適化を上級操作へ移す」「同じスタンプを同じセルへ再度押すと空欄へ戻す」を採用。要件を`docs/proposals/Kazumax_cycle_13_generation_ui_and_stamp_toggle.md`へ保存済み。
 - Version: v4.47
 - 採番の経緯: Take3で製品UI(App.jsx)を変更したため、直前バージョンから1つ進めた。それ以前の経緯は、main起点が当時v4.44、mergeしたcc-cycle12-stamp-and-protect側が v4.45 だったため両方より新しい値を採用し、Take3対応はさらにその次を採用した、というもの。fetch確認時点でもorigin/mainのApp.jsxはv4.44のまま(衝突なし)。
-- Next: Render等の公開環境がmainのv4.47へ自動デプロイされたことを確認する。人間確認は、画面にv4.47と「スタンプ」ボタンが表示されることだけでよい。
-- **重要**: Cycle 12のmain統合は完了。次サイクル開始時は最新mainをpullしてから作業branchを作る。
+- Next: Air(P1)が要望ファイルを読み、Cycle 13 Blueprintを`docs/handoff/P1_Air_Blueprint/`へ作成する。完成後はDex(P2)事前監査へ回す。
+- **重要**: Cycle 12はmain統合済み。Cycle 13では履歴、希望休同期、スタンプ操作、PC/スマホ生成導線の回帰を必ず検証する。
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
 - Air Blueprint (Cycle 12): `docs/handoff/P1_Air_Blueprint/cycle_12_shift_protection_and_stamp_mode.md`
 - Dex P2 Instructions (Cycle 12): `docs/handoff/P2_Dex_to_CC/cycle_12_protection_and_stamp_instructions.md`
