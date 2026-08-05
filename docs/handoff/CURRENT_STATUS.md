@@ -11,11 +11,11 @@
 ## Current State
 
 - Cycle: 13 Dex P2完了 -> CC(P3)実装待ち
-- Status: Dex(P2)がAir Blueprintを監査し、空欄自動作成の主操作化、再最適化の上級確認導線、同値スタンプのトグル空欄化に加え、Kazumax追加の消しゴムスタンプ（任意の入力済みセルを連続空欄化）を最終指示書へ統合した。履歴原子性、希望休同期、許可判定順、PC/スマホ/全画面操作、既存テスト移行を必須ゲート化した。
+- Status: Dex(P2)がAir Blueprintを監査し、空欄自動作成の主操作化、再最適化の上級確認導線、同値スタンプのトグル空欄化に加え、Kazumax追加の消しゴムスタンプと、最初から使える有休・応援・勉強会・店長会の特殊スタンプを最終指示書へ統合した。特殊スタンプは早番①相当の計上時間を初期値とし、後から既存セル編集で変更できる。履歴原子性、希望休同期、許可判定順、PC/スマホ/全画面操作、既存テスト移行を必須ゲート化した。
 - Version: v4.47
 - 採番の経緯: 今回はAir(P1)の設計提案および文書更新のみであり製品コード変更を伴わないため現行バージョンを維持。CC実装時にはその時点の最新mainから正確に+1を進めるよう指定。
 - Next: CC(P3)が`docs/handoff/P2_Dex_to_CC/cycle_13_generation_ui_and_stamp_toggle_instructions.md`を読み、`cc-cycle13-generation-ui-stamp-toggle`で実装・検証・P3報告を行う。
-- **重要**: Cycle 12はmain統合済み。Cycle 13では履歴原子性、希望休同期、トグル空欄化、消しゴム、PC/スマホ生成導線の回帰および全件テストを必ず保証する。
+- **重要**: Cycle 12はmain統合済み。Cycle 13では履歴原子性、希望休同期、トグル空欄化、消しゴム、特殊スタンプの初期hours、PC/スマホ生成導線の回帰および全件テストを必ず保証する。
 - Manual: アグは毎回 `docs/AGU_START_HERE.md` を最初に読み、製品コード変更時はversion gateを通す。
 - Air Blueprint (Cycle 13): `docs/handoff/P1_Air_Blueprint/cycle_13_generation_ui_and_stamp_toggle.md`
 - Dex P2 Instructions (Cycle 13): `docs/handoff/P2_Dex_to_CC/cycle_13_generation_ui_and_stamp_toggle_instructions.md`
